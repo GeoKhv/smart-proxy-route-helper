@@ -12,7 +12,8 @@ export type RelatedDomainCandidateReason =
   | "third-party-resource"
   | "known-tracking-or-analytics"
   | "shared-infrastructure"
-  | "local-or-adblock-helper";
+  | "local-or-adblock-helper"
+  | "system-or-schema-helper";
 
 export type RelatedDomainCandidate = {
   domain: string;
@@ -77,6 +78,7 @@ const trackingOrAnalyticsDomains = new Set([
 
 const sharedInfrastructureDomains = new Set(["akamaihd.net", "cloudfront.net", "googleapis.com", "gstatic.com"]);
 const localOrAdblockHelperHosts = new Set(["local.adguard.org"]);
+const systemOrSchemaHelperDomains = new Set(["w3.org"]);
 
 function emptyResult(currentDomain: string | null): RelatedDomainCandidatesResult {
   return {
@@ -202,6 +204,15 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
     }
 
     const observedBaseDomain = getBaseDomain(observedHost);
+
+    if (systemOrSchemaHelperDomains.has(observedBaseDomain)) {
+      addCandidate(
+        candidatesByCategory,
+        "ignoredCandidates",
+        createCandidate(observedBaseDomain, "system-or-schema-helper", observedHost, false, false)
+      );
+      continue;
+    }
 
     if (observedBaseDomain === currentBaseDomain) {
       const observedIsSubdomain = isSubdomainOf(observedHost, currentBaseDomain);

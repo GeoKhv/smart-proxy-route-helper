@@ -87,6 +87,8 @@ export type RelatedDomainPopupResultState =
 
 export type RelatedDomainCandidateCategory = "strong" | "medium" | "ignored";
 
+export type RelatedDomainCandidateGroupKey = "strong" | "medium" | "alreadyCovered" | "ignored";
+
 export type RelatedDomainCandidateView = {
   category: RelatedDomainCandidateCategory;
   domain: string;
@@ -114,6 +116,7 @@ export type RelatedDomainPopupView = {
   diagnosticSummary?: string;
   candidates: RelatedDomainCandidateView[];
   hiddenSaveableCount: number;
+  hiddenAlreadyCoveredCount: number;
   hiddenIgnoredCount: number;
 };
 
@@ -142,6 +145,7 @@ let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
 let relatedDomainPreviewDomain: string | null = null;
 
 const relatedDomainSaveableCandidateLimit = 12;
+const relatedDomainAlreadyCoveredCandidateLimit = 6;
 const relatedDomainIgnoredCandidateLimit = 4;
 
 const relatedDomainReasonLabels: Record<RelatedDomainCandidateReason, string> = {
@@ -150,7 +154,8 @@ const relatedDomainReasonLabels: Record<RelatedDomainCandidateReason, string> = 
   "third-party-resource": "resource on current page",
   "known-tracking-or-analytics": "analytics or tracking host",
   "shared-infrastructure": "shared infrastructure",
-  "local-or-adblock-helper": "local or adblock helper"
+  "local-or-adblock-helper": "local or adblock helper",
+  "system-or-schema-helper": "system or schema helper"
 };
 
 type ActiveTabSnapshot = {
@@ -262,17 +267,37 @@ function cappedRelatedDomainCandidateViews(
 ): {
   candidates: RelatedDomainCandidateView[];
   hiddenSaveableCount: number;
+  hiddenAlreadyCoveredCount: number;
   hiddenIgnoredCount: number;
 } {
-  const saveableCandidates = candidates.filter((candidate) => candidate.category !== "ignored");
+  const saveableCandidates = candidates.filter((candidate) => candidate.saveable);
+  const alreadyCoveredCandidates = candidates.filter(
+    (candidate) => candidate.category !== "ignored" && candidate.alreadyCovered
+  );
   const ignoredCandidates = candidates.filter((candidate) => candidate.category === "ignored");
   const visibleSaveableCandidates = saveableCandidates.slice(0, relatedDomainSaveableCandidateLimit);
+  const visibleAlreadyCoveredCandidates = alreadyCoveredCandidates.slice(0, relatedDomainAlreadyCoveredCandidateLimit);
   const visibleIgnoredCandidates = ignoredCandidates.slice(0, relatedDomainIgnoredCandidateLimit);
 
   return {
-    candidates: [...visibleSaveableCandidates, ...visibleIgnoredCandidates],
+    candidates: [...visibleSaveableCandidates, ...visibleAlreadyCoveredCandidates, ...visibleIgnoredCandidates],
     hiddenSaveableCount: Math.max(0, saveableCandidates.length - visibleSaveableCandidates.length),
+    hiddenAlreadyCoveredCount: Math.max(
+      0,
+      alreadyCoveredCandidates.length - visibleAlreadyCoveredCandidates.length
+    ),
     hiddenIgnoredCount: Math.max(0, ignoredCandidates.length - visibleIgnoredCandidates.length)
+  };
+}
+
+export function groupRelatedDomainCandidateViews(
+  candidates: readonly RelatedDomainCandidateView[]
+): Record<RelatedDomainCandidateGroupKey, RelatedDomainCandidateView[]> {
+  return {
+    strong: candidates.filter((candidate) => candidate.category === "strong" && candidate.saveable),
+    medium: candidates.filter((candidate) => candidate.category === "medium" && candidate.saveable),
+    alreadyCovered: candidates.filter((candidate) => candidate.category !== "ignored" && candidate.alreadyCovered),
+    ignored: candidates.filter((candidate) => candidate.category === "ignored")
   };
 }
 
@@ -609,7 +634,7 @@ export function getRelatedDomainPreviewActionStatus(
   if (strongCandidates.length === 0 && mediumCandidates.length === 0) {
     if (preview.resultState === "hosts_collected_but_all_internal_or_ignored" || ignoredCount > 0) {
       return {
-        message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
+        message: "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.",
         kind: "neutral"
       };
     }
@@ -693,6 +718,7 @@ export function buildRelatedDomainPopupView(
       diagnosticSummary: preview.status === "success" ? previewDiagnosticSummary(summary) : undefined,
       candidates: [],
       hiddenSaveableCount: 0,
+      hiddenAlreadyCoveredCount: 0,
       hiddenIgnoredCount: 0
     };
   }
@@ -751,7 +777,13 @@ export function buildRelatedDomainPopupView(
   const hiddenParts: string[] = [];
 
   if (capped.hiddenSaveableCount > 0) {
-    hiddenParts.push(`${capped.hiddenSaveableCount} more reviewable candidate${capped.hiddenSaveableCount === 1 ? "" : "s"} hidden`);
+    hiddenParts.push(`${capped.hiddenSaveableCount} more saveable candidate${capped.hiddenSaveableCount === 1 ? "" : "s"} hidden`);
+  }
+
+  if (capped.hiddenAlreadyCoveredCount > 0) {
+    hiddenParts.push(
+      `${capped.hiddenAlreadyCoveredCount} already-covered candidate${capped.hiddenAlreadyCoveredCount === 1 ? "" : "s"} hidden`
+    );
   }
 
   if (capped.hiddenIgnoredCount > 0) {
@@ -874,14 +906,15 @@ function resetRelatedDomainPreview(): void {
   preview.textContent = "";
 }
 
-function candidateCategoryTitle(category: RelatedDomainCandidateCategory): string {
-  const titles: Record<RelatedDomainCandidateCategory, string> = {
+function candidateGroupTitle(group: RelatedDomainCandidateGroupKey): string {
+  const titles: Record<RelatedDomainCandidateGroupKey, string> = {
     strong: "Strong candidates",
     medium: "Review manually",
+    alreadyCovered: "Already covered",
     ignored: "Ignored"
   };
 
-  return titles[category];
+  return titles[group];
 }
 
 function candidateCoverageLabel(candidate: RelatedDomainCandidateView): string {
@@ -915,7 +948,7 @@ function updateRelatedDomainSaveButtonState(): void {
 }
 
 function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView): HTMLElement {
-  const row = document.createElement(candidate.category === "ignored" ? "div" : "label");
+  const row = document.createElement(candidate.saveable ? "label" : "div");
 
   row.className = "candidate-row";
   row.dataset.category = candidate.category;
@@ -923,7 +956,7 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
   row.dataset.saveable = candidate.saveable ? "true" : "false";
   row.dataset.selected = candidate.selected && candidate.saveable ? "true" : "false";
 
-  if (candidate.category !== "ignored") {
+  if (candidate.saveable) {
     const checkbox = document.createElement("input");
 
     checkbox.type = "checkbox";
@@ -1179,29 +1212,39 @@ function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?
     return;
   }
 
+  const candidateGroups = groupRelatedDomainCandidateViews(view.candidates);
+
   renderRelatedDomainCandidateGroup(
     previewElement,
-    candidateCategoryTitle("strong"),
-    view.candidates.filter((candidate) => candidate.category === "strong")
+    candidateGroupTitle("strong"),
+    candidateGroups.strong
   );
   renderRelatedDomainCandidateGroup(
     previewElement,
-    candidateCategoryTitle("medium"),
-    view.candidates.filter((candidate) => candidate.category === "medium")
+    candidateGroupTitle("medium"),
+    candidateGroups.medium
   );
   renderRelatedDomainCandidateGroup(
     previewElement,
-    candidateCategoryTitle("ignored"),
-    view.candidates.filter((candidate) => candidate.category === "ignored")
+    candidateGroupTitle("alreadyCovered"),
+    candidateGroups.alreadyCovered
+  );
+  renderRelatedDomainCandidateGroup(
+    previewElement,
+    candidateGroupTitle("ignored"),
+    candidateGroups.ignored
   );
 
-  if (view.hiddenSaveableCount > 0 || view.hiddenIgnoredCount > 0) {
+  if (view.hiddenSaveableCount > 0 || view.hiddenAlreadyCoveredCount > 0 || view.hiddenIgnoredCount > 0) {
     const note = document.createElement("p");
 
     note.className = "candidate-note";
     note.textContent = [
       view.hiddenSaveableCount > 0
-        ? `${view.hiddenSaveableCount} more reviewable candidate${view.hiddenSaveableCount === 1 ? "" : "s"} hidden`
+        ? `${view.hiddenSaveableCount} more saveable candidate${view.hiddenSaveableCount === 1 ? "" : "s"} hidden`
+        : "",
+      view.hiddenAlreadyCoveredCount > 0
+        ? `${view.hiddenAlreadyCoveredCount} already-covered candidate${view.hiddenAlreadyCoveredCount === 1 ? "" : "s"} hidden`
         : "",
       view.hiddenIgnoredCount > 0
         ? `${view.hiddenIgnoredCount} ignored candidate${view.hiddenIgnoredCount === 1 ? "" : "s"} hidden`

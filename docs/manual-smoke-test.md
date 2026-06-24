@@ -157,53 +157,54 @@ await chrome.proxy.settings.get({ incognito: false });
 1. Open a supported `http` or `https` page with visible third-party resources, such as images, scripts, or stylesheets.
 2. Confirm no related-domain preview runs when the popup opens.
 3. Click "Preview related domains".
-4. Confirm the popup shows categorized strong, manually reviewable, or ignored domains when candidates are found.
-5. Confirm saveable candidates show a checkbox, domain, short reason, include-subdomains default, and whether an exact or parent rule already covers them.
-6. Confirm a checked candidate row is visually obvious, and that already-covered rows are visually distinct from checked rows.
+4. Confirm the popup separates saveable strong candidates, saveable manually reviewable candidates, already-covered candidates, and ignored candidates when those groups are present.
+5. Confirm saveable candidates show a checkbox, domain, short reason, and include-subdomains default.
+6. Confirm already-covered candidates are read-only, show whether an exact or parent rule covers them, and do not show active checkboxes.
 7. Confirm strong candidates are selected only when the engine marks them default-selected.
 8. Confirm medium candidates are not selected by default.
 9. Confirm ignored analytics/adtech/shared-infrastructure/local-helper candidates are not selected and are not saveable.
 10. Confirm obvious noisy hosts such as `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, `demdex.net`, `doubleclick.net`, `google-analytics.com`, `googletagmanager.com`, `facebook.net`, and `hotjar.com` are ignored rather than shown as normal reviewable candidates.
 11. Confirm `local.adguard.org` is ignored or absent from the saveable candidate list.
-12. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
-13. Confirm preview completion uses neutral/info styling and wording such as "No rules were saved yet", not green save-success styling.
-14. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
-15. Confirm collected hosts are not written to `chrome.storage.sync`:
+12. Confirm schema/helper hosts such as `www.w3.org` and `w3.org` are ignored or absent from the saveable candidate list.
+13. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
+14. Confirm preview completion uses neutral/info styling and wording such as "No rules were saved yet", not green save-success styling.
+15. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
+16. Confirm collected hosts are not written to `chrome.storage.sync`:
 
 ```js
 await chrome.storage.sync.get(null);
 ```
 
-16. Confirm collected hosts are not written to `chrome.storage.local`:
+17. Confirm collected hosts are not written to `chrome.storage.local`:
 
 ```js
 await chrome.storage.local.get(null);
 ```
 
-17. Confirm no domain rule is added after preview alone.
-18. Select one or more saveable candidates and click "Add selected domains".
-19. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
-20. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
+18. Confirm no domain rule is added after preview alone.
+19. Select one or more saveable candidates and click "Add selected domains".
+20. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
+21. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
 
 - `includeSubdomains` matching the candidate suggestion.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
 
-21. Confirm local proxy settings in `chrome.storage.local` are unchanged.
-22. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
-23. Confirm the preview action alone does not create or modify proxy settings:
+22. Confirm local proxy settings in `chrome.storage.local` are unchanged.
+23. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
+24. Confirm the preview action alone does not create or modify proxy settings:
 
 ```js
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-24. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
-25. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
-26. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
-27. If resource hosts were found but all are analytics/adtech/local helper domains, confirm the popup says those hosts were filtered and no rules were saved.
-28. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
-29. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
-30. Confirm the preview and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
+25. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
+26. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
+27. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
+28. If resource hosts were found but all are analytics/adtech/local helper/schema domains, confirm the popup says those hosts were filtered and no rules were saved.
+29. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
+30. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
+31. Confirm the preview and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
 
 ## LinkedIn-Like Related-Domain Save Check
 
@@ -216,8 +217,8 @@ await chrome.proxy.settings.get({ incognito: false });
 7. Confirm `linkedin.com` with subdomains included covers `www.linkedin.com`, but does not cover `media.licdn.com` or `static.licdn.com`.
 8. Confirm the popup does not show "No page resource hosts were found" when `media.licdn.com`, `static.licdn.com`, or other valid `licdn.com` resource hosts are present in resource timing, `img`/`source` `srcset`, lazy-loading `data-*` attributes, inline or computed style `url(...)`, link preload/preconnect, script resources, or accessible open shadow roots.
 9. If every collected reviewable host is already covered, confirm the popup says resource hosts were found but are already covered.
-10. If every collected host is filtered noise, confirm the popup says resource hosts were found but look like analytics/adtech/local helper domains.
-11. Confirm adtech/tracking/local helper hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, and `local.adguard.org`, when observed, do not crowd the normal saveable list.
+10. If every collected host is filtered noise, confirm the popup says resource hosts were found but look like analytics/adtech/local or schema helper domains.
+11. Confirm adtech/tracking/local/schema helper hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, `local.adguard.org`, and `www.w3.org`, when observed, do not crowd the normal saveable list.
 12. If no saveable candidates appear, confirm the preview details show counts and only sanitized hostnames, never full URLs with paths, query strings, fragments, or credentials.
 13. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
 14. Confirm the two selected domains are added as synced proxy rules and that no ignored, already-covered, or unselected candidates are saved.

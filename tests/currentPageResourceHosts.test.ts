@@ -151,21 +151,30 @@ describe("current-page resource host preview", () => {
   it("reports collected-but-ignored hosts separately from no public hosts", () => {
     const result = buildCurrentPageResourceHostPreview({
       url: "https://www.linkedin.com/feed/",
-      collectedHosts: ["https://local.adguard.org/script.js", "https://dpm.demdex.net/id"]
+      collectedHosts: [
+        "https://local.adguard.org/script.js",
+        "https://dpm.demdex.net/id",
+        "https://www.w3.org/2000/svg"
+      ]
     });
 
     expect(result.status).toBe("success");
     expect(result.resultState).toBe("hosts_collected_but_all_internal_or_ignored");
-    expect(result.collectedHosts).toEqual(["dpm.demdex.net", "local.adguard.org"]);
+    expect(result.collectedHosts).toEqual(["dpm.demdex.net", "local.adguard.org", "www.w3.org"]);
     expect(result.message).toBe(
-      "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved."
+      "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved."
     );
     expect(result.summary).toMatchObject({
-      rawEntriesInspected: 2,
-      hostsAfterSanitization: 2,
+      rawEntriesInspected: 3,
+      hostsAfterSanitization: 3,
       reviewableCandidates: 0,
-      ignoredCandidates: 2
+      ignoredCandidates: 3
     });
+    expect(result.candidates?.ignoredCandidates.map((candidate) => candidate.domain)).toEqual([
+      "demdex.net",
+      "local.adguard.org",
+      "w3.org"
+    ]);
   });
 
   it("reports no collected resource entries separately from filtered resource entries", () => {
@@ -196,7 +205,8 @@ describe("current-page resource host preview", () => {
     ).toMatchObject({
       status: "success",
       resultState: "hosts_collected_but_all_internal_or_ignored",
-      message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
+      message:
+        "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.",
       summary: {
         rawEntriesInspected: 2,
         hostsExtracted: 0,

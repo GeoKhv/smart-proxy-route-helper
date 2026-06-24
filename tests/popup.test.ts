@@ -11,6 +11,7 @@ import {
   getPopupRuleStatus,
   getRelatedDomainSaveActionStatus,
   getRelatedDomainPreviewActionStatus,
+  groupRelatedDomainCandidateViews,
   removeCurrentSiteRule
 } from "../src/popup/popup";
 import type { DomainRule } from "../src/rules/ruleTypes";
@@ -298,7 +299,7 @@ describe("popup related-domain preview messages", () => {
     expect(
       getRelatedDomainPreviewActionStatus({
         status: "success",
-        message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
+        message: "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.",
         currentDomain: "linkedin.com",
         resultState: "hosts_collected_but_all_internal_or_ignored",
         summary: {
@@ -335,7 +336,7 @@ describe("popup related-domain preview messages", () => {
         }
       })
     ).toEqual({
-      message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
+      message: "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.",
       kind: "neutral"
     });
   });
@@ -532,6 +533,12 @@ describe("popup related-domain candidate view model", () => {
       alreadyCovered: true,
       coveredBy: "github.com"
     });
+    expect(groupRelatedDomainCandidateViews(view.candidates)).toMatchObject({
+      strong: [],
+      medium: [],
+      alreadyCovered: [expect.objectContaining({ domain: "docs.github.com" })],
+      ignored: []
+    });
   });
 
   it("keeps LinkedIn media/static hosts saveable while exact covered hosts stay covered", () => {
@@ -657,6 +664,14 @@ describe("popup related-domain candidate view model", () => {
         })
       ])
     );
+
+    const groups = groupRelatedDomainCandidateViews(view.candidates);
+
+    expect(groups.strong).toEqual([]);
+    expect(groups.medium.map((candidate) => candidate.domain)).toEqual(["media.licdn.com", "static.licdn.com"]);
+    expect(groups.alreadyCovered.map((candidate) => candidate.domain)).toEqual(["linkedin.com", "dms.licdn.com"]);
+    expect(groups.alreadyCovered.every((candidate) => !candidate.saveable && !candidate.selected)).toBe(true);
+    expect(groups.ignored.map((candidate) => candidate.domain)).toEqual(["demdex.net"]);
   });
 
   it("reports collected hosts as already covered when no saveable candidates remain", () => {
@@ -854,6 +869,7 @@ describe("popup related-domain candidate view model", () => {
     expect(view.candidates.filter((candidate) => candidate.category !== "ignored")).toHaveLength(12);
     expect(view.candidates.filter((candidate) => candidate.category === "ignored")).toHaveLength(4);
     expect(view.hiddenSaveableCount).toBe(2);
+    expect(view.hiddenAlreadyCoveredCount).toBe(0);
     expect(view.hiddenIgnoredCount).toBe(2);
   });
 });
@@ -1001,6 +1017,83 @@ describe("popup related-domain selected save helper", () => {
     });
   });
 
+  it("does not save already-covered candidates even if a caller selects them", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "2 public resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "linkedin.com",
+        collectedHosts: ["dms.licdn.com", "media.licdn.com"],
+        candidates: {
+          currentDomain: "linkedin.com",
+          strongCandidates: [],
+          mediumCandidates: [
+            {
+              domain: "dms.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["dms.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "media.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["media.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      {
+        rules: [manualRule("dms.licdn.com", false)],
+        denylist: []
+      }
+    );
+
+    expect(groupRelatedDomainCandidateViews(view.candidates).medium.map((candidate) => candidate.domain)).toEqual([
+      "media.licdn.com"
+    ]);
+
+    expect(
+      addSelectedRelatedDomainRules(
+        {
+          rules: [manualRule("dms.licdn.com", false)],
+          denylist: []
+        },
+        view.candidates,
+        new Set(["dms.licdn.com", "media.licdn.com"]),
+        createdAt
+      )
+    ).toEqual({
+      ok: true,
+      status: "added",
+      rules: [
+        manualRule("dms.licdn.com", false),
+        {
+          domain: "media.licdn.com",
+          includeSubdomains: false,
+          mode: "proxy",
+          source: "diagnostic",
+          createdAt
+        }
+      ],
+      addedRules: [
+        {
+          domain: "media.licdn.com",
+          includeSubdomains: false,
+          mode: "proxy",
+          source: "diagnostic",
+          createdAt
+        }
+      ],
+      skippedDomains: ["dms.licdn.com"]
+    });
+  });
+
   it("does not save ignored candidates even if a caller selects them", () => {
     const view = buildRelatedDomainPopupView(
       {
@@ -1127,6 +1220,8 @@ describe("popup runtime boundaries", () => {
     const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
 
     expect(popupSource).toContain('row.dataset.selected = candidate.selected && candidate.saveable ? "true" : "false"');
+    expect(popupSource).toContain('const row = document.createElement(candidate.saveable ? "label" : "div")');
+    expect(popupSource).toContain("if (candidate.saveable)");
     expect(popupSource).toContain("updateCandidateRowSelection(row, checkbox)");
     expect(popupHtml).toContain('.candidate-row[data-selected="true"]');
     expect(popupHtml).toContain("accent-color: Highlight");

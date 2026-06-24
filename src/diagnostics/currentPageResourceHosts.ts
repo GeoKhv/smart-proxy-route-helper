@@ -280,7 +280,7 @@ function resultMessage(resultState: CurrentPageResourceHostResultState, summary:
   }
 
   if (resultState === "hosts_collected_but_all_internal_or_ignored") {
-    return "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.";
+    return "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.";
   }
 
   if (resultState === "hosts_collected_but_no_related_candidates") {

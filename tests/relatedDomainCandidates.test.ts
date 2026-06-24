@@ -241,6 +241,26 @@ describe("related-domain candidate engine", () => {
     ]);
   });
 
+  it("keeps system schema helper hosts ignored and non-saveable", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "linkedin.com",
+      observedUrlsOrHosts: ["https://www.w3.org/2000/svg", "w3.org"]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([
+      {
+        domain: "w3.org",
+        reason: "system-or-schema-helper",
+        sourceHosts: ["w3.org", "www.w3.org"],
+        sourceHostCount: 2,
+        suggestedIncludeSubdomains: false,
+        defaultSelected: false
+      }
+    ]);
+  });
+
   it("keeps observed LinkedIn media and static hosts visible while adtech stays ignored", () => {
     const result = buildRelatedDomainCandidates({
       currentDomain: "https://www.linkedin.com/feed/",
