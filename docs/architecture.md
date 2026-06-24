@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, an Options UI for local proxy settings and synced manual rules, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, an Options UI for local proxy settings and synced manual rules, a Popup UI for current-site rule management, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -19,9 +19,14 @@ This document describes the planned architecture. The repository currently conta
 
 Popup:
 
-- Show current device status.
-- Show whether extension-managed proxy routing is enabled.
-- Provide quick access to domain rules and options.
+- Detect the active tab URL after the user opens the popup.
+- Show the normalized current domain for supported `http` and `https` pages.
+- Show whether the current domain is routed by an exact rule, inherited from a parent `includeSubdomains` rule, blocked by internal protection or synced denylist, or currently direct.
+- Add a manual synced rule for the current domain only after an explicit user click.
+- Remove exact current-domain rules only; parent inherited rules must be edited from Options.
+- Provide quick access to Options.
+
+The popup does not inspect page content, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
 
 Options page:
 
@@ -87,7 +92,7 @@ Do not store telemetry, browsing history, raw diagnostic history, secrets, synce
 
 ## Planned Domain Rule Semantics
 
-The MVP should keep rule semantics simple:
+The MVP keeps rule semantics simple:
 
 - User enters a domain, not a full URL.
 - The extension normalizes hostnames before storage and PAC generation.
@@ -180,7 +185,7 @@ Typed storage helpers exist for `chrome.storage.sync` and `chrome.storage.local`
 The runtime boundary remains narrow:
 
 - The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
-- Popup current-site behavior is not implemented in this slice.
+- The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, and does not call `chrome.proxy.settings` directly.
 - No diagnostics are implemented.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.

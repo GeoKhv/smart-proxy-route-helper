@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold, Options configuration UI, and runtime PAC application. The popup current-site workflow and diagnostics are not implemented.
+This checklist covers the current Manifest V3 extension scaffold, Popup current-site rule management, Options configuration UI, and runtime PAC application. Diagnostics are not implemented.
 
 ## Test Environment
 
@@ -28,7 +28,7 @@ Record:
 2. Run `npm test`.
 3. Run `npm run build`.
 4. Load `dist/` as an unpacked extension in Chrome.
-5. Open the popup and confirm the placeholder UI renders.
+5. Open the popup on a regular `http` or `https` site and confirm the current domain renders.
 6. Open the options page and confirm local proxy settings, synced domain rules, and read-only denylist/ignored-domain sections render.
 7. Inspect the service worker and confirm it starts without uncaught errors.
 8. Confirm no diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
@@ -85,6 +85,42 @@ await chrome.storage.sync.get(["rules"]);
 11. Try to add `localhost`, `192.168.1.1`, and `chrome://extensions`; confirm inline validation rejects them.
 12. Remove one rule and confirm it is removed from the Options list and synced storage.
 13. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
+
+## Popup Current-Site Checks
+
+1. Open `https://letterboxd.com/`.
+2. Open the extension popup and confirm it shows `letterboxd.com`.
+3. Confirm the popup reports the direct route when no matching rule exists.
+4. Click "Route this site through proxy".
+5. Confirm a success message appears and the rule is stored in `chrome.storage.sync` with:
+
+- `domain: "letterboxd.com"`.
+- `includeSubdomains: true`.
+- `mode: "proxy"`.
+- `source: "manual"`.
+
+6. Reopen the popup and confirm it reports an exact synced rule.
+7. Click "Remove current site rule".
+8. Confirm the exact `letterboxd.com` rule is removed from `chrome.storage.sync`.
+9. Add a parent rule such as `example.com` with subdomains included, then open a subdomain like `https://www.example.com/`.
+10. Confirm the popup explains that routing is inherited from the parent rule and does not remove the parent rule silently.
+11. Open `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
+12. Confirm the popup can open Options through the "Open Options" button.
+13. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
+
+## Real-World Visible Route Checks
+
+A manual real-world check was performed with `2ip.ru` and `2ip.io` to compare visible IP and city before and after adding a domain route through a configured local proxy.
+
+To repeat this neutral route check:
+
+1. Configure a working local proxy in Options.
+2. Visit `https://2ip.ru/` with no matching synced rule and record the visible IP and city.
+3. Add a synced domain rule for `2ip.ru` with subdomains included.
+4. Reload `https://2ip.ru/` and confirm the visible IP or city reflects the configured local proxy route.
+5. Remove the `2ip.ru` rule when finished.
+6. Repeat the same check with `https://2ip.io/` if a second route visibility site is useful.
+7. Record any proxy-provider, cache, or site availability caveats in the release notes.
 
 ## Empty Rules and Missing Config Checks
 

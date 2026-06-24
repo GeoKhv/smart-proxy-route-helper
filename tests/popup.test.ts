@@ -1,0 +1,155 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  addCurrentSiteRule,
+  getCurrentTabDomain,
+  getPopupRuleStatus,
+  removeCurrentSiteRule
+} from "../src/popup/popup";
+import type { DomainRule } from "../src/rules/ruleTypes";
+
+const createdAt = "2026-06-24T00:00:00.000Z";
+
+function manualRule(domain: string, includeSubdomains = true): DomainRule {
+  return {
+    domain,
+    includeSubdomains,
+    mode: "proxy",
+    source: "manual",
+    createdAt
+  };
+}
+
+describe("popup current tab domain helpers", () => {
+  it("extracts and normalizes supported http and https URLs", () => {
+    expect(getCurrentTabDomain("https://Letterboxd.com/films/popular/")).toEqual({
+      ok: true,
+      domain: "letterboxd.com"
+    });
+    expect(getCurrentTabDomain("http://www.letterboxd.com:80/path")).toEqual({
+      ok: true,
+      domain: "www.letterboxd.com"
+    });
+  });
+
+  it("rejects unsupported browser, file, and local URLs", () => {
+    for (const url of ["chrome://extensions", "chrome-extension://abc/options.html", "file:///tmp/test.html", "about:blank"]) {
+      expect(getCurrentTabDomain(url)).toMatchObject({ ok: false });
+    }
+
+    expect(getCurrentTabDomain("http://localhost:3000")).toMatchObject({
+      ok: false,
+      message: "Localhost cannot be routed."
+    });
+    expect(getCurrentTabDomain("https://router.local")).toMatchObject({
+      ok: false,
+      message: "Internal local domains cannot be routed."
+    });
+  });
+});
+
+describe("popup rule status helpers", () => {
+  it("detects exact current-domain rules", () => {
+    const settings = {
+      rules: [manualRule("letterboxd.com", false)],
+      denylist: []
+    };
+
+    expect(getPopupRuleStatus("letterboxd.com", settings)).toMatchObject({
+      state: "exact",
+      exactRule: manualRule("letterboxd.com", false)
+    });
+  });
+
+  it("detects parent includeSubdomains routing conservatively", () => {
+    const settings = {
+      rules: [manualRule("example.com", true)],
+      denylist: []
+    };
+
+    expect(getPopupRuleStatus("watch.example.com", settings)).toMatchObject({
+      state: "inherited",
+      parentRule: manualRule("example.com", true)
+    });
+  });
+
+  it("reports stored denylist matches as blocked", () => {
+    expect(
+      getPopupRuleStatus("sub.blocked.example", {
+        rules: [],
+        denylist: ["blocked.example"]
+      })
+    ).toMatchObject({
+      state: "blocked"
+    });
+  });
+});
+
+describe("popup add current site rule helper", () => {
+  it("adds a synced manual proxy rule with subdomains included", () => {
+    expect(addCurrentSiteRule([], "https://letterboxd.com/films", createdAt)).toEqual({
+      ok: true,
+      status: "added",
+      domain: "letterboxd.com",
+      rules: [manualRule("letterboxd.com", true)]
+    });
+  });
+
+  it("prevents duplicate exact-domain rules", () => {
+    const rules = [manualRule("letterboxd.com", false)];
+
+    expect(addCurrentSiteRule(rules, "letterboxd.com", createdAt)).toEqual({
+      ok: true,
+      status: "duplicate",
+      domain: "letterboxd.com",
+      rules
+    });
+  });
+
+  it("does not add a redundant child rule when a parent includeSubdomains rule matches", () => {
+    const rules = [manualRule("example.com", true)];
+
+    expect(addCurrentSiteRule(rules, "watch.example.com", createdAt)).toEqual({
+      ok: true,
+      status: "inherited",
+      domain: "watch.example.com",
+      parentRule: manualRule("example.com", true),
+      rules
+    });
+  });
+
+  it("rejects denylisted and internal domains", () => {
+    expect(addCurrentSiteRule([], "localhost", createdAt)).toMatchObject({
+      ok: false,
+      error: "Localhost cannot be routed."
+    });
+    expect(addCurrentSiteRule([], "10.0.0.1", createdAt)).toMatchObject({
+      ok: false,
+      error: "Private network addresses cannot be routed."
+    });
+  });
+});
+
+describe("popup remove current site rule helper", () => {
+  it("removes exact current-domain rules without mutating the input list", () => {
+    const rules = [manualRule("letterboxd.com", false), manualRule("example.com", true)];
+
+    expect(removeCurrentSiteRule(rules, "letterboxd.com")).toEqual({
+      status: "removed",
+      domain: "letterboxd.com",
+      rules: [manualRule("example.com", true)]
+    });
+    expect(rules).toEqual([manualRule("letterboxd.com", false), manualRule("example.com", true)]);
+  });
+
+  it("does not remove parent includeSubdomains rules silently", () => {
+    const rules = [manualRule("example.com", true)];
+
+    expect(removeCurrentSiteRule(rules, "watch.example.com")).toEqual({
+      status: "inherited",
+      domain: "watch.example.com",
+      parentRule: manualRule("example.com", true),
+      rules
+    });
+  });
+});
