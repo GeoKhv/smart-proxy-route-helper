@@ -56,8 +56,10 @@ await chrome.proxy.settings.get({ incognito: false });
 ```
 
 9. Confirm the value uses `mode: "pac_script"` and contains inline PAC `data`, not a PAC `url`.
-10. If a local test proxy is running on the configured host/port, visit the test domain and confirm matching traffic reaches that local proxy.
-11. Visit a non-matching domain and confirm it uses the direct route.
+10. Confirm the PAC entry for matching rules returns a strict proxy string such as `SOCKS5 127.0.0.1:10808`, without `; DIRECT`.
+11. If a local test proxy is running on the configured host/port, visit the test domain and confirm matching traffic reaches that local proxy.
+12. Stop the local proxy or change the local proxy port to a known-wrong value, reload the matching test domain, and confirm it fails closed instead of silently using the direct route.
+13. Visit a non-matching domain and confirm it uses the direct route.
 
 ## Options Configuration Checks
 
@@ -140,6 +142,9 @@ await chrome.proxy.settings.get({ incognito: false });
 13. Confirm the extension restores normal proxy routing after success, failure, and timeout. If no permanent active rules exist, the extension should clear its proxy setting rather than leaving a temporary probe PAC.
 14. Confirm temporary probe state is not written to `chrome.storage.sync` or `chrome.storage.local`.
 15. Confirm diagnostics do not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, notifications, content scripts, telemetry, backend calls, remote PAC URLs, or remote executable code.
+16. Add or keep an exact synced rule for the current site, then intentionally set the local proxy port to a wrong or unavailable port.
+17. Click "Check via proxy" and confirm the popup does not report "appears reachable"; it should say the site did not appear reachable through the local proxy, with a warning that the existing synced rule is covered but local proxy settings may need attention.
+18. Confirm no duplicate synced rule is created by this failed diagnostic check.
 
 ## Real-World Visible Route Checks
 
@@ -194,9 +199,10 @@ await chrome.proxy.settings.get({ incognito: false });
 2. Confirm Chrome returns to the intended non-extension-managed state instead of receiving a direct-only PAC.
 3. Add a test domain rule and apply settings.
 4. Confirm matching traffic uses the configured local proxy.
-5. Confirm non-matching traffic uses the direct route.
-6. Disable extension-managed proxy routing.
-7. Confirm Chrome returns to the intended non-extension-managed state.
+5. Confirm matched PAC entries are fail-closed and do not include a `DIRECT` fallback.
+6. Confirm non-matching traffic uses the direct route.
+7. Disable extension-managed proxy routing.
+8. Confirm Chrome returns to the intended non-extension-managed state.
 
 ## Storage Split Checks
 

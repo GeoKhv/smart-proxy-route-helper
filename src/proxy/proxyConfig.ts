@@ -112,7 +112,7 @@ export function buildPacProxyString(input: unknown): PacProxyStringResult {
 
   return {
     ok: true,
-    proxyString: `${pacSchemeKeywords[scheme]} ${host}:${port}; DIRECT`,
+    proxyString: `${pacSchemeKeywords[scheme]} ${host}:${port}`,
     config: validation.config
   };
 }

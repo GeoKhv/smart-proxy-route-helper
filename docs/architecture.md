@@ -115,7 +115,7 @@ PAC data must be generated locally from trusted extension code and user settings
 
 The generated PAC configuration should:
 
-- Route matching domain rules through the configured local proxy.
+- Route matching domain rules through the configured local proxy without a `DIRECT` fallback.
 - Route everything else directly.
 - Avoid including unsanitized user input.
 - Match exact domains and dot-boundary subdomains only, without unsafe substring matching.
@@ -142,6 +142,7 @@ The extension should:
 Current runtime behavior:
 
 - If local device proxy settings are enabled, contain a valid local proxy config, and at least one synced rule remains after sanitization, the service worker builds a PAC script from the sanitized rules and applies it with `chrome.proxy.settings.set`.
+- Matching proxy rules are fail-closed by default: if the configured local proxy is unavailable, Chrome should fail the matched request instead of silently falling back to the direct route.
 - If the sanitized rule list is empty, the service worker calls `chrome.proxy.settings.clear` for the regular profile instead of applying a direct-only PAC.
 - If the local proxy config is missing, disabled, or sanitized as invalid, the service worker calls `chrome.proxy.settings.clear` for the regular profile.
 - Clearing is intentional: it releases this extension's proxy setting and lets Chrome return to the user's/system proxy state. Setting Chrome to `direct` would keep the extension controlling all traffic and could override user or system proxy intent.
@@ -158,11 +159,12 @@ The current diagnostic flow:
 - Rejects browser/internal pages, local/private/internal hosts, invalid domains, and synced denylist matches.
 - Requires a valid enabled local proxy configuration. If it is missing, the popup shows "Configure local proxy in Options first."
 - Sends a runtime message to the background service worker with the current URL.
-- Builds a temporary PAC from permanent synced rules plus a diagnostic probe rule for the current normalized domain.
+- Builds a temporary strict PAC from permanent synced rules plus a diagnostic probe rule for the current normalized domain when no existing synced proxy rule already covers it.
 - Applies the temporary PAC through the background proxy adapter.
 - Makes a short best-effort fetch to the current tab origin from the extension context.
 - Restores normal proxy routing afterward, including clearing extension-controlled proxy settings when there are no permanent active rules.
 - Returns cautious results such as "appears reachable" or "did not appear reachable"; it does not claim absolute site availability.
+- Does not treat direct-route fallback as proxy success. A failed local proxy path should return an unreachable result even when a synced rule already covers the site.
 
 Diagnostic probe state is not written to sync or local storage. A permanent synced rule is created only if the user explicitly clicks the follow-up add button after a successful check. That saved rule uses `source: "diagnostic"`.
 

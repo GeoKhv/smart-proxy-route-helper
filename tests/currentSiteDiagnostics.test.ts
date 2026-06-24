@@ -57,7 +57,7 @@ const successfulRestore: ApplyProxySettingsResult = {
   reason: "diagnostic-restore",
   signature: "pac:permanent",
   ruleCount: 1,
-  proxyString: "SOCKS5 127.0.0.1:10808; DIRECT"
+  proxyString: "SOCKS5 127.0.0.1:10808"
 };
 
 function createMemoryStorage(initialState: Record<string, unknown> = {}): MemoryStorageArea {
@@ -234,9 +234,31 @@ describe("current-site diagnostic planning", () => {
         createdAt
       }
     ]);
-    expect(runPac(plan.pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
-    expect(runPac(plan.pacScript, "permanent.example")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
+    expect(runPac(plan.pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(plan.pacScript, "permanent.example")).toBe("SOCKS5 127.0.0.1:10808");
     expect(runPac(plan.pacScript, "other.example")).toBe("DIRECT");
+  });
+
+  it("uses an existing synced rule instead of adding a duplicate temporary probe rule", () => {
+    const plan = buildCurrentSiteDiagnosticPlan({
+      url: "https://www.example.com/path",
+      syncSettings: {
+        ...syncSettings,
+        rules: [manualRule("example.com", true)]
+      },
+      localSettings: enabledLocalSettings,
+      createdAt
+    });
+
+    expect(plan.ok).toBe(true);
+
+    if (!plan.ok) {
+      throw new Error(plan.response.message);
+    }
+
+    expect(plan.probeRules).toEqual([manualRule("example.com", true)]);
+    expect(runPac(plan.pacScript, "www.example.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(plan.pacScript, "other.test")).toBe("DIRECT");
   });
 });
 
@@ -269,10 +291,45 @@ describe("current-site diagnostic runner", () => {
       domain: "example.com"
     });
     expect(proxySettings.calls).toHaveLength(1);
-    expect(runPac(proxySettings.calls[0].pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
+    expect(runPac(proxySettings.calls[0].pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808");
     expect(restoreCalls).toEqual(["restore"]);
     expect(syncStorage.dump()).toEqual({
       rules: [manualRule("permanent.example")]
+    });
+  });
+
+  it("reports unreachable for an existing synced rule when the local proxy path fails", async () => {
+    const proxySettings = createProxySettingsRecorder();
+    const syncStorage = createMemoryStorage({
+      rules: [manualRule("2ip.ru", true)]
+    });
+    const restoreCalls: string[] = [];
+
+    const result = await runCurrentSiteDiagnostic("https://2ip.ru/", {
+      proxySettings: proxySettings.adapter,
+      syncStorage,
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      createdAt,
+      fetcher: async () => {
+        throw new Error("proxy connection refused");
+      },
+      restoreProxySettings: async () => {
+        restoreCalls.push("restore");
+        return successfulRestore;
+      }
+    });
+
+    expect(result).toEqual({
+      status: "proxy_unreachable",
+      message: "This site did not appear reachable through your local proxy.",
+      domain: "2ip.ru"
+    });
+    expect(proxySettings.calls).toHaveLength(1);
+    expect(runPac(proxySettings.calls[0].pacScript, "2ip.ru")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(proxySettings.calls[0].pacScript, "other.test")).toBe("DIRECT");
+    expect(restoreCalls).toEqual(["restore"]);
+    expect(syncStorage.dump()).toEqual({
+      rules: [manualRule("2ip.ru", true)]
     });
   });
 

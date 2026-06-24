@@ -133,7 +133,7 @@ describe("applyProxySettings", () => {
       ok: true,
       status: "applied-pac",
       ruleCount: 1,
-      proxyString: "SOCKS5 127.0.0.1:10808; DIRECT"
+      proxyString: "SOCKS5 127.0.0.1:10808"
     });
     expect(proxySettings.calls).toHaveLength(1);
 
@@ -145,8 +145,8 @@ describe("applyProxySettings", () => {
       throw new Error("Expected PAC application call.");
     }
 
-    expect(runPac(call.pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
-    expect(runPac(call.pacScript, "sub.example.com")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
+    expect(runPac(call.pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(call.pacScript, "sub.example.com")).toBe("SOCKS5 127.0.0.1:10808");
     expect(runPac(call.pacScript, "other.test")).toBe("DIRECT");
   });
 

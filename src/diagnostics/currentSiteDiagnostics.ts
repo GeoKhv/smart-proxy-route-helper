@@ -228,11 +228,11 @@ export function rulesWithDiagnosticProbe(
   createdAt?: string
 ): DomainRule[] {
   const probeRule = createDiagnosticProbeRule(domain, createdAt);
-  const alreadyHasEquivalentRule = currentRules.some(
-    (rule) => rule.mode === "proxy" && rule.domain === probeRule.domain && rule.includeSubdomains === true
+  const alreadyCoveredByProxyRule = currentRules.some(
+    (rule) => rule.mode === "proxy" && domainMatchesRule(probeRule.domain, rule)
   );
 
-  return alreadyHasEquivalentRule ? [...currentRules] : [...currentRules, probeRule];
+  return alreadyCoveredByProxyRule ? [...currentRules] : [...currentRules, probeRule];
 }
 
 export function buildCurrentSiteDiagnosticPlan(input: {

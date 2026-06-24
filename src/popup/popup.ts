@@ -62,6 +62,12 @@ export type RemoveCurrentSiteRuleResult = {
   parentRule?: DomainRule;
 };
 
+export type DiagnosticActionStatus = {
+  message: string;
+  kind: MessageKind;
+  saveReachableDomain?: string;
+};
+
 let checkedReachableDomain: string | null = null;
 
 function denylistMessage(reason: string): string {
@@ -300,6 +306,47 @@ export function removeCurrentSiteRule(currentRules: readonly DomainRule[], input
   };
 }
 
+export function getDiagnosticActionStatus(
+  diagnostic: CurrentSiteDiagnosticResponse,
+  domain: string,
+  routeStatus: PopupRuleStatus
+): DiagnosticActionStatus {
+  if (diagnostic.status === "proxy_reachable") {
+    if (routeStatus.state === "none") {
+      return {
+        message: "This site appears reachable through your local proxy. You can add it as a synced proxy route.",
+        kind: "success",
+        saveReachableDomain: diagnostic.domain ?? domain
+      };
+    }
+
+    return {
+      message: "This site appears reachable through your local proxy. A synced rule already covers it.",
+      kind: "success"
+    };
+  }
+
+  if (diagnostic.status === "proxy_unreachable") {
+    if (routeStatus.state === "exact" || routeStatus.state === "inherited") {
+      return {
+        message:
+          "A synced rule covers this site, but it did not appear reachable through your local proxy. Check your local proxy settings.",
+        kind: "error"
+      };
+    }
+
+    return {
+      message: "This site did not appear reachable through your local proxy.",
+      kind: "error"
+    };
+  }
+
+  return {
+    message: diagnostic.message,
+    kind: diagnostic.status === "missing_proxy_config" ? "neutral" : "error"
+  };
+}
+
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
   const element = root.querySelector<T>(selector);
 
@@ -489,35 +536,15 @@ async function handleCheckViaProxy(): Promise<void> {
     const diagnostic = await requestCurrentSiteDiagnostic(activeUrl);
     const current = await getSyncSettings();
     renderSupported(result.domain, current);
+    const routeStatus = getPopupRuleStatus(result.domain, current);
+    const diagnosticActionStatus = getDiagnosticActionStatus(diagnostic, result.domain, routeStatus);
 
-    if (diagnostic.status === "proxy_reachable") {
-      const routeStatus = getPopupRuleStatus(result.domain, current);
-
-      if (routeStatus.state === "none") {
-        checkedReachableDomain = diagnostic.domain ?? result.domain;
-        setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), true);
-        setStatus(
-          actionStatus,
-          "This site appears reachable through your local proxy. You can add it as a synced proxy route.",
-          "success"
-        );
-        return;
-      }
-
-      setStatus(
-        actionStatus,
-        "This site appears reachable through your local proxy. A synced rule already covers it.",
-        "success"
-      );
-      return;
+    if (diagnosticActionStatus.saveReachableDomain) {
+      checkedReachableDomain = diagnosticActionStatus.saveReachableDomain;
+      setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), true);
     }
 
-    if (diagnostic.status === "proxy_unreachable") {
-      setStatus(actionStatus, "This site did not appear reachable through your local proxy.", "error");
-      return;
-    }
-
-    setStatus(actionStatus, diagnostic.message, diagnostic.status === "missing_proxy_config" ? "neutral" : "error");
+    setStatus(actionStatus, diagnosticActionStatus.message, diagnosticActionStatus.kind);
   } finally {
     checkButton.disabled = false;
   }

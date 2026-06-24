@@ -78,22 +78,22 @@ describe("validateLocalProxyConfig", () => {
 });
 
 describe("buildPacProxyString", () => {
-  it("builds PAC proxy strings for all supported schemes", () => {
+  it("builds strict PAC proxy strings for all supported schemes", () => {
     expect(buildPacProxyString({ scheme: "socks5", host: "127.0.0.1", port: 10808 })).toMatchObject({
       ok: true,
-      proxyString: "SOCKS5 127.0.0.1:10808; DIRECT"
+      proxyString: "SOCKS5 127.0.0.1:10808"
     });
     expect(buildPacProxyString({ scheme: "http", host: "127.0.0.1", port: 8080 })).toMatchObject({
       ok: true,
-      proxyString: "PROXY 127.0.0.1:8080; DIRECT"
+      proxyString: "PROXY 127.0.0.1:8080"
     });
     expect(buildPacProxyString({ scheme: "https", host: "127.0.0.1", port: 8443 })).toMatchObject({
       ok: true,
-      proxyString: "HTTPS 127.0.0.1:8443; DIRECT"
+      proxyString: "HTTPS 127.0.0.1:8443"
     });
     expect(buildPacProxyString({ scheme: "socks4", host: "127.0.0.1", port: 1080 })).toMatchObject({
       ok: true,
-      proxyString: "SOCKS 127.0.0.1:1080; DIRECT"
+      proxyString: "SOCKS 127.0.0.1:1080"
     });
   });
 });
@@ -112,7 +112,8 @@ describe("buildPacScript", () => {
     }
 
     expect(result.pacScript).toContain("function FindProxyForURL(url, host)");
-    expect(result.proxyString).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
+    expect(result.proxyString).toBe("SOCKS5 127.0.0.1:10808");
+    expect(result.proxyString).not.toContain("DIRECT");
     expect(result.rules).toEqual([{ domain: "example.com", includeSubdomains: true }]);
     expect(result.pacScript).not.toContain('bad"; return');
   });
@@ -120,15 +121,15 @@ describe("buildPacScript", () => {
   it("routes exact domain matches to the proxy", () => {
     const pacScript = buildTestPac([manualRule("example.com", false)]);
 
-    expect(runPac(pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
-    expect(runPac(pacScript, "Example.com.")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
+    expect(runPac(pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(pacScript, "Example.com.")).toBe("SOCKS5 127.0.0.1:10808");
   });
 
   it("routes subdomain matches only when includeSubdomains is true", () => {
     const withSubdomains = buildTestPac([manualRule("example.com", true)]);
     const exactOnly = buildTestPac([manualRule("example.com", false)]);
 
-    expect(runPac(withSubdomains, "a.example.com")).toBe("SOCKS5 127.0.0.1:10808; DIRECT");
+    expect(runPac(withSubdomains, "a.example.com")).toBe("SOCKS5 127.0.0.1:10808");
     expect(runPac(exactOnly, "a.example.com")).toBe("DIRECT");
   });
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   addCurrentSiteRule,
   getCurrentTabDomain,
+  getDiagnosticActionStatus,
   getPopupRuleStatus,
   removeCurrentSiteRule
 } from "../src/popup/popup";
@@ -142,6 +143,51 @@ describe("popup add current site rule helper", () => {
     expect(addCurrentSiteRule([], "10.0.0.1", createdAt)).toMatchObject({
       ok: false,
       error: "Private network addresses cannot be routed."
+    });
+  });
+});
+
+describe("popup diagnostic result messages", () => {
+  it("offers saving only after a reachable check when no synced rule covers the current site", () => {
+    expect(
+      getDiagnosticActionStatus(
+        {
+          status: "proxy_reachable",
+          message: "This site appears reachable through your local proxy.",
+          domain: "letterboxd.com"
+        },
+        "letterboxd.com",
+        {
+          state: "none",
+          message: "letterboxd.com is using the direct route unless another proxy setting applies."
+        }
+      )
+    ).toEqual({
+      message: "This site appears reachable through your local proxy. You can add it as a synced proxy route.",
+      kind: "success",
+      saveReachableDomain: "letterboxd.com"
+    });
+  });
+
+  it("warns when an existing synced rule is covered but the proxy check fails", () => {
+    expect(
+      getDiagnosticActionStatus(
+        {
+          status: "proxy_unreachable",
+          message: "This site did not appear reachable through your local proxy.",
+          domain: "2ip.ru"
+        },
+        "2ip.ru",
+        {
+          state: "exact",
+          exactRule: manualRule("2ip.ru", true),
+          message: "2ip.ru is routed through proxy by an exact synced rule."
+        }
+      )
+    ).toEqual({
+      message:
+        "A synced rule covers this site, but it did not appear reachable through your local proxy. Check your local proxy settings.",
+      kind: "error"
     });
   });
 });
