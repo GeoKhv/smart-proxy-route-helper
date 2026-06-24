@@ -22,7 +22,7 @@ Record:
 4. Confirm the extension has no telemetry or backend requests.
 5. Confirm diagnostics are manual only and start only after the user clicks "Check via proxy".
 6. Confirm related-domain preview starts only after the user clicks "Preview related domains".
-7. Confirm related-domain preview does not store, sync, send, or automatically save collected hosts.
+7. Confirm related-domain preview does not store, sync, send, or automatically save collected hosts or diagnostic summary counts.
 8. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
 
 ## Current Runtime Checks
@@ -199,7 +199,7 @@ await chrome.proxy.settings.get({ incognito: false });
 
 24. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
 25. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
-26. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again.
+26. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
 27. If resource hosts were found but all are analytics/adtech/local helper domains, confirm the popup says those hosts were filtered and no rules were saved.
 28. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
 29. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
@@ -209,17 +209,18 @@ await chrome.proxy.settings.get({ incognito: false });
 
 1. Configure a working local proxy in Options.
 2. Add or keep synced proxy rules for `linkedin.com` or `www.linkedin.com`, then route or check the site through proxy.
-3. Open `https://www.linkedin.com/feed/` or another loaded LinkedIn feed page that includes `licdn.com` media/static resources, then reload the loaded feed page so resources load.
+3. Open `https://www.linkedin.com/feed/` or another loaded LinkedIn feed page that includes `licdn.com` media/static resources, then reload the loaded feed page so DOM resource attributes and performance entries are available.
 4. Open the popup and click "Preview related domains".
 5. Confirm `media.licdn.com` and `static.licdn.com`, when observed, appear as manually reviewable medium candidates and are not selected by default.
 6. If an exact synced rule for `dms.licdn.com` exists, confirm `dms.licdn.com` is marked already covered and is not saveable.
 7. Confirm `linkedin.com` with subdomains included covers `www.linkedin.com`, but does not cover `media.licdn.com` or `static.licdn.com`.
-8. Confirm the popup does not show "No public resource hosts" when any `licdn.com` hosts were collected from the loaded page.
+8. Confirm the popup does not show "No page resource hosts were found" when `media.licdn.com`, `static.licdn.com`, or other valid `licdn.com` resource hosts are present in resource timing, `img`/`source` `srcset`, lazy-loading `data-*` attributes, inline or computed style `url(...)`, link preload/preconnect, script resources, or accessible open shadow roots.
 9. If every collected reviewable host is already covered, confirm the popup says resource hosts were found but are already covered.
 10. If every collected host is filtered noise, confirm the popup says resource hosts were found but look like analytics/adtech/local helper domains.
 11. Confirm adtech/tracking/local helper hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, and `local.adguard.org`, when observed, do not crowd the normal saveable list.
-12. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
-13. Confirm the two selected domains are added as synced proxy rules and that no ignored, already-covered, or unselected candidates are saved.
+12. If no saveable candidates appear, confirm the preview details show counts and only sanitized hostnames, never full URLs with paths, query strings, fragments, or credentials.
+13. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
+14. Confirm the two selected domains are added as synced proxy rules and that no ignored, already-covered, or unselected candidates are saved.
 
 ## Real-World Visible Route Checks
 

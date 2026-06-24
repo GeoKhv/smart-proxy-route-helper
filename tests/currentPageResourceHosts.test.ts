@@ -14,10 +14,11 @@ import {
 
 function fakeElement(attributes: Record<string, string>): Element {
   return {
+    attributes: Object.entries(attributes).map(([name, value]) => ({ name, value })),
     getAttribute(attributeName: string): string | null {
       return attributes[attributeName] ?? null;
     }
-  } as Element;
+  } as unknown as Element;
 }
 
 afterEach(() => {
@@ -291,6 +292,135 @@ describe("current-page resource host preview", () => {
     });
     expect(result.summary?.rawEntriesInspected).toBeGreaterThan(result.hosts.length);
     expect(result.summary?.hostsRejected).toBeGreaterThan(0);
+  });
+
+  it("collects LinkedIn-like lazy resources from data attributes, computed style, getEntries, and open shadow roots", () => {
+    const openShadowRoot = {
+      querySelectorAll(selector: string): Element[] {
+        if (selector === "[data-delayed-url]") {
+          return [fakeElement({ "data-delayed-url": "https://media.licdn.com/shadow-lazy.jpg?secret=1" })];
+        }
+
+        if (selector === "*") {
+          return [fakeElement({ "data-media-url": "https://dms.licdn.com/shadow-video.mp4?token=1" })];
+        }
+
+        return [];
+      }
+    } as unknown as ShadowRoot;
+    const shadowHost = {
+      ...fakeElement({ "data-ignored": "not a url" }),
+      shadowRoot: openShadowRoot
+    } as Element;
+    const computedElement = fakeElement({ class: "lazy-image" });
+    const genericDataElement = fakeElement({
+      "data-delayed-url": "https://media.licdn.com/delayed.jpg?private=1",
+      "data-li-src": "https://media.licdn.com/li-src.jpg#frag",
+      "data-background-image": "url('https://media.licdn.com/background-data.jpg?secret=1')",
+      "data-noise": "https://local.adguard.org/helper.js"
+    });
+    const selectorResults: Record<string, Element[]> = {
+      "*": [shadowHost, computedElement, genericDataElement],
+      "script[src]": [fakeElement({ src: "https://static.licdn.com/sc/h/app.js?cache=1" })],
+      'link[href][rel~="preload"]': [fakeElement({ href: "https://static.licdn.com/preload.js" })],
+      'link[href][rel~="preconnect"]': [fakeElement({ href: "https://static.licdn.com" })],
+      "[data-delayed-url]": [genericDataElement],
+      "[data-li-src]": [genericDataElement],
+      "[data-background-image]": [genericDataElement]
+    };
+
+    vi.stubGlobal("document", {
+      baseURI: "https://www.linkedin.com/feed/",
+      title: "Feed | LinkedIn",
+      images: [
+        {
+          currentSrc: "https://media.licdn.com/current.jpg?secret=1",
+          src: "https://media.licdn.com/src.jpg?secret=1",
+          srcset:
+            "https://media.licdn.com/srcset-1.jpg 1x, https://static.licdn.com/srcset-2.jpg 2x, data:image/png;base64,abc 3x"
+        }
+      ],
+      querySelectorAll(selector: string): Element[] {
+        return selectorResults[selector] ?? [];
+      }
+    });
+    vi.stubGlobal("window", {
+      getComputedStyle(element: Element): Partial<CSSStyleDeclaration> {
+        return {
+          backgroundImage:
+            element === computedElement ? 'url("https://media.licdn.com/computed-background.jpg?secret=1")' : "none",
+          listStyleImage: "none"
+        };
+      }
+    });
+    vi.stubGlobal("performance", {
+      getEntries(): PerformanceEntry[] {
+        return [{ name: "https://static.licdn.com/from-get-entries.js?cache=1" }] as PerformanceEntry[];
+      },
+      getEntriesByType(entryType: string): PerformanceEntry[] {
+        if (entryType === "resource") {
+          return [
+            { name: "https://static.licdn.com/from-get-entries.js?cache=1" },
+            { name: "https://dms.licdn.com/performance-video.mp4?token=1" }
+          ] as PerformanceEntry[];
+        }
+
+        if (entryType === "navigation") {
+          return [{ name: "https://www.linkedin.com/feed/" }] as PerformanceEntry[];
+        }
+
+        return [];
+      }
+    });
+
+    const result = collectCurrentPageResourceHostnamesFromDom();
+
+    expect(result.pageLooksLikeErrorOrProtection).toBe(false);
+    expect(result.hosts).toEqual(
+      expect.arrayContaining(["dms.licdn.com", "media.licdn.com", "static.licdn.com", "www.linkedin.com"])
+    );
+    expect(result.hosts.every((host) => !host.includes("/") && !host.includes("?") && !host.includes("#"))).toBe(true);
+    expect(result.summary).toMatchObject({
+      performanceEntriesInspected: 3,
+      hostsExtracted: result.hosts.length
+    });
+    expect(result.summary?.domAttributesInspected).toBeGreaterThan(0);
+    expect(result.summary?.urlLikeValuesFound).toBeGreaterThanOrEqual(result.hosts.length);
+  });
+
+  it("adds deterministic diagnostic summary counts without raw URLs", () => {
+    const result = buildCurrentPageResourceHostPreview({
+      url: "https://www.linkedin.com/feed/",
+      collectedHosts: [
+        "https://static.licdn.com/sc/h/app.js?secret=1#frag",
+        "https://media.licdn.com/media/image.jpg?private=1",
+        "https://192.168.1.10/private.js"
+      ],
+      collectionSummary: {
+        rawEntriesInspected: 7,
+        performanceEntriesInspected: 2,
+        domAttributesInspected: 5,
+        urlLikeValuesFound: 3,
+        hostsExtracted: 2,
+        hostsRejected: 1
+      }
+    });
+
+    expect(result.summary).toEqual({
+      rawEntriesInspected: 7,
+      performanceEntriesInspected: 2,
+      domAttributesInspected: 5,
+      urlLikeValuesFound: 3,
+      hostsExtracted: 2,
+      hostsAfterSanitization: 2,
+      hostsIgnoredOrInternal: 2,
+      reviewableCandidates: 2,
+      ignoredCandidates: 0,
+      sampleHosts: ["media.licdn.com", "static.licdn.com"]
+    });
+    expect(JSON.stringify(result.summary)).not.toContain("/sc/h/app.js");
+    expect(JSON.stringify(result.summary)).not.toContain("?");
+    expect(JSON.stringify(result.summary)).not.toContain("#");
   });
 
   it("rejects unsupported current pages before attempting script collection", async () => {

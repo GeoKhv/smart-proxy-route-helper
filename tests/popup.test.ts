@@ -617,6 +617,7 @@ describe("popup related-domain candidate view model", () => {
     expect(view.message).toContain("2 already-covered candidates");
     expect(view.message).not.toContain("No public resource hosts");
     expect(view.resultState).toBe("candidates_available");
+    expect(view.diagnosticSummary).toBeUndefined();
     expect(view.summary).toMatchObject({
       alreadyCoveredCandidates: 2,
       saveableCandidates: 2
@@ -671,7 +672,8 @@ describe("popup related-domain candidate view model", () => {
           hostsAfterSanitization: 2,
           hostsIgnoredOrInternal: 0,
           reviewableCandidates: 2,
-          ignoredCandidates: 0
+          ignoredCandidates: 0,
+          sampleHosts: ["media.licdn.com", "static.licdn.com"]
         },
         collectedHosts: ["media.licdn.com", "static.licdn.com"],
         candidates: {
@@ -706,11 +708,57 @@ describe("popup related-domain candidate view model", () => {
 
     expect(view.resultState).toBe("hosts_collected_but_all_already_covered");
     expect(view.message).toBe("Resource hosts were found, but they are already covered by existing rules. No rules were saved.");
+    expect(view.diagnosticSummary).toBe(
+      "Preview details: 2 inspected; 0 performance; 0 DOM attributes; 2 URL-like values; 2 sanitized hosts; 0 ignored or internal; 2 already covered; 0 saveable. Hosts: media.licdn.com, static.licdn.com."
+    );
     expect(view.summary).toMatchObject({
       alreadyCoveredCandidates: 2,
       saveableCandidates: 0
     });
     expect(view.candidates.every((candidate) => candidate.alreadyCovered && !candidate.saveable)).toBe(true);
+  });
+
+  it("keeps compact diagnostic summary when preview finds no saveable candidates", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "No page resource hosts were found. Try reloading the page, then preview again.",
+        currentDomain: "linkedin.com",
+        resultState: "no_resource_entries_collected",
+        summary: {
+          rawEntriesInspected: 4,
+          performanceEntriesInspected: 1,
+          domAttributesInspected: 3,
+          urlLikeValuesFound: 0,
+          hostsExtracted: 0,
+          hostsAfterSanitization: 0,
+          hostsIgnoredOrInternal: 0,
+          reviewableCandidates: 0,
+          ignoredCandidates: 0,
+          sampleHosts: []
+        },
+        collectedHosts: [],
+        candidates: {
+          currentDomain: "linkedin.com",
+          strongCandidates: [],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      {
+        rules: [],
+        denylist: []
+      }
+    );
+
+    expect(view.candidates).toEqual([]);
+    expect(view.summary).toMatchObject({
+      saveableCandidates: 0,
+      alreadyCoveredCandidates: 0
+    });
+    expect(view.diagnosticSummary).toBe(
+      "Preview details: 4 inspected; 1 performance; 3 DOM attributes; 0 URL-like values; 0 sanitized hosts; 0 ignored or internal; 0 already covered; 0 saveable."
+    );
   });
 
   it("rejects denylisted, internal, and private candidates before display", () => {

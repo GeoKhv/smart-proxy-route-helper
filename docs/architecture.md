@@ -183,11 +183,14 @@ The preview flow:
 
 - Requires the user to open the popup on a supported `http` or `https` page and click "Preview related domains".
 - Uses `activeTab` plus `chrome.scripting.executeScript` to run a one-time function in the active tab after that user action.
+- Runs in Chrome's default isolated execution world; it does not expose extension internals to the page's main JavaScript world.
 - Collects only resource hostnames where possible, not full resource URLs.
-- Looks at current-page resource timing entries and easy DOM resource attributes such as image, script, stylesheet/preload/preconnect, iframe, media, and source URLs.
+- Looks at bounded current-page resource references such as resource/navigation performance entries, images (`src`, `currentSrc`, and `srcset`), scripts, stylesheet/preload/preconnect/dns-prefetch/icon links, iframe/media/source URLs, object/embed resources, selected lazy-loading `data-*` URL attributes, inline style `url(...)` values, conservative computed `background-image`/`list-style-image` values, and accessible open shadow roots.
+- Caps inspected elements, attributes, URL-like values, style URL matches, shadow roots, and returned hostnames to avoid heavy full-page crawling.
 - Immediately normalizes collected values to hostnames, drops paths, query strings, fragments, and credentials, rejects unsupported schemes, rejects localhost/private/internal/IP hosts, deduplicates, and caps the host list.
 - Feeds sanitized hostnames into the pure related-domain candidate engine.
 - Shows categorized strong, medium, and ignored candidates in the popup.
+- Shows a compact transient diagnostic summary when no saveable candidates remain. The summary contains counts and a small sample of sanitized hostnames only; it is not stored, synced, or sent.
 - Uses neutral preview status for discovered candidates because preview is not a save action.
 - Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers them.
 - Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.

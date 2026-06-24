@@ -38,7 +38,7 @@ The MVP must not request:
 - Persistent content scripts or content script matches.
 - Remote code exemptions or debugger capabilities.
 
-The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect current-page resource hostnames only after the user clicks "Preview related domains". The extension must not observe navigation, collect page resources automatically, or request broad host access.
+The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect bounded current-page resource references only after the user clicks "Preview related domains". The extension must not observe navigation, collect page resources automatically, or request broad host access.
 
 ## Why No Broad Host Access in MVP
 
@@ -77,11 +77,11 @@ This flow must:
 
 - Rely on `activeTab` for temporary access to the active tab.
 - Avoid `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, notifications, backend calls, telemetry, and remote executable code.
-- Collect only resource hostnames where possible, not raw resource URLs.
+- Collect only resource hostnames where possible from bounded current-page resource references, not raw resource URLs or page text.
 - Sanitize hostnames immediately by dropping URL paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal hosts, deduplicating, and capping results.
 - Treat obvious analytics/adtech/shared-infrastructure/local-helper hosts as ignored, non-saveable candidates through local logic only.
 - Show a neutral warning instead of normal candidates when the active tab appears to be an error page, protection page, or interstitial.
-- Store no collected hosts in `chrome.storage.sync` or `chrome.storage.local`.
+- Store no collected hosts or transient diagnostic summary counts in `chrome.storage.sync` or `chrome.storage.local`.
 - Never create or save related-domain rules automatically.
 - Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
 

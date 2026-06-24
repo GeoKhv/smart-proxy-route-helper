@@ -101,14 +101,17 @@ export type RelatedDomainCandidateView = {
   coveredBy?: string;
 };
 
+export type RelatedDomainPopupSummary = CurrentPageResourceHostPreviewSummary & {
+  alreadyCoveredCandidates: number;
+  saveableCandidates: number;
+};
+
 export type RelatedDomainPopupView = {
   message: string;
   kind: MessageKind;
   resultState?: RelatedDomainPopupResultState;
-  summary?: CurrentPageResourceHostPreviewSummary & {
-    alreadyCoveredCandidates: number;
-    saveableCandidates: number;
-  };
+  summary?: RelatedDomainPopupSummary;
+  diagnosticSummary?: string;
   candidates: RelatedDomainCandidateView[];
   hiddenSaveableCount: number;
   hiddenIgnoredCount: number;
@@ -517,11 +520,15 @@ function formatCandidateViewDomains(candidates: readonly RelatedDomainCandidateV
 function emptyPreviewSummary(): CurrentPageResourceHostPreviewSummary {
   return {
     rawEntriesInspected: 0,
+    performanceEntriesInspected: 0,
+    domAttributesInspected: 0,
+    urlLikeValuesFound: 0,
     hostsExtracted: 0,
     hostsAfterSanitization: 0,
     hostsIgnoredOrInternal: 0,
     reviewableCandidates: 0,
-    ignoredCandidates: 0
+    ignoredCandidates: 0,
+    sampleHosts: []
   };
 }
 
@@ -542,6 +549,27 @@ function previewSummary(preview: CurrentPageResourceHostsResponse): CurrentPageR
     reviewableCandidates,
     ignoredCandidates: preview.candidates?.ignoredCandidates.length ?? 0
   };
+}
+
+function formatPreviewDiagnosticSummary(summary: RelatedDomainPopupSummary): string {
+  const parts = [
+    `${summary.rawEntriesInspected} inspected`,
+    `${summary.performanceEntriesInspected ?? 0} performance`,
+    `${summary.domAttributesInspected ?? 0} DOM attributes`,
+    `${summary.urlLikeValuesFound ?? summary.hostsExtracted} URL-like values`,
+    `${summary.hostsAfterSanitization} sanitized hosts`,
+    `${summary.hostsIgnoredOrInternal} ignored or internal`,
+    `${summary.alreadyCoveredCandidates} already covered`,
+    `${summary.saveableCandidates} saveable`
+  ];
+  const hostSample =
+    summary.sampleHosts && summary.sampleHosts.length > 0 ? ` Hosts: ${summary.sampleHosts.slice(0, 5).join(", ")}.` : "";
+
+  return `Preview details: ${parts.join("; ")}.${hostSample}`;
+}
+
+function previewDiagnosticSummary(summary: RelatedDomainPopupSummary): string | undefined {
+  return summary.saveableCandidates === 0 ? formatPreviewDiagnosticSummary(summary) : undefined;
 }
 
 export function getRelatedDomainPreviewActionStatus(
@@ -652,14 +680,17 @@ export function buildRelatedDomainPopupView(
   const baseSummary = previewSummary(preview);
 
   if (preview.status !== "success" || !preview.candidates) {
+    const summary = {
+      ...baseSummary,
+      alreadyCoveredCandidates: 0,
+      saveableCandidates: 0
+    };
+
     return {
       ...status,
       resultState: preview.resultState,
-      summary: {
-        ...baseSummary,
-        alreadyCoveredCandidates: 0,
-        saveableCandidates: 0
-      },
+      summary,
+      diagnosticSummary: preview.status === "success" ? previewDiagnosticSummary(summary) : undefined,
       candidates: [],
       hiddenSaveableCount: 0,
       hiddenIgnoredCount: 0
@@ -732,6 +763,7 @@ export function buildRelatedDomainPopupView(
     kind: status.kind,
     resultState,
     summary,
+    diagnosticSummary: previewDiagnosticSummary(summary),
     ...capped
   };
 }
@@ -946,6 +978,15 @@ function renderRelatedDomainCandidateGroup(
   container.append(group);
 }
 
+function createRelatedDomainDiagnosticSummary(summary: string): HTMLElement {
+  const note = document.createElement("p");
+
+  note.className = "candidate-note";
+  note.textContent = summary;
+
+  return note;
+}
+
 async function getActiveTab(): Promise<ActiveTabSnapshot> {
   const [tab] = await chrome.tabs.query({
     active: true,
@@ -1125,7 +1166,16 @@ function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?
   previewElement.replaceChildren();
 
   if (view.candidates.length === 0) {
-    resetRelatedDomainPreview();
+    relatedDomainPreviewDomain = null;
+    setButtonVisible(saveButton, false);
+
+    if (view.diagnosticSummary) {
+      previewElement.append(createRelatedDomainDiagnosticSummary(view.diagnosticSummary));
+      previewElement.hidden = false;
+      return;
+    }
+
+    previewElement.hidden = true;
     return;
   }
 
@@ -1160,6 +1210,10 @@ function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?
       .filter(Boolean)
       .join(". ");
     previewElement.append(note);
+  }
+
+  if (view.diagnosticSummary) {
+    previewElement.append(createRelatedDomainDiagnosticSummary(view.diagnosticSummary));
   }
 
   previewElement.hidden = false;

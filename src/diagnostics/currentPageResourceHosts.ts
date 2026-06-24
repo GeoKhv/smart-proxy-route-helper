@@ -19,11 +19,15 @@ export type CurrentPageResourceHostResultState =
 
 export type CurrentPageResourceHostPreviewSummary = {
   rawEntriesInspected: number;
+  performanceEntriesInspected?: number;
+  domAttributesInspected?: number;
+  urlLikeValuesFound?: number;
   hostsExtracted: number;
   hostsAfterSanitization: number;
   hostsIgnoredOrInternal: number;
   reviewableCandidates: number;
   ignoredCandidates: number;
+  sampleHosts?: string[];
 };
 
 export type CurrentPageResourceHostsRequest = {
@@ -45,7 +49,10 @@ export type CurrentPageResourceHostsResponse = {
 type CurrentPageResourceHostCollectionResult = {
   hosts: string[];
   pageLooksLikeErrorOrProtection: boolean;
-  summary?: Pick<CurrentPageResourceHostPreviewSummary, "rawEntriesInspected" | "hostsExtracted"> & {
+  summary?: Pick<
+    CurrentPageResourceHostPreviewSummary,
+    "rawEntriesInspected" | "performanceEntriesInspected" | "domAttributesInspected" | "urlLikeValuesFound" | "hostsExtracted"
+  > & {
     hostsRejected: number;
   };
 };
@@ -176,6 +183,9 @@ function isPreviewSummary(input: unknown): input is CurrentPageResourceHostPrevi
     input !== null &&
     "rawEntriesInspected" in input &&
     typeof input.rawEntriesInspected === "number" &&
+    (!("performanceEntriesInspected" in input) || typeof input.performanceEntriesInspected === "number") &&
+    (!("domAttributesInspected" in input) || typeof input.domAttributesInspected === "number") &&
+    (!("urlLikeValuesFound" in input) || typeof input.urlLikeValuesFound === "number") &&
     "hostsExtracted" in input &&
     typeof input.hostsExtracted === "number" &&
     "hostsAfterSanitization" in input &&
@@ -185,7 +195,8 @@ function isPreviewSummary(input: unknown): input is CurrentPageResourceHostPrevi
     "reviewableCandidates" in input &&
     typeof input.reviewableCandidates === "number" &&
     "ignoredCandidates" in input &&
-    typeof input.ignoredCandidates === "number"
+    typeof input.ignoredCandidates === "number" &&
+    (!("sampleHosts" in input) || isStringArray(input.sampleHosts))
   );
 }
 
@@ -202,6 +213,10 @@ function isCurrentPageResourceHostCollectionResult(input: unknown): input is Cur
         input.summary !== null &&
         "rawEntriesInspected" in input.summary &&
         typeof input.summary.rawEntriesInspected === "number" &&
+        (!("performanceEntriesInspected" in input.summary) ||
+          typeof input.summary.performanceEntriesInspected === "number") &&
+        (!("domAttributesInspected" in input.summary) || typeof input.summary.domAttributesInspected === "number") &&
+        (!("urlLikeValuesFound" in input.summary) || typeof input.summary.urlLikeValuesFound === "number") &&
         "hostsExtracted" in input.summary &&
         typeof input.summary.hostsExtracted === "number" &&
         "hostsRejected" in input.summary &&
@@ -279,6 +294,9 @@ function flattenInjectionResults(results: readonly ScriptInjectionResult[]): Cur
   const hosts: string[] = [];
   let pageLooksLikeErrorOrProtection = false;
   let rawEntriesInspected = 0;
+  let performanceEntriesInspected = 0;
+  let domAttributesInspected = 0;
+  let urlLikeValuesFound = 0;
   let hostsExtracted = 0;
   let hostsRejected = 0;
   let hasCollectorSummary = false;
@@ -290,6 +308,9 @@ function flattenInjectionResults(results: readonly ScriptInjectionResult[]): Cur
       if (item.result.summary) {
         hasCollectorSummary = true;
         rawEntriesInspected += item.result.summary.rawEntriesInspected;
+        performanceEntriesInspected += item.result.summary.performanceEntriesInspected ?? 0;
+        domAttributesInspected += item.result.summary.domAttributesInspected ?? 0;
+        urlLikeValuesFound += item.result.summary.urlLikeValuesFound ?? 0;
         hostsExtracted += item.result.summary.hostsExtracted;
         hostsRejected += item.result.summary.hostsRejected;
       }
@@ -310,6 +331,9 @@ function flattenInjectionResults(results: readonly ScriptInjectionResult[]): Cur
       ? {
           summary: {
             rawEntriesInspected,
+            performanceEntriesInspected,
+            domAttributesInspected,
+            urlLikeValuesFound,
             hostsExtracted,
             hostsRejected
           }
@@ -404,18 +428,25 @@ export function buildCurrentPageResourceHostPreview(input: {
   const reviewableCandidates = candidates.strongCandidates.length + candidates.mediumCandidates.length;
   const ignoredCandidates = candidates.ignoredCandidates.length;
   const rawEntriesInspected = input.collectionSummary?.rawEntriesInspected ?? input.collectedHosts.length;
+  const performanceEntriesInspected = input.collectionSummary?.performanceEntriesInspected;
+  const domAttributesInspected = input.collectionSummary?.domAttributesInspected;
+  const urlLikeValuesFound = input.collectionSummary?.urlLikeValuesFound ?? input.collectedHosts.length;
   const hostsExtracted = input.collectionSummary?.hostsExtracted ?? sanitized.acceptedHostCount;
   const hostsIgnoredOrInternal = (input.collectionSummary?.hostsRejected ?? 0) + sanitized.rejectedHostCount;
   const summary: CurrentPageResourceHostPreviewSummary = {
     rawEntriesInspected,
+    ...(performanceEntriesInspected !== undefined ? { performanceEntriesInspected } : {}),
+    ...(domAttributesInspected !== undefined ? { domAttributesInspected } : {}),
+    urlLikeValuesFound,
     hostsExtracted,
     hostsAfterSanitization: collectedHosts.length,
     hostsIgnoredOrInternal,
     reviewableCandidates,
-    ignoredCandidates
+    ignoredCandidates,
+    sampleHosts: collectedHosts.slice(0, 5)
   };
   const resultState: CurrentPageResourceHostResultState =
-    rawEntriesInspected === 0
+    rawEntriesInspected === 0 || urlLikeValuesFound === 0
       ? "no_resource_entries_collected"
       : hostsExtracted === 0 || collectedHosts.length === 0 || (reviewableCandidates === 0 && ignoredCandidates > 0)
         ? "hosts_collected_but_all_internal_or_ignored"
@@ -504,12 +535,38 @@ export function doesTextLookLikeErrorOrProtectionPage(text: string): boolean {
 export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourceHostCollectionResult {
   const maxHosts = 80;
   const maxAttributeValueLength = 4096;
-  const maxStyleUrlMatches = 40;
+  const maxGenericAttributeValueLength = 1024;
+  const maxUrlLikeValues = 500;
+  const maxStyleUrlMatches = 80;
+  const maxDomElementsScanned = 700;
+  const maxGenericElementsScanned = 500;
+  const maxDomAttributesScanned = 1400;
+  const maxComputedStyleElements = 80;
+  const maxShadowRoots = 12;
   const internalHostSuffixes = [".local", ".lan", ".localhost", ".internal", ".home", ".home.arpa"];
+  const resourceAttributeNames = new Set([
+    "src",
+    "href",
+    "poster",
+    "data-src",
+    "data-delayed-url",
+    "data-ghost-url",
+    "data-media-url",
+    "data-li-src"
+  ]);
+  const srcsetAttributeNames = new Set(["srcset", "data-srcset"]);
+  const styleUrlAttributeNames = new Set(["style", "data-background-image"]);
+  const computedStyleProperties = ["backgroundImage", "listStyleImage"] as const;
+  const roots: ParentNode[] = [document];
   const hosts = new Set<string>();
-  let rawEntriesInspected = 0;
+  const inspectedPerformanceEntryNames = new Set<string>();
+  let performanceEntriesInspected = 0;
+  let domAttributesInspected = 0;
+  let urlLikeValuesFound = 0;
   let hostsRejected = 0;
   let styleUrlMatches = 0;
+  let genericElementsScanned = 0;
+  let domAttributesScanned = 0;
 
   const isBlockedHostname = (hostname: string): boolean => {
     if (hostname === "localhost" || !hostname.includes(".") || internalHostSuffixes.some((suffix) => hostname.endsWith(suffix))) {
@@ -523,12 +580,21 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
     return false;
   };
 
-  const addUrlHostname = (value: string | null | undefined): void => {
-    if (!value || hosts.size >= maxHosts) {
+  const looksLikeHttpUrl = (value: string): boolean => /^(?:https?:)?\/\//i.test(value.trim());
+
+  const canInspectMoreUrlValues = (): boolean => hosts.size < maxHosts && urlLikeValuesFound < maxUrlLikeValues;
+
+  const addUrlHostname = (
+    value: string | null | undefined,
+    options: {
+      allowRelative: boolean;
+      requireHttpLike?: boolean;
+    }
+  ): void => {
+    if (!value || !canInspectMoreUrlValues()) {
       return;
     }
 
-    rawEntriesInspected += 1;
     const boundedValue = value.trim();
 
     if (boundedValue.length === 0 || boundedValue.length > maxAttributeValueLength) {
@@ -536,8 +602,17 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
       return;
     }
 
+    if (options.requireHttpLike && !looksLikeHttpUrl(boundedValue)) {
+      return;
+    }
+
+    urlLikeValuesFound += 1;
+
     try {
-      const parsedUrl = new URL(boundedValue, document.baseURI);
+      const parsedUrl =
+        options.allowRelative || boundedValue.startsWith("//")
+          ? new URL(boundedValue, document.baseURI)
+          : new URL(boundedValue);
 
       if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
         hostsRejected += 1;
@@ -556,8 +631,22 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
     }
   };
 
+  const addDomUrlHostname = (
+    value: string | null | undefined,
+    options: {
+      allowRelative?: boolean;
+      requireHttpLike?: boolean;
+    } = {}
+  ): void => {
+    domAttributesInspected += 1;
+    addUrlHostname(value, {
+      allowRelative: options.allowRelative ?? true,
+      requireHttpLike: options.requireHttpLike
+    });
+  };
+
   const addSrcsetHostnames = (value: string | null | undefined): void => {
-    if (!value || hosts.size >= maxHosts) {
+    if (!value || !canInspectMoreUrlValues()) {
       return;
     }
 
@@ -568,83 +657,271 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
     }
 
     for (const candidate of boundedValue.split(",")) {
-      if (hosts.size >= maxHosts) {
+      if (!canInspectMoreUrlValues()) {
         return;
       }
 
       const urlCandidate = candidate.trim().split(/\s+/, 1)[0];
 
-      addUrlHostname(urlCandidate);
+      addUrlHostname(urlCandidate, { allowRelative: true });
+    }
+  };
+
+  const addDomSrcsetHostnames = (value: string | null | undefined): void => {
+    domAttributesInspected += 1;
+    addSrcsetHostnames(value);
+  };
+
+  const queryElements = (root: ParentNode, selector: string): Element[] => {
+    try {
+      return Array.from(root.querySelectorAll(selector));
+    } catch {
+      return [];
+    }
+  };
+
+  const discoverOpenShadowRoots = (): void => {
+    for (let rootIndex = 0; rootIndex < roots.length; rootIndex += 1) {
+      for (const element of queryElements(roots[rootIndex], "*")) {
+        if (genericElementsScanned >= maxDomElementsScanned || roots.length > maxShadowRoots) {
+          return;
+        }
+
+        genericElementsScanned += 1;
+        const shadowRoot = (element as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+
+        if (shadowRoot && !roots.includes(shadowRoot)) {
+          roots.push(shadowRoot);
+        }
+      }
+    }
+  };
+
+  const forEachRootElement = (selector: string, callback: (element: Element) => void): void => {
+    for (const root of roots) {
+      for (const element of queryElements(root, selector)) {
+        if (hosts.size >= maxHosts) {
+          return;
+        }
+
+        callback(element);
+      }
     }
   };
 
   const addAttributeValues = (selector: string, attributeName: string): void => {
-    for (const element of Array.from(document.querySelectorAll(selector))) {
-      if (hosts.size >= maxHosts) {
+    forEachRootElement(selector, (element) => {
+      addDomUrlHostname(element.getAttribute(attributeName));
+    });
+  };
+
+  const addSrcsetAttributeValues = (selector: string, attributeName = "srcset"): void => {
+    forEachRootElement(selector, (element) => {
+      addDomSrcsetHostnames(element.getAttribute(attributeName));
+    });
+  };
+
+  const addStyleUrlValues = (value: string | null | undefined): void => {
+    if (!value || !canInspectMoreUrlValues() || styleUrlMatches >= maxStyleUrlMatches) {
+      return;
+    }
+
+    const boundedValue = value.trim();
+
+    if (boundedValue.length === 0 || boundedValue.length > maxAttributeValueLength) {
+      return;
+    }
+
+    const urlPattern = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
+    let match: RegExpExecArray | null;
+
+    while ((match = urlPattern.exec(boundedValue)) !== null) {
+      if (!canInspectMoreUrlValues() || styleUrlMatches >= maxStyleUrlMatches) {
         return;
       }
 
-      addUrlHostname(element.getAttribute(attributeName));
+      styleUrlMatches += 1;
+      addUrlHostname(match[1], {
+        allowRelative: true,
+        requireHttpLike: false
+      });
     }
   };
 
-  const addSrcsetAttributeValues = (selector: string): void => {
-    for (const element of Array.from(document.querySelectorAll(selector))) {
-      if (hosts.size >= maxHosts) {
-        return;
-      }
-
-      addSrcsetHostnames(element.getAttribute("srcset"));
-    }
+  const addInlineStyleUrlValues = (): void => {
+    forEachRootElement("[style]", (element) => {
+      domAttributesInspected += 1;
+      addStyleUrlValues(element.getAttribute("style"));
+    });
   };
 
-  const addStyleUrlValues = (): void => {
-    for (const element of Array.from(document.querySelectorAll("[style]"))) {
-      if (hosts.size >= maxHosts || styleUrlMatches >= maxStyleUrlMatches) {
-        return;
+  const addStyleAttributeUrlValues = (selector: string, attributeName: string): void => {
+    forEachRootElement(selector, (element) => {
+      const value = element.getAttribute(attributeName);
+
+      domAttributesInspected += 1;
+
+      if (value && /url\(/i.test(value)) {
+        addStyleUrlValues(value);
+      } else {
+        addUrlHostname(value, { allowRelative: true });
       }
+    });
+  };
 
-      const value = element.getAttribute("style")?.trim();
+  const addComputedStyleUrlValues = (): void => {
+    if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") {
+      return;
+    }
 
-      if (!value || value.length > maxAttributeValueLength) {
-        continue;
-      }
+    let computedStyleElements = 0;
 
-      const urlPattern = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
-      let match: RegExpExecArray | null;
-
-      while ((match = urlPattern.exec(value)) !== null) {
-        if (hosts.size >= maxHosts || styleUrlMatches >= maxStyleUrlMatches) {
+    for (const root of roots) {
+      for (const element of queryElements(root, "*")) {
+        if (hosts.size >= maxHosts || computedStyleElements >= maxComputedStyleElements) {
           return;
         }
 
-        styleUrlMatches += 1;
-        addUrlHostname(match[1]);
+        computedStyleElements += 1;
+
+        try {
+          const style = window.getComputedStyle(element);
+
+          for (const property of computedStyleProperties) {
+            addStyleUrlValues(style[property]);
+          }
+        } catch {
+          // Some browser-internal elements can reject computed style reads.
+        }
       }
     }
   };
 
-  try {
-    for (const entryType of ["resource", "navigation"]) {
-      for (const entry of performance.getEntriesByType(entryType)) {
-        if (hosts.size >= maxHosts) {
-          break;
+  const addGenericAttributeValues = (): void => {
+    let genericElements = 0;
+
+    for (const root of roots) {
+      for (const element of queryElements(root, "*")) {
+        if (hosts.size >= maxHosts || genericElements >= maxGenericElementsScanned) {
+          return;
         }
 
-        addUrlHostname(entry.name);
+        genericElements += 1;
+
+        const attributes = "attributes" in element ? Array.from(element.attributes) : [];
+
+        for (const attribute of attributes) {
+          if (domAttributesScanned >= maxDomAttributesScanned || !canInspectMoreUrlValues()) {
+            return;
+          }
+
+          domAttributesScanned += 1;
+          domAttributesInspected += 1;
+
+          const attributeName = attribute.name.toLowerCase();
+          const value = attribute.value;
+
+          if (!value || value.trim().length === 0 || value.length > maxGenericAttributeValueLength) {
+            continue;
+          }
+
+          if (srcsetAttributeNames.has(attributeName)) {
+            addSrcsetHostnames(value);
+            continue;
+          }
+
+          if (styleUrlAttributeNames.has(attributeName)) {
+            addStyleUrlValues(value);
+            continue;
+          }
+
+          if (resourceAttributeNames.has(attributeName)) {
+            addUrlHostname(value, { allowRelative: true });
+            continue;
+          }
+
+          if (looksLikeHttpUrl(value)) {
+            addUrlHostname(value, {
+              allowRelative: false,
+              requireHttpLike: true
+            });
+          }
+        }
       }
     }
-  } catch {
-    // Resource timing can be unavailable in some document contexts.
-  }
+  };
 
-  for (const image of Array.from(document.images)) {
+  const addImageValues = (image: Element & Partial<HTMLImageElement>): void => {
+    addDomUrlHostname(image.currentSrc);
+    addDomUrlHostname(image.src);
+    addDomSrcsetHostnames(image.srcset);
+  };
+
+  const addPerformanceEntryName = (name: string | undefined): void => {
+    if (!name || inspectedPerformanceEntryNames.has(name) || !canInspectMoreUrlValues()) {
+      return;
+    }
+
+    inspectedPerformanceEntryNames.add(name);
+    performanceEntriesInspected += 1;
+    addUrlHostname(name, {
+      allowRelative: false,
+      requireHttpLike: true
+    });
+  };
+
+  const addPerformanceEntries = (): void => {
+    try {
+      if (typeof performance !== "undefined" && typeof performance.getEntries === "function") {
+        for (const entry of performance.getEntries()) {
+          addPerformanceEntryName(entry.name);
+
+          if (!canInspectMoreUrlValues()) {
+            return;
+          }
+        }
+      }
+    } catch {
+      // Resource timing can be unavailable in some document contexts.
+    }
+
+    try {
+      if (typeof performance !== "undefined" && typeof performance.getEntriesByType === "function") {
+        for (const entryType of ["resource", "navigation"]) {
+          for (const entry of performance.getEntriesByType(entryType)) {
+            addPerformanceEntryName(entry.name);
+
+            if (!canInspectMoreUrlValues()) {
+              return;
+            }
+          }
+        }
+      }
+    } catch {
+      // Resource timing can be unavailable in some document contexts.
+    }
+  };
+
+  const doesTitleLookLikeErrorOrProtectionPage = (text: string): boolean => {
+    const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
+
+    return normalized.includes("error 403 forbidden") || normalized.includes("varnish cache server");
+  };
+
+  discoverOpenShadowRoots();
+  addPerformanceEntries();
+
+  for (const image of Array.from(document.images ?? [])) {
     if (hosts.size >= maxHosts) {
       break;
     }
 
-    addUrlHostname(image.currentSrc || image.src);
+    addImageValues(image);
   }
+
+  forEachRootElement("img", (element) => {
+    addImageValues(element as Element & Partial<HTMLImageElement>);
+  });
 
   addAttributeValues("script[src]", "src");
   addAttributeValues('link[href][rel~="stylesheet"]', "href");
@@ -661,16 +938,32 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
   addAttributeValues("video[src]", "src");
   addAttributeValues("video[poster]", "poster");
   addAttributeValues("source[src]", "src");
+  addSrcsetAttributeValues("source[srcset]");
+  addAttributeValues("object[data]", "data");
+  addAttributeValues("embed[src]", "src");
+  addAttributeValues("track[src]", "src");
+  addAttributeValues("[data-src]", "data-src");
+  addSrcsetAttributeValues("[data-srcset]", "data-srcset");
+  addAttributeValues("[data-delayed-url]", "data-delayed-url");
+  addAttributeValues("[data-ghost-url]", "data-ghost-url");
+  addAttributeValues("[data-media-url]", "data-media-url");
+  addStyleAttributeUrlValues("[data-background-image]", "data-background-image");
+  addAttributeValues("[data-li-src]", "data-li-src");
   addSrcsetAttributeValues("[srcset]");
-  addStyleUrlValues();
+  addInlineStyleUrlValues();
+  addComputedStyleUrlValues();
   addAttributeValues("[src]", "src");
   addAttributeValues("[href]", "href");
+  addGenericAttributeValues();
 
   return {
     hosts: [...hosts],
-    pageLooksLikeErrorOrProtection: doesTextLookLikeErrorOrProtectionPage(document.title),
+    pageLooksLikeErrorOrProtection: doesTitleLookLikeErrorOrProtectionPage(document.title),
     summary: {
-      rawEntriesInspected,
+      rawEntriesInspected: performanceEntriesInspected + domAttributesInspected,
+      performanceEntriesInspected,
+      domAttributesInspected,
+      urlLikeValuesFound,
       hostsExtracted: hosts.size,
       hostsRejected
     }
