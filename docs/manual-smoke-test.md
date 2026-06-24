@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist is for future runtime releases. The repository currently has no extension runtime to test.
+This checklist covers the current placeholder extension scaffold and later runtime releases.
 
 ## Test Environment
 
@@ -21,6 +21,19 @@ Record:
 3. Confirm no required host permissions appear in the MVP.
 4. Confirm the extension has no telemetry or backend requests.
 5. Confirm diagnostics are absent in v0.1 or disabled by default in later releases.
+
+## Current Scaffold Checks
+
+Run these checks before MVP runtime logic exists:
+
+1. Run `npm install`.
+2. Run `npm test`.
+3. Run `npm run build`.
+4. Load `dist/` as an unpacked extension in Chrome.
+5. Open the popup and confirm the placeholder UI renders.
+6. Open the options page and confirm the placeholder UI renders.
+7. Inspect the service worker and confirm it starts without errors.
+8. Confirm no proxy settings, storage data, diagnostics, backend calls, or telemetry are created by the placeholder scaffold.
 
 ## MVP Configuration Checks
 

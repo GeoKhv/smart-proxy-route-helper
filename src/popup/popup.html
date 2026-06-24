@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Proxy Route Helper</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        box-sizing: border-box;
+        width: 320px;
+        margin: 0;
+        padding: 16px;
+        background: Canvas;
+        color: CanvasText;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        line-height: 1.25;
+      }
+
+      p {
+        margin: 0;
+        color: color-mix(in srgb, CanvasText 72%, Canvas);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .status {
+        margin-top: 14px;
+        padding: 10px;
+        border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+        border-radius: 6px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Smart Proxy Route Helper</h1>
+      <p>Proxy routing controls will appear here after the MVP logic is implemented.</p>
+      <div class="status" id="popup-status">Loading placeholder status...</div>
+    </main>
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

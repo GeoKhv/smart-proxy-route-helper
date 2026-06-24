@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Proxy Route Helper",
+  "version": "0.0.0",
+  "description": "Placeholder shell for a local-first proxy routing helper.",
+  "permissions": ["proxy", "storage", "activeTab"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Smart Proxy Route Helper",
+    "default_popup": "popup/popup.html"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  }
+}

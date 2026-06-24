@@ -6,9 +6,31 @@ The extension will let a user maintain a synced list of domains that should use 
 
 ## Repository Status
 
-This repository currently contains initial documentation and project guidance only.
+This repository currently contains initial documentation, project guidance, and a minimal Manifest V3 TypeScript extension scaffold.
 
-There is no runtime extension code yet. No `manifest.json`, source directory, package setup, build system, or generated extension bundle has been added in this phase.
+The scaffold includes placeholder popup/options pages and a background service worker. It does not implement proxy routing, PAC generation, storage logic, diagnostics, telemetry, backend calls, or remote executable code.
+
+## Local Development
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Run unit tests:
+
+```sh
+npm test
+```
+
+Build the unpacked extension:
+
+```sh
+npm run build
+```
+
+The build output is written to `dist/`. Load that directory from `chrome://extensions` with Developer mode enabled.
 
 ## MVP Scope
 
@@ -45,6 +67,7 @@ Planned MVP permissions:
 
 - `storage` for extension settings.
 - `proxy` to apply the locally generated PAC configuration.
+- `activeTab` for future user-initiated page-context actions; the current scaffold does not read tab data.
 
 Planned MVP host permissions:
 

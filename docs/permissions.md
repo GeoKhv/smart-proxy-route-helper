@@ -17,6 +17,7 @@ Required extension permissions:
 | --- | --- | --- |
 | `storage` | Store synced domain rules and local proxy configuration. | Required |
 | `proxy` | Apply the locally generated PAC configuration in Chrome. | Required |
+| `activeTab` | Reserved for explicit user-initiated page-context actions. The initial scaffold does not read tab data. | Required by current scaffold |
 
 Required host permissions:
 
