@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold and runtime PAC application. The product is not user-ready yet because popup/options settings behavior is not implemented.
+This checklist covers the current Manifest V3 extension scaffold, Options configuration UI, and runtime PAC application. The popup current-site workflow and diagnostics are not implemented.
 
 ## Test Environment
 
@@ -29,60 +29,62 @@ Record:
 3. Run `npm run build`.
 4. Load `dist/` as an unpacked extension in Chrome.
 5. Open the popup and confirm the placeholder UI renders.
-6. Open the options page and confirm the placeholder UI renders.
+6. Open the options page and confirm local proxy settings, synced domain rules, and read-only denylist/ignored-domain sections render.
 7. Inspect the service worker and confirm it starts without uncaught errors.
 8. Confirm no diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
 9. Confirm manifest permissions remain unchanged: `proxy`, `storage`, and `activeTab`.
 
 ## Runtime PAC Apply Checks
 
-Use the extension service worker DevTools console because UI settings are not implemented yet.
-
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
-3. Open the loaded extension's service worker inspection link.
-4. In the service worker console, configure a local proxy and one manual synced domain rule:
+3. Open the loaded extension's Options page.
+4. Configure local proxy settings:
 
-```js
-await chrome.storage.local.set({
-  deviceProxy: {
-    enabled: true,
-    config: {
-      scheme: "socks5",
-      host: "127.0.0.1",
-      port: 10808
-    }
-  },
-  diagnostics: {
-    enabled: false
-  }
-});
+- Enable proxy routing on this device.
+- Scheme: `socks5`.
+- Host: `127.0.0.1`.
+- Port: `10808`.
 
-await chrome.storage.sync.set({
-  rules: [
-    {
-      domain: "example.com",
-      includeSubdomains: true,
-      mode: "proxy",
-      source: "manual",
-      createdAt: new Date().toISOString()
-    }
-  ],
-  ignoredDomains: [],
-  denylist: []
-});
-```
-
-5. Confirm the service worker logs say PAC proxy routing was applied.
-6. Inspect Chrome's current proxy setting:
+5. Add a synced domain rule for `example.com` with subdomains included.
+6. Open the loaded extension's service worker inspection link.
+7. Confirm the service worker logs say PAC proxy routing was applied.
+8. Inspect Chrome's current proxy setting:
 
 ```js
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-7. Confirm the value uses `mode: "pac_script"` and contains inline PAC `data`, not a PAC `url`.
-8. If a local test proxy is running on the configured host/port, visit the test domain and confirm matching traffic reaches that local proxy.
-9. Visit a non-matching domain and confirm it uses the direct route.
+9. Confirm the value uses `mode: "pac_script"` and contains inline PAC `data`, not a PAC `url`.
+10. If a local test proxy is running on the configured host/port, visit the test domain and confirm matching traffic reaches that local proxy.
+11. Visit a non-matching domain and confirm it uses the direct route.
+
+## Options Configuration Checks
+
+1. Open Options.
+2. Enter an invalid local proxy host, save, and confirm inline validation blocks saving.
+3. Enter an invalid port, save, and confirm inline validation blocks saving.
+4. Save `socks5`, `127.0.0.1`, `10808` with proxy routing enabled.
+5. Confirm the local proxy configuration is stored only in `chrome.storage.local`:
+
+```js
+await chrome.storage.local.get(["deviceProxy"]);
+await chrome.storage.sync.get(["deviceProxy"]);
+```
+
+6. Confirm `deviceProxy` is present in local storage and absent from sync storage.
+7. Add `letterboxd.com` with subdomains included.
+8. Add `ltrbxd.com` with subdomains included.
+9. Confirm both rules appear in the Options list with mode/source metadata.
+10. Confirm the rules are stored in `chrome.storage.sync`:
+
+```js
+await chrome.storage.sync.get(["rules"]);
+```
+
+11. Try to add `localhost`, `192.168.1.1`, and `chrome://extensions`; confirm inline validation rejects them.
+12. Remove one rule and confirm it is removed from the Options list and synced storage.
+13. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
 
 ## Empty Rules and Missing Config Checks
 
@@ -117,31 +119,10 @@ await chrome.proxy.settings.get({ incognito: false });
 5. Store an invalid local proxy config, such as port `70000`, and confirm the service worker clears extension proxy routing instead of applying a PAC.
 6. Confirm these checks do not add host permissions, `webRequest`, `webNavigation`, notifications, content scripts, diagnostics, backend calls, telemetry, or remote PAC URLs.
 
-## MVP Configuration Checks
-
-1. Open options.
-2. Enter an invalid local proxy host and confirm validation blocks saving.
-3. Enter an invalid port and confirm validation blocks saving.
-4. Enter a valid local proxy configuration.
-5. Confirm the local proxy configuration is stored only on the current device.
-6. Enable extension-managed proxy routing.
-7. Confirm the UI shows the enabled state.
-
-## Domain Rule Checks
-
-1. Add a valid domain rule.
-2. Confirm the domain is normalized before display or storage.
-3. Add an invalid value with a path or query string and confirm validation blocks saving.
-4. Disable the valid rule and confirm it remains in the list but no longer participates in generated PAC data.
-5. Remove the rule and confirm it is removed from synced storage.
-6. Reload the extension and confirm stored rules are restored.
-
 ## PAC Apply Checks
 
-Run these checks once UI settings exist:
-
 1. Start with no enabled rules and apply settings.
-2. Confirm ordinary sites use the direct route.
+2. Confirm Chrome returns to the intended non-extension-managed state instead of receiving a direct-only PAC.
 3. Add a test domain rule and apply settings.
 4. Confirm matching traffic uses the configured local proxy.
 5. Confirm non-matching traffic uses the direct route.

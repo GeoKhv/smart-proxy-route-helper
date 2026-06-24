@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, an Options UI for local proxy settings and synced manual rules, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -27,7 +27,8 @@ Options page:
 
 - Configure local proxy settings.
 - Manage domain rules.
-- Show storage and permission status.
+- Show which settings are local to this device and which domain rules are synced.
+- Show storage status for saves, additions, and removals.
 - Provide reset/export affordances only after implementation design is settled.
 
 ### Extension Service Worker
@@ -178,7 +179,8 @@ Typed storage helpers exist for `chrome.storage.sync` and `chrome.storage.local`
 
 The runtime boundary remains narrow:
 
-- No popup/options behavior is implemented in this slice.
+- The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
+- Popup current-site behavior is not implemented in this slice.
 - No diagnostics are implemented.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.
