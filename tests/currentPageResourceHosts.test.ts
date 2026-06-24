@@ -115,6 +115,28 @@ describe("current-page resource host preview", () => {
     });
   });
 
+  it("maps browser error pages to friendly page-not-loaded copy", async () => {
+    const result = await runCurrentPageResourceHostPreview(
+      {
+        type: currentPageResourceHostsMessageType,
+        tabId: 1,
+        url: "https://example.com/"
+      },
+      {
+        async executeScript() {
+          throw new Error("Frame with ID 0 is showing error page");
+        }
+      }
+    );
+
+    expect(result).toEqual({
+      status: "collection_unavailable",
+      message:
+        "This page is not loaded yet, so resource hosts cannot be collected. Route or check this site through proxy first, reload the page, then preview related domains.",
+      currentDomain: "example.com"
+    });
+  });
+
   it("does not include storage writes or rule creation helpers in the collection module", async () => {
     const source = await readFile(resolve(__dirname, "../src/diagnostics/currentPageResourceHosts.ts"), "utf8");
 

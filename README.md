@@ -8,7 +8,7 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 This repository currently contains initial documentation, project guidance, and an initial Manifest V3 TypeScript runtime.
 
-The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, manual current-site diagnostics, and a user-invoked related-domain preview for current-page resource hosts. It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, or remote executable code.
+The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, manual current-site diagnostics, and a user-invoked related-domain preview with explicit selected-candidate saving. It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, or remote executable code.
 
 ## Local Development
 
@@ -44,6 +44,7 @@ The current MVP runtime provides a small manual PAC manager:
 - Provide simple popup/options HTML and TypeScript UI.
 - Provide manual current-site diagnostics only after explicit user action.
 - Provide current-page related-domain preview only after explicit user action.
+- Save related-domain candidates only after explicit user selection and confirmation.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
 ## Out of Scope for MVP
@@ -76,7 +77,7 @@ Planned MVP host permissions:
 
 - None.
 
-The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab. Related-domain preview uses the temporary `activeTab` grant plus `scripting` after an explicit popup click, collects only sanitized resource hostnames, and does not store, sync, send, or save them as rules.
+The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab. Related-domain preview uses the temporary `activeTab` grant plus `scripting` after an explicit popup click, collects only sanitized resource hostnames, and does not store, sync, or send those collected hosts. Related-domain candidates become synced rules only after explicit user selection and a separate add click.
 
 See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 

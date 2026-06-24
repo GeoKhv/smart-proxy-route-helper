@@ -27,6 +27,7 @@ Popup:
 - Start a current-site diagnostic only after the user clicks "Check via proxy".
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
 - Preview related-domain candidates from current-page resource hosts only after the user clicks "Preview related domains".
+- Let the user explicitly select previewed related-domain candidates and save only those selected candidates as synced diagnostic-sourced rules.
 - Provide quick access to Options.
 
 The popup does not inspect page content on open, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
@@ -176,7 +177,7 @@ Current-site diagnostics do not use `webRequest`, `webNavigation`, content scrip
 
 ### Current-Page Related-Domain Preview
 
-The current-page related-domain preview is a narrow feasibility spike for advanced diagnostics. It is separate from rule creation and storage.
+The current-page related-domain preview is an explicit, user-invoked diagnostics helper. Preview and saving are separate actions: the extension may collect current-page resource hostnames only after the user clicks "Preview related domains", and it may save related-domain rules only after the user selects candidates and clicks the follow-up add button.
 
 The preview flow:
 
@@ -186,9 +187,12 @@ The preview flow:
 - Looks at current-page resource timing entries and easy DOM resource attributes such as image, script, stylesheet/preload/preconnect, iframe, media, and source URLs.
 - Immediately normalizes collected values to hostnames, drops paths, query strings, fragments, and credentials, rejects unsupported schemes, rejects localhost/private/internal/IP hosts, deduplicates, and caps the host list.
 - Feeds sanitized hostnames into the pure related-domain candidate engine.
-- Shows a preview of likely related, manually reviewable, and ignored candidates.
+- Shows categorized strong, medium, and ignored candidates in the popup.
+- Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers them.
+- Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.
+- Saves only selected, saveable candidates after the user clicks "Add selected domains".
 
-The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules, or apply proxy settings. Candidates remain informational until a later feature adds an explicit confirmation flow.
+The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
 
 This spike adds the `scripting` permission because Chrome requires it for programmatic `chrome.scripting.executeScript`; it does not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, telemetry, backend services, remote PAC URLs, or remote executable code.
 
@@ -196,9 +200,9 @@ This spike adds the `scripting` permission because Chrome requires it for progra
 
 The related-domain candidate engine is pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
 
-The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default.
+The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
 
-This pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and any future saving UI must require explicit user confirmation before saving any suggested rule.
+This pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and popup saving requires explicit user selection and confirmation before any suggested rule is written.
 
 ## Test Strategy
 
@@ -232,7 +236,7 @@ The runtime boundary remains narrow:
 - The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
-- Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow and does not write storage or create rules.
+- Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.
 - No backend, telemetry, remote PAC URL, or remote executable code is used.

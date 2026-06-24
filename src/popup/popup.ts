@@ -12,7 +12,7 @@ import {
   isCurrentPageResourceHostsResponse,
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
-import type { RelatedDomainCandidate } from "../diagnostics/relatedDomainCandidates";
+import type { RelatedDomainCandidate, RelatedDomainCandidateReason } from "../diagnostics/relatedDomainCandidates";
 import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
 import type { SyncSettings } from "../storage/storageTypes";
 
@@ -79,7 +79,64 @@ export type RelatedDomainPreviewActionStatus = {
   kind: MessageKind;
 };
 
+export type RelatedDomainCandidateCategory = "strong" | "medium" | "ignored";
+
+export type RelatedDomainCandidateView = {
+  category: RelatedDomainCandidateCategory;
+  domain: string;
+  reasonCode: RelatedDomainCandidateReason;
+  reason: string;
+  sourceHostCount: number;
+  includeSubdomains: boolean;
+  defaultSelected: boolean;
+  selected: boolean;
+  saveable: boolean;
+  alreadyCovered: boolean;
+  coveredBy?: string;
+};
+
+export type RelatedDomainPopupView = {
+  message: string;
+  kind: MessageKind;
+  candidates: RelatedDomainCandidateView[];
+  hiddenSaveableCount: number;
+  hiddenIgnoredCount: number;
+};
+
+export type AddSelectedRelatedDomainRulesResult =
+  | {
+      ok: true;
+      status: "added";
+      rules: DomainRule[];
+      addedRules: DomainRule[];
+      skippedDomains: string[];
+    }
+  | {
+      ok: true;
+      status: "none-selected" | "no-new-rules";
+      rules: DomainRule[];
+      addedRules: [];
+      skippedDomains: string[];
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
 let checkedReachableDomain: string | null = null;
+let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
+let relatedDomainPreviewDomain: string | null = null;
+
+const relatedDomainSaveableCandidateLimit = 12;
+const relatedDomainIgnoredCandidateLimit = 4;
+
+const relatedDomainReasonLabels: Record<RelatedDomainCandidateReason, string> = {
+  "same-site-subdomain": "same site resources",
+  "explicit-related-domain": "known related domain",
+  "third-party-resource": "resource on current page",
+  "known-tracking-or-analytics": "analytics or tracking host",
+  "shared-infrastructure": "shared infrastructure"
+};
 
 type ActiveTabSnapshot = {
   id?: number;
@@ -134,6 +191,74 @@ function parentRuleForDomain(domain: string, rules: readonly DomainRule[]): Doma
 
 function isStoredDenylistedDomain(domain: string, denylist: readonly string[]): boolean {
   return denylist.some((entry) => domainMatchesRule(domain, { domain: entry, includeSubdomains: true }));
+}
+
+function normalizeSafeRelatedDomain(input: string, denylist: readonly string[] = []): string | null {
+  const normalized = normalizeDomain(input);
+
+  if (!normalized.ok) {
+    return null;
+  }
+
+  if (checkDenylistedHost(normalized.domain).denied || isStoredDenylistedDomain(normalized.domain, denylist)) {
+    return null;
+  }
+
+  return normalized.domain;
+}
+
+function findCoveringRule(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
+  return exactRuleForDomain(domain, rules) ?? parentRuleForDomain(domain, rules);
+}
+
+function candidateViewFromCandidate(
+  candidate: RelatedDomainCandidate,
+  category: RelatedDomainCandidateCategory,
+  settings: Pick<SyncSettings, "rules" | "denylist">
+): RelatedDomainCandidateView | null {
+  const domain = normalizeSafeRelatedDomain(candidate.domain, settings.denylist);
+
+  if (!domain) {
+    return null;
+  }
+
+  const coveringRule = findCoveringRule(domain, settings.rules);
+  const alreadyCovered = coveringRule !== undefined;
+  const saveable = category !== "ignored" && !alreadyCovered;
+  const defaultSelected = category === "strong" && candidate.defaultSelected && saveable;
+
+  return {
+    category,
+    domain,
+    reasonCode: candidate.reason,
+    reason: relatedDomainReasonLabels[candidate.reason],
+    sourceHostCount: candidate.sourceHostCount,
+    includeSubdomains: candidate.suggestedIncludeSubdomains,
+    defaultSelected,
+    selected: defaultSelected,
+    saveable,
+    alreadyCovered,
+    ...(coveringRule ? { coveredBy: coveringRule.domain } : {})
+  };
+}
+
+function cappedRelatedDomainCandidateViews(
+  candidates: readonly RelatedDomainCandidateView[]
+): {
+  candidates: RelatedDomainCandidateView[];
+  hiddenSaveableCount: number;
+  hiddenIgnoredCount: number;
+} {
+  const saveableCandidates = candidates.filter((candidate) => candidate.category !== "ignored");
+  const ignoredCandidates = candidates.filter((candidate) => candidate.category === "ignored");
+  const visibleSaveableCandidates = saveableCandidates.slice(0, relatedDomainSaveableCandidateLimit);
+  const visibleIgnoredCandidates = ignoredCandidates.slice(0, relatedDomainIgnoredCandidateLimit);
+
+  return {
+    candidates: [...visibleSaveableCandidates, ...visibleIgnoredCandidates],
+    hiddenSaveableCount: Math.max(0, saveableCandidates.length - visibleSaveableCandidates.length),
+    hiddenIgnoredCount: Math.max(0, ignoredCandidates.length - visibleIgnoredCandidates.length)
+  };
 }
 
 export function getCurrentTabDomain(url: string | undefined): CurrentTabDomainResult {
@@ -421,6 +546,122 @@ export function getRelatedDomainPreviewActionStatus(
   };
 }
 
+export function buildRelatedDomainPopupView(
+  preview: CurrentPageResourceHostsResponse,
+  settings: Pick<SyncSettings, "rules" | "denylist">
+): RelatedDomainPopupView {
+  const status = getRelatedDomainPreviewActionStatus(preview);
+
+  if (preview.status !== "success" || !preview.candidates) {
+    return {
+      ...status,
+      candidates: [],
+      hiddenSaveableCount: 0,
+      hiddenIgnoredCount: 0
+    };
+  }
+
+  const candidates = [
+    ...preview.candidates.strongCandidates.map((candidate) =>
+      candidateViewFromCandidate(candidate, "strong" as const, settings)
+    ),
+    ...preview.candidates.mediumCandidates.map((candidate) =>
+      candidateViewFromCandidate(candidate, "medium" as const, settings)
+    ),
+    ...preview.candidates.ignoredCandidates.map((candidate) =>
+      candidateViewFromCandidate(candidate, "ignored" as const, settings)
+    )
+  ].filter((candidate): candidate is RelatedDomainCandidateView => candidate !== null);
+  const capped = cappedRelatedDomainCandidateViews(candidates);
+  const hiddenParts: string[] = [];
+
+  if (capped.hiddenSaveableCount > 0) {
+    hiddenParts.push(`${capped.hiddenSaveableCount} more reviewable candidate${capped.hiddenSaveableCount === 1 ? "" : "s"} hidden`);
+  }
+
+  if (capped.hiddenIgnoredCount > 0) {
+    hiddenParts.push(`${capped.hiddenIgnoredCount} ignored candidate${capped.hiddenIgnoredCount === 1 ? "" : "s"} hidden`);
+  }
+
+  return {
+    message: hiddenParts.length > 0 ? `${status.message} ${hiddenParts.join(". ")}.` : status.message,
+    kind: status.kind,
+    ...capped
+  };
+}
+
+export function addSelectedRelatedDomainRules(
+  currentSettings: Pick<SyncSettings, "rules" | "denylist">,
+  candidates: readonly RelatedDomainCandidateView[],
+  selectedDomains: ReadonlySet<string>,
+  createdAt: string = new Date().toISOString(),
+  source: RuleSource = "diagnostic"
+): AddSelectedRelatedDomainRulesResult {
+  if (selectedDomains.size === 0) {
+    return {
+      ok: true,
+      status: "none-selected",
+      rules: [...currentSettings.rules],
+      addedRules: [],
+      skippedDomains: []
+    };
+  }
+
+  const rules = [...currentSettings.rules];
+  const addedRules: DomainRule[] = [];
+  const skippedDomains: string[] = [];
+  const seenSelectedDomains = new Set<string>();
+
+  for (const candidate of candidates) {
+    if (!selectedDomains.has(candidate.domain) || seenSelectedDomains.has(candidate.domain)) {
+      continue;
+    }
+
+    seenSelectedDomains.add(candidate.domain);
+
+    const domain = normalizeSafeRelatedDomain(candidate.domain, currentSettings.denylist);
+
+    if (!domain || candidate.category === "ignored" || !candidate.saveable) {
+      skippedDomains.push(candidate.domain);
+      continue;
+    }
+
+    if (findCoveringRule(domain, rules)) {
+      skippedDomains.push(domain);
+      continue;
+    }
+
+    const rule: DomainRule = {
+      domain,
+      includeSubdomains: candidate.includeSubdomains,
+      mode: "proxy",
+      source,
+      createdAt
+    };
+
+    rules.push(rule);
+    addedRules.push(rule);
+  }
+
+  if (addedRules.length === 0) {
+    return {
+      ok: true,
+      status: "no-new-rules",
+      rules,
+      addedRules: [],
+      skippedDomains
+    };
+  }
+
+  return {
+    ok: true,
+    status: "added",
+    rules,
+    addedRules,
+    skippedDomains
+  };
+}
+
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
   const element = root.querySelector<T>(selector);
 
@@ -448,8 +689,105 @@ function resetDiagnosticOffer(): void {
 function resetRelatedDomainPreview(): void {
   const preview = getElement<HTMLElement>("#related-domain-preview");
 
+  relatedDomainCandidateViews = [];
+  relatedDomainPreviewDomain = null;
+  setButtonVisible(getElement<HTMLButtonElement>("#add-selected-related-domains"), false);
   preview.hidden = true;
   preview.textContent = "";
+}
+
+function candidateCategoryTitle(category: RelatedDomainCandidateCategory): string {
+  const titles: Record<RelatedDomainCandidateCategory, string> = {
+    strong: "Strong candidates",
+    medium: "Review manually",
+    ignored: "Ignored"
+  };
+
+  return titles[category];
+}
+
+function candidateCoverageLabel(candidate: RelatedDomainCandidateView): string {
+  if (!candidate.alreadyCovered) {
+    return "not covered yet";
+  }
+
+  return candidate.coveredBy ? `already covered by ${candidate.coveredBy}` : "already covered";
+}
+
+function candidateIncludeSubdomainsLabel(candidate: RelatedDomainCandidateView): string {
+  return candidate.includeSubdomains ? "include subdomains" : "exact domain";
+}
+
+function updateRelatedDomainSaveButtonState(): void {
+  const saveButton = getElement<HTMLButtonElement>("#add-selected-related-domains");
+
+  if (saveButton.hidden) {
+    return;
+  }
+
+  const selectedCheckbox = getElement<HTMLElement>("#related-domain-preview").querySelector<HTMLInputElement>(
+    'input[data-related-domain]:checked:not(:disabled)'
+  );
+
+  saveButton.disabled = selectedCheckbox === null;
+}
+
+function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView): HTMLElement {
+  const row = document.createElement(candidate.category === "ignored" ? "div" : "label");
+
+  row.className = "candidate-row";
+  row.dataset.category = candidate.category;
+
+  if (candidate.category !== "ignored") {
+    const checkbox = document.createElement("input");
+
+    checkbox.type = "checkbox";
+    checkbox.checked = candidate.selected;
+    checkbox.disabled = !candidate.saveable;
+    checkbox.dataset.relatedDomain = candidate.domain;
+    checkbox.addEventListener("change", updateRelatedDomainSaveButtonState);
+    row.append(checkbox);
+  }
+
+  const content = document.createElement("span");
+  const domain = document.createElement("span");
+  const meta = document.createElement("span");
+
+  content.className = "candidate-content";
+  domain.className = "candidate-domain";
+  meta.className = "candidate-meta";
+
+  domain.textContent = candidate.domain;
+  meta.textContent = [
+    candidate.reason,
+    candidateIncludeSubdomainsLabel(candidate),
+    `${candidate.sourceHostCount} source host${candidate.sourceHostCount === 1 ? "" : "s"}`,
+    candidateCoverageLabel(candidate)
+  ].join(" · ");
+
+  content.append(domain, meta);
+  row.append(content);
+
+  return row;
+}
+
+function renderRelatedDomainCandidateGroup(
+  container: HTMLElement,
+  title: string,
+  candidates: readonly RelatedDomainCandidateView[]
+): void {
+  if (candidates.length === 0) {
+    return;
+  }
+
+  const group = document.createElement("div");
+  const heading = document.createElement("div");
+
+  group.className = "candidate-group";
+  heading.className = "candidate-group-title";
+  heading.textContent = title;
+  group.append(heading, ...candidates.map(createRelatedDomainCandidateRow));
+  container.append(group);
 }
 
 async function getActiveTab(): Promise<ActiveTabSnapshot> {
@@ -622,36 +960,55 @@ async function requestRelatedDomainPreview(tabId: number, url: string): Promise<
   return response;
 }
 
-function renderRelatedDomainPreview(preview: CurrentPageResourceHostsResponse): void {
+function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?: string): void {
   const previewElement = getElement<HTMLElement>("#related-domain-preview");
-  const candidates = preview.candidates;
+  const saveButton = getElement<HTMLButtonElement>("#add-selected-related-domains");
 
-  if (preview.status !== "success" || !candidates) {
+  relatedDomainCandidateViews = view.candidates;
+  relatedDomainPreviewDomain = currentDomain ?? null;
+  previewElement.replaceChildren();
+
+  if (view.candidates.length === 0) {
     resetRelatedDomainPreview();
     return;
   }
 
-  const lines: string[] = [];
+  renderRelatedDomainCandidateGroup(
+    previewElement,
+    candidateCategoryTitle("strong"),
+    view.candidates.filter((candidate) => candidate.category === "strong")
+  );
+  renderRelatedDomainCandidateGroup(
+    previewElement,
+    candidateCategoryTitle("medium"),
+    view.candidates.filter((candidate) => candidate.category === "medium")
+  );
+  renderRelatedDomainCandidateGroup(
+    previewElement,
+    candidateCategoryTitle("ignored"),
+    view.candidates.filter((candidate) => candidate.category === "ignored")
+  );
 
-  if (candidates.strongCandidates.length > 0) {
-    lines.push(`Likely related: ${formatCandidateDomains(candidates.strongCandidates, 8)}`);
+  if (view.hiddenSaveableCount > 0 || view.hiddenIgnoredCount > 0) {
+    const note = document.createElement("p");
+
+    note.className = "candidate-note";
+    note.textContent = [
+      view.hiddenSaveableCount > 0
+        ? `${view.hiddenSaveableCount} more reviewable candidate${view.hiddenSaveableCount === 1 ? "" : "s"} hidden`
+        : "",
+      view.hiddenIgnoredCount > 0
+        ? `${view.hiddenIgnoredCount} ignored candidate${view.hiddenIgnoredCount === 1 ? "" : "s"} hidden`
+        : ""
+    ]
+      .filter(Boolean)
+      .join(". ");
+    previewElement.append(note);
   }
 
-  if (candidates.mediumCandidates.length > 0) {
-    lines.push(`Review manually: ${formatCandidateDomains(candidates.mediumCandidates, 8)}`);
-  }
-
-  if (candidates.ignoredCandidates.length > 0) {
-    lines.push(`Ignored: ${formatCandidateDomains(candidates.ignoredCandidates, 8)}`);
-  }
-
-  if (lines.length === 0) {
-    resetRelatedDomainPreview();
-    return;
-  }
-
-  previewElement.textContent = lines.join("\n");
   previewElement.hidden = false;
+  setButtonVisible(saveButton, view.candidates.some((candidate) => candidate.saveable));
+  updateRelatedDomainSaveButtonState();
 }
 
 async function handleCheckViaProxy(): Promise<void> {
@@ -718,13 +1075,77 @@ async function handlePreviewRelatedDomains(): Promise<void> {
 
   try {
     const preview = await requestRelatedDomainPreview(activeTab.id, activeTab.url);
-    const previewStatus = getRelatedDomainPreviewActionStatus(preview);
+    const current = await getSyncSettings();
+    const previewView = buildRelatedDomainPopupView(preview, current);
 
-    renderRelatedDomainPreview(preview);
-    setStatus(actionStatus, previewStatus.message, previewStatus.kind);
+    renderRelatedDomainPreview(previewView, preview.currentDomain);
+    setStatus(actionStatus, previewView.message, previewView.kind);
   } finally {
     previewButton.disabled = false;
   }
+}
+
+async function handleAddSelectedRelatedDomains(): Promise<void> {
+  resetDiagnosticOffer();
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const currentResult = getCurrentTabDomain(await getActiveTabUrl());
+
+  if (!currentResult.ok) {
+    renderUnsupported(currentResult);
+    return;
+  }
+
+  if (!relatedDomainPreviewDomain || currentResult.domain !== relatedDomainPreviewDomain) {
+    setStatus(actionStatus, "Preview related domains again for the current site before adding candidates.", "error");
+    return;
+  }
+
+  const selectedDomains = new Set(
+    Array.from(
+      getElement<HTMLElement>("#related-domain-preview").querySelectorAll<HTMLInputElement>(
+        'input[data-related-domain]:checked:not(:disabled)'
+      )
+    ).map((checkbox) => checkbox.dataset.relatedDomain ?? "")
+  );
+  selectedDomains.delete("");
+
+  if (selectedDomains.size === 0) {
+    setStatus(actionStatus, "Select at least one related domain before adding rules.", "neutral");
+    return;
+  }
+
+  const current = await getSyncSettings();
+  const addResult = addSelectedRelatedDomainRules(
+    current,
+    relatedDomainCandidateViews,
+    selectedDomains,
+    new Date().toISOString(),
+    "diagnostic"
+  );
+
+  if (!addResult.ok) {
+    setStatus(actionStatus, addResult.error, "error");
+    return;
+  }
+
+  if (addResult.status === "none-selected") {
+    setStatus(actionStatus, "Select at least one related domain before adding rules.", "neutral");
+    return;
+  }
+
+  if (addResult.status === "no-new-rules") {
+    renderSupported(currentResult.domain, current);
+    setStatus(actionStatus, "No new related-domain rules were added; selected domains are already covered.", "neutral");
+    return;
+  }
+
+  const updated = await updateSyncSettings({
+    rules: addResult.rules
+  });
+  const addedDomains = addResult.addedRules.map((rule) => rule.domain).join(", ");
+
+  renderSupported(currentResult.domain, updated);
+  setStatus(actionStatus, `Added synced proxy route${addResult.addedRules.length === 1 ? "" : "s"} for ${addedDomains}.`, "success");
 }
 
 async function handleSaveDiagnosticRule(): Promise<void> {
@@ -813,6 +1234,16 @@ function initPopupPage(): void {
       setStatus(
         getElement<HTMLElement>("#action-status"),
         error instanceof Error ? error.message : "Could not preview related domains.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#add-selected-related-domains").addEventListener("click", () => {
+    void handleAddSelectedRelatedDomains().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not add selected related domains.",
         "error"
       );
     });

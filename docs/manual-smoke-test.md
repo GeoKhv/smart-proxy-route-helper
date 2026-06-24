@@ -23,6 +23,7 @@ Record:
 5. Confirm diagnostics are manual only and start only after the user clicks "Check via proxy".
 6. Confirm related-domain preview starts only after the user clicks "Preview related domains".
 7. Confirm related-domain preview does not store, sync, send, or automatically save collected hosts.
+8. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
 
 ## Current Runtime Checks
 
@@ -156,30 +157,55 @@ await chrome.proxy.settings.get({ incognito: false });
 1. Open a supported `http` or `https` page with visible third-party resources, such as images, scripts, or stylesheets.
 2. Confirm no related-domain preview runs when the popup opens.
 3. Click "Preview related domains".
-4. Confirm the popup shows a cautious preview of likely related, manually reviewable, or ignored domains when candidates are found.
-5. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
-6. Confirm collected hosts are not written to `chrome.storage.sync`:
+4. Confirm the popup shows categorized strong, manually reviewable, or ignored domains when candidates are found.
+5. Confirm saveable candidates show a checkbox, domain, short reason, include-subdomains default, and whether an exact or parent rule already covers them.
+6. Confirm strong candidates are selected only when the engine marks them default-selected.
+7. Confirm medium candidates are not selected by default.
+8. Confirm ignored analytics/shared-infrastructure candidates are not selected and are not saveable.
+9. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
+10. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
+11. Confirm collected hosts are not written to `chrome.storage.sync`:
 
 ```js
 await chrome.storage.sync.get(null);
 ```
 
-7. Confirm collected hosts are not written to `chrome.storage.local`:
+12. Confirm collected hosts are not written to `chrome.storage.local`:
 
 ```js
 await chrome.storage.local.get(null);
 ```
 
-8. Confirm no domain rule is added after preview alone.
-9. Confirm the preview does not create or modify proxy settings:
+13. Confirm no domain rule is added after preview alone.
+14. Select one or more saveable candidates and click "Add selected domains".
+15. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
+
+- `includeSubdomains` matching the candidate suggestion.
+- `mode: "proxy"`.
+- `source: "diagnostic"`.
+
+16. Confirm local proxy settings in `chrome.storage.local` are unchanged.
+17. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
+18. Confirm the preview action alone does not create or modify proxy settings:
 
 ```js
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-10. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
-11. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
-12. Confirm the preview does not contact a backend, load remote executable code, or fetch remote PAC data.
+19. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
+20. If Chrome reports that the active tab is an error page, confirm the popup shows friendly page-not-loaded copy rather than raw text such as "Frame with ID 0 is showing error page".
+21. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
+22. Confirm the preview and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
+
+## LinkedIn-Like Related-Domain Save Check
+
+1. Configure a working local proxy in Options.
+2. Open `https://www.linkedin.com/` or another page that loads `licdn.com` media/static resources.
+3. Add or keep a synced rule for `linkedin.com` if needed, route or check the page through proxy, then reload the page so resources load.
+4. Open the popup and click "Preview related domains".
+5. Confirm `media.licdn.com` and `static.licdn.com`, when observed, appear as manually reviewable medium candidates and are not selected by default.
+6. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
+7. Confirm the two selected domains are added as synced proxy rules and that no ignored or unselected candidates are saved.
 
 ## Real-World Visible Route Checks
 

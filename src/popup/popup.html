@@ -110,6 +110,54 @@
       .secondary {
         margin-top: 8px;
       }
+
+      .candidate-group + .candidate-group {
+        margin-top: 10px;
+      }
+
+      .candidate-group-title {
+        margin-bottom: 6px;
+        color: color-mix(in srgb, CanvasText 84%, Canvas);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .candidate-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 0;
+        border-top: 1px solid color-mix(in srgb, CanvasText 12%, Canvas);
+        font-size: 12px;
+      }
+
+      .candidate-row:first-of-type {
+        border-top: 0;
+      }
+
+      .candidate-row input {
+        flex: 0 0 auto;
+        margin: 2px 0 0;
+      }
+
+      .candidate-content {
+        min-width: 0;
+      }
+
+      .candidate-domain {
+        display: block;
+        overflow-wrap: anywhere;
+        font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        color: CanvasText;
+      }
+
+      .candidate-meta,
+      .candidate-note {
+        display: block;
+        margin-top: 3px;
+        color: color-mix(in srgb, CanvasText 66%, Canvas);
+        line-height: 1.35;
+      }
     </style>
   </head>
   <body>
@@ -133,6 +181,7 @@
         <button type="button" id="remove-current-site" hidden>Remove current site rule</button>
         <button type="button" id="check-via-proxy" hidden>Check via proxy</button>
         <button type="button" id="preview-related-domains" hidden>Preview related domains</button>
+        <button type="button" id="add-selected-related-domains" hidden>Add selected domains</button>
         <button type="button" id="save-diagnostic-rule" hidden>Add checked site as rule</button>
         <button type="button" id="open-options" class="secondary">Open Options</button>
         <div class="status" id="action-status" aria-live="polite">Loading actions...</div>

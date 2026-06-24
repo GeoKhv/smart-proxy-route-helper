@@ -81,6 +81,7 @@ This flow must:
 - Sanitize hostnames immediately by dropping URL paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal hosts, deduplicating, and capping results.
 - Store no collected hosts in `chrome.storage.sync` or `chrome.storage.local`.
 - Never create or save related-domain rules automatically.
+- Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
 
 Chrome documents `activeTab` as temporary access after the user invokes the extension, and documents `scripting` as required for programmatic script injection with either host permissions or `activeTab`. This project uses the `activeTab` path and does not add host permissions.
 
@@ -115,7 +116,7 @@ Mitigations:
 - Use it only for the explicit related-domain preview action.
 - Pair it with `activeTab`, not required host permissions.
 - Keep the injected function bundled in the extension package and narrowly limited to current-page resource host collection.
-- Do not persist the collected hosts or turn them into rules without a separate explicit confirmation in a later feature.
+- Do not persist the collected hosts or turn suggestions into rules without a separate explicit confirmation.
 
 ### Remote Executable Code
 

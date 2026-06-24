@@ -36,7 +36,7 @@ Stored only on the local device with `chrome.storage.local`:
 
 The project does not store secrets, local proxy configuration, browsing history, raw diagnostic history, or temporary probe state in synced storage.
 
-User-invoked related-domain preview may collect sanitized resource hostnames from the current page in memory. These collected hosts are not stored in synced storage or local storage.
+User-invoked related-domain preview may collect sanitized resource hostnames from the current page in memory. These collected hosts are not stored in synced storage or local storage. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules.
 
 ## Chrome Sync
 
@@ -65,7 +65,7 @@ Manual current-site diagnostics may make a user-initiated best-effort request fr
 
 Diagnostics do not upload results to the developer, do not store diagnostic history, do not sync temporary probe state, and do not add a rule without explicit confirmation. The current site and the user's configured local proxy provider may observe the diagnostic request in the same way they can observe ordinary network requests routed to that site.
 
-The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect current-page resource hostnames through a one-time active-tab script and use them locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. Preview candidates do not become routing rules without a separate explicit confirmation in a later feature.
+The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect current-page resource hostnames through a one-time active-tab script and use them locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. Preview candidates do not become routing rules unless the user selects candidates and clicks the separate add button.
 
 ## Limited Use Statement
 

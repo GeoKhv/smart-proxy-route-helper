@@ -70,6 +70,20 @@ function errorMessage(error: unknown): string {
   return "Could not collect resource hosts from this page.";
 }
 
+function isPageNotLoadedError(error: unknown): boolean {
+  const message = errorMessage(error).toLowerCase();
+
+  return message.includes("showing error page") || message.includes("frame with id 0");
+}
+
+function collectionUnavailableMessage(error: unknown): string {
+  if (isPageNotLoadedError(error)) {
+    return "This page is not loaded yet, so resource hosts cannot be collected. Route or check this site through proxy first, reload the page, then preview related domains.";
+  }
+
+  return `Could not collect resource hosts from this page: ${errorMessage(error)}`;
+}
+
 function unsupportedUrlMessage(url: string): string {
   try {
     const protocol = new URL(url).protocol.replace(/:$/, "");
@@ -274,7 +288,7 @@ export async function runCurrentPageResourceHostPreview(
   } catch (error) {
     return response(
       "collection_unavailable",
-      `Could not collect resource hosts from this page: ${errorMessage(error)}`,
+      collectionUnavailableMessage(error),
       target.domain
     );
   }
