@@ -3,7 +3,7 @@
   "name": "Smart Proxy Route Helper",
   "version": "0.0.0",
   "description": "Placeholder shell for a local-first proxy routing helper.",
-  "permissions": ["proxy", "storage", "activeTab"],
+  "permissions": ["proxy", "storage", "activeTab", "scripting"],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"

@@ -8,7 +8,7 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 This repository currently contains initial documentation, project guidance, and an initial Manifest V3 TypeScript runtime.
 
-The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, and manual current-site diagnostics. It does not include telemetry, backend calls, host permissions, content scripts, `webRequest`, `webNavigation`, or remote executable code.
+The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, manual current-site diagnostics, and a user-invoked related-domain preview for current-page resource hosts. It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, or remote executable code.
 
 ## Local Development
 
@@ -43,6 +43,7 @@ The current MVP runtime provides a small manual PAC manager:
 - Apply the generated PAC script through `chrome.proxy`.
 - Provide simple popup/options HTML and TypeScript UI.
 - Provide manual current-site diagnostics only after explicit user action.
+- Provide current-page related-domain preview only after explicit user action.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
 ## Out of Scope for MVP
@@ -56,7 +57,7 @@ The MVP will not include:
 - Required `<all_urls>`.
 - Required broad host permissions.
 - `webRequest` or `webNavigation`.
-- Content scripts.
+- Persistent content scripts.
 - Automatic domain rule creation.
 - Default-on or automatic diagnostics.
 - Managed remote domain lists.
@@ -69,12 +70,13 @@ MVP permissions:
 - `storage` for extension settings.
 - `proxy` to apply the locally generated PAC configuration.
 - `activeTab` for explicit user-initiated current-site popup actions and diagnostics.
+- `scripting` for the explicit user-initiated current-page related-domain preview.
 
 Planned MVP host permissions:
 
 - None.
 
-The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab, and future features that need more page context must use optional permissions where possible, explain the reason in the UI, and remain opt-in.
+The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab. Related-domain preview uses the temporary `activeTab` grant plus `scripting` after an explicit popup click, collects only sanitized resource hostnames, and does not store, sync, send, or save them as rules.
 
 See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 

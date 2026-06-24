@@ -21,7 +21,7 @@ describe("extension scaffold manifest", () => {
     const manifest = await readManifest();
 
     expect(manifest.manifest_version).toBe(3);
-    expect(manifest.permissions?.sort()).toEqual(["activeTab", "proxy", "storage"]);
+    expect(manifest.permissions?.sort()).toEqual(["activeTab", "proxy", "scripting", "storage"]);
   });
 
   it("does not declare host permissions or content scripts", async () => {

@@ -21,7 +21,8 @@ Record:
 3. Confirm no required host permissions appear in the MVP.
 4. Confirm the extension has no telemetry or backend requests.
 5. Confirm diagnostics are manual only and start only after the user clicks "Check via proxy".
-6. Confirm related-domain candidate logic is covered by unit tests only and does not collect browser resources in this release slice.
+6. Confirm related-domain preview starts only after the user clicks "Preview related domains".
+7. Confirm related-domain preview does not store, sync, send, or automatically save collected hosts.
 
 ## Current Runtime Checks
 
@@ -32,9 +33,10 @@ Record:
 5. Open the popup on a regular `http` or `https` site and confirm the current domain renders.
 6. Open the options page and confirm local proxy settings, synced domain rules, and read-only denylist/ignored-domain sections render.
 7. Inspect the service worker and confirm it starts without uncaught errors.
-8. Confirm no automatic diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
-9. Confirm manifest permissions remain unchanged: `proxy`, `storage`, and `activeTab`.
-10. Confirm no UI or runtime path collects page resource hosts for related-domain suggestions.
+8. Confirm no automatic diagnostics, backend calls, telemetry, persistent content scripts, or host permissions are present.
+9. Confirm manifest permissions are `proxy`, `storage`, `activeTab`, and `scripting`.
+10. Confirm `host_permissions` remains absent.
+11. Confirm current-page resource host collection runs only from the explicit related-domain preview action.
 
 ## Runtime PAC Apply Checks
 
@@ -111,7 +113,8 @@ await chrome.storage.sync.get(["rules"]);
 11. Open `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
 12. Confirm the popup can open Options through the "Open Options" button.
 13. Confirm the popup shows a "Check via proxy" button on supported sites.
-14. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
+14. Confirm the popup shows a "Preview related domains" button on supported sites.
+15. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
 
 ## Manual Current-Site Diagnostics Checks
 
@@ -143,10 +146,40 @@ await chrome.proxy.settings.get({ incognito: false });
 
 13. Confirm the extension restores normal proxy routing after success, failure, and timeout. If no permanent active rules exist, the extension should clear its proxy setting rather than leaving a temporary probe PAC.
 14. Confirm temporary probe state is not written to `chrome.storage.sync` or `chrome.storage.local`.
-15. Confirm diagnostics do not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, notifications, content scripts, telemetry, backend calls, remote PAC URLs, or remote executable code.
+15. Confirm diagnostics do not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, notifications, persistent content scripts, telemetry, backend calls, remote PAC URLs, or remote executable code.
 16. Add or keep an exact synced rule for the current site, then intentionally set the local proxy port to a wrong or unavailable port.
 17. Click "Check via proxy" and confirm the popup does not report "appears reachable"; it should say the site did not appear reachable through the local proxy, with a warning that the existing synced rule is covered but local proxy settings may need attention.
 18. Confirm no duplicate synced rule is created by this failed diagnostic check.
+
+## Related-Domain Preview Checks
+
+1. Open a supported `http` or `https` page with visible third-party resources, such as images, scripts, or stylesheets.
+2. Confirm no related-domain preview runs when the popup opens.
+3. Click "Preview related domains".
+4. Confirm the popup shows a cautious preview of likely related, manually reviewable, or ignored domains when candidates are found.
+5. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
+6. Confirm collected hosts are not written to `chrome.storage.sync`:
+
+```js
+await chrome.storage.sync.get(null);
+```
+
+7. Confirm collected hosts are not written to `chrome.storage.local`:
+
+```js
+await chrome.storage.local.get(null);
+```
+
+8. Confirm no domain rule is added after preview alone.
+9. Confirm the preview does not create or modify proxy settings:
+
+```js
+await chrome.proxy.settings.get({ incognito: false });
+```
+
+10. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
+11. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
+12. Confirm the preview does not contact a backend, load remote executable code, or fetch remote PAC data.
 
 ## Real-World Visible Route Checks
 
@@ -193,7 +226,7 @@ await chrome.proxy.settings.get({ incognito: false });
 
 4. Confirm the extension clears its proxy setting. The resulting Chrome value may show the user's system proxy state; it should not remain an extension-applied PAC.
 5. Store an invalid local proxy config, such as port `70000`, and confirm the service worker clears extension proxy routing instead of applying a PAC.
-6. Confirm these checks do not add host permissions, `webRequest`, `webNavigation`, notifications, content scripts, automatic diagnostics, backend calls, telemetry, or remote PAC URLs.
+6. Confirm these checks do not add host permissions, `webRequest`, `webNavigation`, notifications, persistent content scripts, automatic diagnostics, backend calls, telemetry, or remote PAC URLs.
 
 ## PAC Apply Checks
 

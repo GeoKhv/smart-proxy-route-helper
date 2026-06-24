@@ -7,6 +7,7 @@ import {
   getCurrentTabDomain,
   getDiagnosticActionStatus,
   getPopupRuleStatus,
+  getRelatedDomainPreviewActionStatus,
   removeCurrentSiteRule
 } from "../src/popup/popup";
 import type { DomainRule } from "../src/rules/ruleTypes";
@@ -188,6 +189,59 @@ describe("popup diagnostic result messages", () => {
       message:
         "A synced rule covers this site, but it did not appear reachable through your local proxy. Check your local proxy settings.",
       kind: "error"
+    });
+  });
+});
+
+describe("popup related-domain preview messages", () => {
+  it("summarizes preview candidates without offering to save rules", () => {
+    expect(
+      getRelatedDomainPreviewActionStatus({
+        status: "success",
+        message: "2 public resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "letterboxd.com",
+        collectedHosts: ["a.ltrbxd.com", "image.tmdb.org"],
+        candidates: {
+          currentDomain: "letterboxd.com",
+          strongCandidates: [
+            {
+              domain: "ltrbxd.com",
+              reason: "explicit-related-domain",
+              sourceHosts: ["a.ltrbxd.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [
+            {
+              domain: "image.tmdb.org",
+              reason: "third-party-resource",
+              sourceHosts: ["image.tmdb.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      })
+    ).toEqual({
+      message: "Likely related: ltrbxd.com. Review manually: image.tmdb.org. No rules were saved.",
+      kind: "success"
+    });
+  });
+
+  it("maps preview collection failures to a non-saving neutral status", () => {
+    expect(
+      getRelatedDomainPreviewActionStatus({
+        status: "collection_unavailable",
+        message: "Could not collect resource hosts from this page.",
+        currentDomain: "example.com"
+      })
+    ).toEqual({
+      message: "Could not collect resource hosts from this page.",
+      kind: "neutral"
     });
   });
 });

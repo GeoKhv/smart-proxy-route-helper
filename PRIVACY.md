@@ -36,6 +36,8 @@ Stored only on the local device with `chrome.storage.local`:
 
 The project does not store secrets, local proxy configuration, browsing history, raw diagnostic history, or temporary probe state in synced storage.
 
+User-invoked related-domain preview may collect sanitized resource hostnames from the current page in memory. These collected hosts are not stored in synced storage or local storage.
+
 ## Chrome Sync
 
 If the user has Chrome Sync enabled, Chrome may sync the domain rule list through the user's Chrome profile because the MVP plans to use `chrome.storage.sync` for rules.
@@ -50,6 +52,7 @@ The project must not send the developer:
 - Local proxy settings.
 - Browsing activity.
 - Diagnostic results.
+- Related-domain preview resource hosts.
 - IP addresses.
 - Error logs.
 - Usage events.
@@ -61,6 +64,8 @@ The extension must not contact a project backend because no backend exists.
 Manual current-site diagnostics may make a user-initiated best-effort request from the extension context to the current tab origin after the user clicks "Check via proxy". The check temporarily routes the current normalized domain through the configured local proxy, then restores normal proxy routing.
 
 Diagnostics do not upload results to the developer, do not store diagnostic history, do not sync temporary probe state, and do not add a rule without explicit confirmation. The current site and the user's configured local proxy provider may observe the diagnostic request in the same way they can observe ordinary network requests routed to that site.
+
+The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect current-page resource hostnames through a one-time active-tab script and use them locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. Preview candidates do not become routing rules without a separate explicit confirmation in a later feature.
 
 ## Limited Use Statement
 

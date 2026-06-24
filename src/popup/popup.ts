@@ -7,6 +7,12 @@ import {
   isCurrentSiteDiagnosticResponse,
   type CurrentSiteDiagnosticResponse
 } from "../diagnostics/currentSiteDiagnostics";
+import {
+  currentPageResourceHostsMessageType,
+  isCurrentPageResourceHostsResponse,
+  type CurrentPageResourceHostsResponse
+} from "../diagnostics/currentPageResourceHosts";
+import type { RelatedDomainCandidate } from "../diagnostics/relatedDomainCandidates";
 import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
 import type { SyncSettings } from "../storage/storageTypes";
 
@@ -68,7 +74,17 @@ export type DiagnosticActionStatus = {
   saveReachableDomain?: string;
 };
 
+export type RelatedDomainPreviewActionStatus = {
+  message: string;
+  kind: MessageKind;
+};
+
 let checkedReachableDomain: string | null = null;
+
+type ActiveTabSnapshot = {
+  id?: number;
+  url?: string;
+};
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
@@ -347,6 +363,64 @@ export function getDiagnosticActionStatus(
   };
 }
 
+function formatCandidateDomains(candidates: readonly RelatedDomainCandidate[], limit = 4): string {
+  const domains = candidates.slice(0, limit).map((candidate) => candidate.domain);
+  const extraCount = candidates.length - domains.length;
+
+  return extraCount > 0 ? `${domains.join(", ")} and ${extraCount} more` : domains.join(", ");
+}
+
+export function getRelatedDomainPreviewActionStatus(
+  preview: CurrentPageResourceHostsResponse
+): RelatedDomainPreviewActionStatus {
+  if (preview.status !== "success") {
+    return {
+      message: preview.message,
+      kind: preview.status === "unsupported_url" ? "error" : "neutral"
+    };
+  }
+
+  const candidates = preview.candidates;
+  const collectedHostCount = preview.collectedHosts?.length ?? 0;
+
+  if (!candidates || collectedHostCount === 0) {
+    return {
+      message: "No public resource hosts were available for related-domain preview. No rules were saved.",
+      kind: "neutral"
+    };
+  }
+
+  const strongCandidates = candidates.strongCandidates;
+  const mediumCandidates = candidates.mediumCandidates;
+  const ignoredCount = candidates.ignoredCandidates.length;
+
+  if (strongCandidates.length === 0 && mediumCandidates.length === 0) {
+    return {
+      message: `${collectedHostCount} public resource host${collectedHostCount === 1 ? "" : "s"} checked. No related-domain candidates were found and no rules were saved.`,
+      kind: "neutral"
+    };
+  }
+
+  const parts: string[] = [];
+
+  if (strongCandidates.length > 0) {
+    parts.push(`Likely related: ${formatCandidateDomains(strongCandidates)}`);
+  }
+
+  if (mediumCandidates.length > 0) {
+    parts.push(`Review manually: ${formatCandidateDomains(mediumCandidates)}`);
+  }
+
+  if (ignoredCount > 0) {
+    parts.push(`${ignoredCount} analytics or infrastructure host${ignoredCount === 1 ? "" : "s"} ignored`);
+  }
+
+  return {
+    message: `${parts.join(". ")}. No rules were saved.`,
+    kind: "success"
+  };
+}
+
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
   const element = root.querySelector<T>(selector);
 
@@ -371,27 +445,44 @@ function resetDiagnosticOffer(): void {
   setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), false);
 }
 
-async function getActiveTabUrl(): Promise<string | undefined> {
+function resetRelatedDomainPreview(): void {
+  const preview = getElement<HTMLElement>("#related-domain-preview");
+
+  preview.hidden = true;
+  preview.textContent = "";
+}
+
+async function getActiveTab(): Promise<ActiveTabSnapshot> {
   const [tab] = await chrome.tabs.query({
     active: true,
     currentWindow: true
   });
 
-  return tab?.url;
+  return {
+    id: tab?.id,
+    url: tab?.url
+  };
+}
+
+async function getActiveTabUrl(): Promise<string | undefined> {
+  return (await getActiveTab()).url;
 }
 
 function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }>): void {
   resetDiagnosticOffer();
+  resetRelatedDomainPreview();
   getElement<HTMLElement>("#current-domain").textContent = "Not available";
   setStatus(getElement<HTMLElement>("#route-status"), result.message, "error");
   setStatus(getElement<HTMLElement>("#action-status"), "Open a regular website tab to add a proxy route.", "neutral");
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), false);
+  setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), false);
 }
 
 function renderSupported(domain: string, settings: SyncSettings): void {
   resetDiagnosticOffer();
+  resetRelatedDomainPreview();
   const status = getPopupRuleStatus(domain, settings);
 
   getElement<HTMLElement>("#current-domain").textContent = domain;
@@ -401,6 +492,7 @@ function renderSupported(domain: string, settings: SyncSettings): void {
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), status.state === "none");
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), status.state === "exact");
   setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), status.state !== "blocked");
+  setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), status.state !== "blocked");
 }
 
 async function refreshPopup(): Promise<CurrentTabDomainResult> {
@@ -418,6 +510,7 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
 
 async function handleAddCurrentSite(): Promise<void> {
   resetDiagnosticOffer();
+  resetRelatedDomainPreview();
   const result = getCurrentTabDomain(await getActiveTabUrl());
   const actionStatus = getElement<HTMLElement>("#action-status");
 
@@ -460,6 +553,7 @@ async function handleAddCurrentSite(): Promise<void> {
 
 async function handleRemoveCurrentSite(): Promise<void> {
   resetDiagnosticOffer();
+  resetRelatedDomainPreview();
   const result = getCurrentTabDomain(await getActiveTabUrl());
   const actionStatus = getElement<HTMLElement>("#action-status");
 
@@ -511,8 +605,58 @@ async function requestCurrentSiteDiagnostic(url: string): Promise<CurrentSiteDia
   return response;
 }
 
+async function requestRelatedDomainPreview(tabId: number, url: string): Promise<CurrentPageResourceHostsResponse> {
+  const response = (await chrome.runtime.sendMessage({
+    type: currentPageResourceHostsMessageType,
+    tabId,
+    url
+  })) as unknown;
+
+  if (!isCurrentPageResourceHostsResponse(response)) {
+    return {
+      status: "error",
+      message: "Could not preview related domains."
+    };
+  }
+
+  return response;
+}
+
+function renderRelatedDomainPreview(preview: CurrentPageResourceHostsResponse): void {
+  const previewElement = getElement<HTMLElement>("#related-domain-preview");
+  const candidates = preview.candidates;
+
+  if (preview.status !== "success" || !candidates) {
+    resetRelatedDomainPreview();
+    return;
+  }
+
+  const lines: string[] = [];
+
+  if (candidates.strongCandidates.length > 0) {
+    lines.push(`Likely related: ${formatCandidateDomains(candidates.strongCandidates, 8)}`);
+  }
+
+  if (candidates.mediumCandidates.length > 0) {
+    lines.push(`Review manually: ${formatCandidateDomains(candidates.mediumCandidates, 8)}`);
+  }
+
+  if (candidates.ignoredCandidates.length > 0) {
+    lines.push(`Ignored: ${formatCandidateDomains(candidates.ignoredCandidates, 8)}`);
+  }
+
+  if (lines.length === 0) {
+    resetRelatedDomainPreview();
+    return;
+  }
+
+  previewElement.textContent = lines.join("\n");
+  previewElement.hidden = false;
+}
+
 async function handleCheckViaProxy(): Promise<void> {
   resetDiagnosticOffer();
+  resetRelatedDomainPreview();
 
   const activeUrl = await getActiveTabUrl();
   const result = getCurrentTabDomain(activeUrl);
@@ -550,9 +694,43 @@ async function handleCheckViaProxy(): Promise<void> {
   }
 }
 
+async function handlePreviewRelatedDomains(): Promise<void> {
+  resetDiagnosticOffer();
+  resetRelatedDomainPreview();
+
+  const activeTab = await getActiveTab();
+  const result = getCurrentTabDomain(activeTab.url);
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const previewButton = getElement<HTMLButtonElement>("#preview-related-domains");
+
+  if (!result.ok) {
+    renderUnsupported(result);
+    return;
+  }
+
+  if (typeof activeTab.id !== "number" || !activeTab.url) {
+    setStatus(actionStatus, "Open a supported site before previewing related domains.", "error");
+    return;
+  }
+
+  previewButton.disabled = true;
+  setStatus(actionStatus, "Previewing related domains from current-page resources...", "neutral");
+
+  try {
+    const preview = await requestRelatedDomainPreview(activeTab.id, activeTab.url);
+    const previewStatus = getRelatedDomainPreviewActionStatus(preview);
+
+    renderRelatedDomainPreview(preview);
+    setStatus(actionStatus, previewStatus.message, previewStatus.kind);
+  } finally {
+    previewButton.disabled = false;
+  }
+}
+
 async function handleSaveDiagnosticRule(): Promise<void> {
   const domain = checkedReachableDomain;
   const actionStatus = getElement<HTMLElement>("#action-status");
+  resetRelatedDomainPreview();
 
   if (!domain) {
     setStatus(actionStatus, "Run a successful proxy check before adding a diagnostic rule.", "neutral");
@@ -625,6 +803,16 @@ function initPopupPage(): void {
       setStatus(
         getElement<HTMLElement>("#action-status"),
         error instanceof Error ? error.message : "Could not complete the proxy check.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#preview-related-domains").addEventListener("click", () => {
+    void handlePreviewRelatedDomains().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not preview related domains.",
         "error"
       );
     });

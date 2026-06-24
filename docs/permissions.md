@@ -18,6 +18,7 @@ Required extension permissions:
 | `storage` | Store synced domain rules and local proxy configuration. | Required |
 | `proxy` | Apply the locally generated PAC configuration in Chrome. | Required |
 | `activeTab` | Read the current tab URL after the user invokes the popup and allow a manual current-origin diagnostic check. | Required |
+| `scripting` | Run a one-time, user-invoked current-page resource host collector for related-domain preview using the temporary `activeTab` grant. | Required |
 
 Required host permissions:
 
@@ -34,14 +35,14 @@ The MVP must not request:
 - `webRequest`.
 - `webNavigation`.
 - `tabs` for reading browsing context.
-- Content script matches.
+- Persistent content scripts or content script matches.
 - Remote code exemptions or debugger capabilities.
 
-The MVP may read the active page URL only after the user invokes the extension popup. It must not observe navigation, inspect page content, or request broad host access.
+The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect current-page resource hostnames only after the user clicks "Preview related domains". The extension must not observe navigation, collect page resources automatically, or request broad host access.
 
 ## Why No Broad Host Access in MVP
 
-The MVP can provide its core value through manual domain entry. That means it does not need to read pages, inject scripts, observe navigation, or request broad host access.
+The MVP can provide its core value through manual domain entry. That means it does not need to observe navigation, run persistent content scripts, or request broad host access.
 
 This keeps the install prompt simpler and makes the Chrome Web Store review story clearer.
 
@@ -64,9 +65,24 @@ Current-site diagnostics are part of the MVP and must follow these rules:
 
 - Run only after the user clicks "Check via proxy".
 - Request the narrowest feasible access.
-- Avoid host permissions, `<all_urls>`, `webRequest`, `webNavigation`, and content scripts unless a future design is explicitly approved.
+- Avoid host permissions, `<all_urls>`, `webRequest`, `webNavigation`, and persistent content scripts unless a future design is explicitly approved.
 - Store no diagnostic history or temporary probe state.
 - Never add a domain rule without explicit confirmation.
+
+## Related-Domain Preview Permission Rules
+
+The current-page related-domain preview is allowed to use `scripting` only for a one-time `chrome.scripting.executeScript` call after the user clicks "Preview related domains" in the popup.
+
+This flow must:
+
+- Rely on `activeTab` for temporary access to the active tab.
+- Avoid `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, notifications, backend calls, telemetry, and remote executable code.
+- Collect only resource hostnames where possible, not raw resource URLs.
+- Sanitize hostnames immediately by dropping URL paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal hosts, deduplicating, and capping results.
+- Store no collected hosts in `chrome.storage.sync` or `chrome.storage.local`.
+- Never create or save related-domain rules automatically.
+
+Chrome documents `activeTab` as temporary access after the user invokes the extension, and documents `scripting` as required for programmatic script injection with either host permissions or `activeTab`. This project uses the `activeTab` path and does not add host permissions.
 
 ## Chrome Web Store Risks
 
@@ -89,6 +105,17 @@ Mitigations:
 - Do not request host permissions in the MVP.
 - Use optional permissions for later features where feasible.
 - Keep permission prompts tied to immediate user actions.
+
+### `scripting` Permission
+
+The `scripting` permission can raise review questions if it appears to support broad page access.
+
+Mitigations:
+
+- Use it only for the explicit related-domain preview action.
+- Pair it with `activeTab`, not required host permissions.
+- Keep the injected function bundled in the extension package and narrowly limited to current-page resource host collection.
+- Do not persist the collected hosts or turn them into rules without a separate explicit confirmation in a later feature.
 
 ### Remote Executable Code
 

@@ -3,6 +3,12 @@ import {
   runCurrentSiteDiagnostic,
   type CurrentSiteDiagnosticResponse
 } from "../diagnostics/currentSiteDiagnostics";
+import {
+  collectCurrentPageResourceHostnamesFromDom,
+  isCurrentPageResourceHostsRequest,
+  runCurrentPageResourceHostPreview,
+  type CurrentPageResourceHostsResponse
+} from "../diagnostics/currentPageResourceHosts";
 import { createChromeProxySettingsAdapter, createProxySettingsController } from "../proxy/applyProxySettings";
 
 const extensionName = "Smart Proxy Route Helper";
@@ -26,27 +32,50 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
-  if (!isCurrentSiteDiagnosticRequest(message)) {
-    return false;
+  if (isCurrentSiteDiagnosticRequest(message)) {
+    void runCurrentSiteDiagnostic(message.url, {
+      proxySettings: proxySettingsAdapter,
+      restoreProxySettings: () => proxySettingsController.apply("diagnostic-restore", { force: true })
+    })
+      .then((result) => {
+        sendResponse(result);
+      })
+      .catch((error: unknown) => {
+        const response: CurrentSiteDiagnosticResponse = {
+          status: "error",
+          message: error instanceof Error ? error.message : "Could not complete the proxy check."
+        };
+
+        sendResponse(response);
+      });
+
+    return true;
   }
 
-  void runCurrentSiteDiagnostic(message.url, {
-    proxySettings: proxySettingsAdapter,
-    restoreProxySettings: () => proxySettingsController.apply("diagnostic-restore", { force: true })
-  })
-    .then((result) => {
-      sendResponse(result);
+  if (isCurrentPageResourceHostsRequest(message)) {
+    void runCurrentPageResourceHostPreview(message, {
+      executeScript: (tabId) =>
+        chrome.scripting.executeScript({
+          target: { tabId },
+          func: collectCurrentPageResourceHostnamesFromDom
+        })
     })
-    .catch((error: unknown) => {
-      const response: CurrentSiteDiagnosticResponse = {
-        status: "error",
-        message: error instanceof Error ? error.message : "Could not complete the proxy check."
-      };
+      .then((result) => {
+        sendResponse(result);
+      })
+      .catch((error: unknown) => {
+        const response: CurrentPageResourceHostsResponse = {
+          status: "error",
+          message: error instanceof Error ? error.message : "Could not preview related domains."
+        };
 
-      sendResponse(response);
-    });
+        sendResponse(response);
+      });
 
-  return true;
+    return true;
+  }
+
+  return false;
 });
 
 export {};

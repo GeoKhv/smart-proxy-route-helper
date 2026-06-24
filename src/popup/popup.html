@@ -90,6 +90,7 @@
         color: color-mix(in srgb, CanvasText 80%, Canvas);
         font-size: 13px;
         line-height: 1.45;
+        white-space: pre-line;
       }
 
       .status[data-kind="success"] {
@@ -131,9 +132,11 @@
         <button type="button" id="add-current-site" hidden>Route this site through proxy</button>
         <button type="button" id="remove-current-site" hidden>Remove current site rule</button>
         <button type="button" id="check-via-proxy" hidden>Check via proxy</button>
+        <button type="button" id="preview-related-domains" hidden>Preview related domains</button>
         <button type="button" id="save-diagnostic-rule" hidden>Add checked site as rule</button>
         <button type="button" id="open-options" class="secondary">Open Options</button>
         <div class="status" id="action-status" aria-live="polite">Loading actions...</div>
+        <div class="status" id="related-domain-preview" aria-live="polite" hidden></div>
       </section>
     </main>
     <script type="module" src="./popup.ts"></script>

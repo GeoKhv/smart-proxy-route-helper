@@ -26,9 +26,10 @@ Popup:
 - Remove exact current-domain rules only; parent inherited rules must be edited from Options.
 - Start a current-site diagnostic only after the user clicks "Check via proxy".
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
+- Preview related-domain candidates from current-page resource hosts only after the user clicks "Preview related domains".
 - Provide quick access to Options.
 
-The popup does not inspect page content, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
+The popup does not inspect page content on open, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
 
 Options page:
 
@@ -48,6 +49,7 @@ The service worker currently coordinates:
 - Applying proxy settings through `chrome.proxy`.
 - Reacting to relevant storage changes.
 - Handling current-site diagnostic messages from the popup.
+- Handling current-page related-domain preview messages from the popup.
 
 It does not yet report current apply status to the UI.
 
@@ -62,6 +64,7 @@ Once implementation begins, core logic should be isolated from Chrome APIs:
 - Storage serialization and migration helpers.
 - Diagnostic decision helpers for current-site target validation, temporary probe planning, and conservative result mapping.
 - Related-domain candidate suggestions from caller-provided observed hosts or URLs.
+- Current-page resource host sanitization and preview planning.
 
 These modules should be unit-tested without Chrome.
 
@@ -169,15 +172,33 @@ The current diagnostic flow:
 
 Diagnostic probe state is not written to sync or local storage. A permanent synced rule is created only if the user explicitly clicks the follow-up add button after a successful check. That saved rule uses `source: "diagnostic"`.
 
-Diagnostics do not use `webRequest`, `webNavigation`, content scripts, notifications, host permissions, `<all_urls>`, telemetry, backend services, remote PAC URLs, or remote executable code. Chrome Web Store review risk should be reconsidered before adding broader diagnostic permissions or any remote resource.
+Current-site diagnostics do not use `webRequest`, `webNavigation`, content scripts, notifications, host permissions, `<all_urls>`, telemetry, backend services, remote PAC URLs, or remote executable code. Chrome Web Store review risk should be reconsidered before adding broader diagnostic permissions or any remote resource.
+
+### Current-Page Related-Domain Preview
+
+The current-page related-domain preview is a narrow feasibility spike for advanced diagnostics. It is separate from rule creation and storage.
+
+The preview flow:
+
+- Requires the user to open the popup on a supported `http` or `https` page and click "Preview related domains".
+- Uses `activeTab` plus `chrome.scripting.executeScript` to run a one-time function in the active tab after that user action.
+- Collects only resource hostnames where possible, not full resource URLs.
+- Looks at current-page resource timing entries and easy DOM resource attributes such as image, script, stylesheet/preload/preconnect, iframe, media, and source URLs.
+- Immediately normalizes collected values to hostnames, drops paths, query strings, fragments, and credentials, rejects unsupported schemes, rejects localhost/private/internal/IP hosts, deduplicates, and caps the host list.
+- Feeds sanitized hostnames into the pure related-domain candidate engine.
+- Shows a preview of likely related, manually reviewable, and ignored candidates.
+
+The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules, or apply proxy settings. Candidates remain informational until a later feature adds an explicit confirmation flow.
+
+This spike adds the `scripting` permission because Chrome requires it for programmatic `chrome.scripting.executeScript`; it does not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, telemetry, backend services, remote PAC URLs, or remote executable code.
 
 ### Related-Domain Candidate Engine
 
-The related-domain candidate engine is currently pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
+The related-domain candidate engine is pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
 
 The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default.
 
-This module does not collect browser resources, inspect page content, request optional permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Any future advanced diagnostics UI must add a separate explicit opt-in collection mechanism, explain any additional permission request before use, and require explicit user confirmation before saving any suggested rule.
+This pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and any future saving UI must require explicit user confirmation before saving any suggested rule.
 
 ## Test Strategy
 
@@ -211,6 +232,7 @@ The runtime boundary remains narrow:
 - The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
+- Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow and does not write storage or create rules.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.
 - No backend, telemetry, remote PAC URL, or remote executable code is used.
