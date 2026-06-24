@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains documentation only and no runtime source code.
+This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, and pure modules for domain rules and PAC generation.
 
 ## Design Principles
 
@@ -88,7 +88,7 @@ The MVP should keep rule semantics simple:
 
 - User enters a domain, not a full URL.
 - The extension normalizes hostnames before storage and PAC generation.
-- A domain rule should apply to the domain and its subdomains unless a later design explicitly adds exact-match rules.
+- A domain rule stores whether subdomains are included. Exact matches always apply; subdomain matches apply only when `includeSubdomains` is true.
 - Invalid input should be rejected before storage.
 
 Examples of invalid input:
@@ -107,10 +107,11 @@ The generated PAC configuration should:
 - Route matching domain rules through the configured local proxy.
 - Route everything else directly.
 - Avoid including unsanitized user input.
+- Match exact domains and dot-boundary subdomains only, without unsafe substring matching.
 - Be deterministic for the same input.
 - Be small enough for straightforward review.
 
-The extension should apply the generated PAC data through `chrome.proxy` using PAC script mode.
+The pure PAC generation module does not apply proxy settings by itself. Runtime application through `chrome.proxy` is a later integration step.
 
 Chrome proxy API reference: https://developer.chrome.com/docs/extensions/reference/api/proxy
 
@@ -159,6 +160,6 @@ Manual checks:
 
 - See [manual-smoke-test.md](manual-smoke-test.md).
 
-## Current Non-Implementation Boundary
+## Current Runtime Boundary
 
-Do not create runtime source files, manifest files, build setup, or extension assets until the project moves from documentation bootstrap to implementation.
+Do not add storage wiring, `chrome.proxy.settings.set`, diagnostics, host permissions, `webRequest`, or `webNavigation` until the project explicitly moves to those implementation slices.
