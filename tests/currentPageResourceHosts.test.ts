@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCurrentPageResourceHostPreview,
   currentPageResourceHostsMessageType,
+  doesTextLookLikeErrorOrProtectionPage,
   runCurrentPageResourceHostPreview,
   sanitizeResourceHostCandidate,
   sanitizeResourceHostCandidates
@@ -132,8 +133,26 @@ describe("current-page resource host preview", () => {
     expect(result).toEqual({
       status: "collection_unavailable",
       message:
-        "This page is not loaded yet, so resource hosts cannot be collected. Route or check this site through proxy first, reload the page, then preview related domains.",
+        "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains.",
       currentDomain: "example.com"
+    });
+  });
+
+  it("maps server error or protection page signals to friendly warning copy", () => {
+    expect(doesTextLookLikeErrorOrProtectionPage("Error 403 Forbidden\nVarnish cache server")).toBe(true);
+    expect(doesTextLookLikeErrorOrProtectionPage("Regular app page with loaded resources")).toBe(false);
+
+    const result = buildCurrentPageResourceHostPreview({
+      url: "https://last.fm/music",
+      collectedHosts: ["local.adguard.org", "media.example.com"],
+      pageLooksLikeErrorOrProtection: true
+    });
+
+    expect(result).toEqual({
+      status: "collection_unavailable",
+      message:
+        "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains.",
+      currentDomain: "last.fm"
     });
   });
 

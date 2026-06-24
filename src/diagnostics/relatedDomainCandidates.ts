@@ -11,7 +11,8 @@ export type RelatedDomainCandidateReason =
   | "explicit-related-domain"
   | "third-party-resource"
   | "known-tracking-or-analytics"
-  | "shared-infrastructure";
+  | "shared-infrastructure"
+  | "local-or-adblock-helper";
 
 export type RelatedDomainCandidate = {
   domain: string;
@@ -57,16 +58,25 @@ const explicitRelatedDomains = new Map<string, readonly string[]>([
   ["ltrbxd.com", ["letterboxd.com"]]
 ]);
 
+// Keep this conservative and local. These domains are known noisy adtech or analytics roots
+// observed as page resources, not useful proxy-routing candidates.
 const trackingOrAnalyticsDomains = new Set([
+  "33across.com",
+  "3lift.com",
+  "demdex.net",
   "doubleclick.net",
   "facebook.net",
   "google-analytics.com",
   "googletagmanager.com",
   "hotjar.com",
-  "sentry.io"
+  "rubiconproject.com",
+  "sentry.io",
+  "stickyadstv.com",
+  "teads.tv"
 ]);
 
 const sharedInfrastructureDomains = new Set(["akamaihd.net", "cloudfront.net", "googleapis.com", "gstatic.com"]);
+const localOrAdblockHelperHosts = new Set(["local.adguard.org"]);
 
 function emptyResult(currentDomain: string | null): RelatedDomainCandidatesResult {
   return {
@@ -179,6 +189,15 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
     const observedHost = normalizePublicHost(observedInput);
 
     if (!observedHost || observedHost === currentHost) {
+      continue;
+    }
+
+    if (localOrAdblockHelperHosts.has(observedHost)) {
+      addCandidate(
+        candidatesByCategory,
+        "ignoredCandidates",
+        createCandidate(observedHost, "local-or-adblock-helper", observedHost, false, false)
+      );
       continue;
     }
 

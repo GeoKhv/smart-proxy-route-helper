@@ -79,6 +79,8 @@ This flow must:
 - Avoid `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, notifications, backend calls, telemetry, and remote executable code.
 - Collect only resource hostnames where possible, not raw resource URLs.
 - Sanitize hostnames immediately by dropping URL paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal hosts, deduplicating, and capping results.
+- Treat obvious analytics/adtech/shared-infrastructure/local-helper hosts as ignored, non-saveable candidates through local logic only.
+- Show a neutral warning instead of normal candidates when the active tab appears to be an error page, protection page, or interstitial.
 - Store no collected hosts in `chrome.storage.sync` or `chrome.storage.local`.
 - Never create or save related-domain rules automatically.
 - Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.

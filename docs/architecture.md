@@ -188,11 +188,16 @@ The preview flow:
 - Immediately normalizes collected values to hostnames, drops paths, query strings, fragments, and credentials, rejects unsupported schemes, rejects localhost/private/internal/IP hosts, deduplicates, and caps the host list.
 - Feeds sanitized hostnames into the pure related-domain candidate engine.
 - Shows categorized strong, medium, and ignored candidates in the popup.
+- Uses neutral preview status for discovered candidates because preview is not a save action.
 - Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers them.
 - Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.
 - Saves only selected, saveable candidates after the user clicks "Add selected domains".
 
 The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
+
+Because the preview inspects resources from the currently loaded page, results can be noisy. The engine keeps a small, local-only list of obvious analytics, adtech, shared-infrastructure, and local/adblock helper hosts as ignored candidates so they are not offered as normal saveable related domains. It does not fetch remote blocklists or use remotely controlled candidate logic.
+
+If the active tab appears to be a browser error page, server error page, protection page, or interstitial, the popup shows a neutral warning and does not present collected helper hosts as normal related-domain candidates. The user should route or check the target site through proxy, reload the real target page, and preview related domains again.
 
 This spike adds the `scripting` permission because Chrome requires it for programmatic `chrome.scripting.executeScript`; it does not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, telemetry, backend services, remote PAC URLs, or remote executable code.
 
@@ -200,7 +205,7 @@ This spike adds the `scripting` permission because Chrome requires it for progra
 
 The related-domain candidate engine is pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
 
-The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
+The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics, local/adblock helper, or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
 
 This pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and popup saving requires explicit user selection and confirmation before any suggested rule is written.
 

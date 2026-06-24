@@ -23,6 +23,11 @@ export type CurrentPageResourceHostsResponse = {
   candidates?: RelatedDomainCandidatesResult;
 };
 
+type CurrentPageResourceHostCollectionResult = {
+  hosts: string[];
+  pageLooksLikeErrorOrProtection: boolean;
+};
+
 export type ScriptInjectionResult = {
   result?: unknown;
 };
@@ -76,9 +81,13 @@ function isPageNotLoadedError(error: unknown): boolean {
   return message.includes("showing error page") || message.includes("frame with id 0");
 }
 
+function errorOrProtectionPageMessage(): string {
+  return "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains.";
+}
+
 function collectionUnavailableMessage(error: unknown): string {
   if (isPageNotLoadedError(error)) {
-    return "This page is not loaded yet, so resource hosts cannot be collected. Route or check this site through proxy first, reload the page, then preview related domains.";
+    return errorOrProtectionPageMessage();
   }
 
   return `Could not collect resource hosts from this page: ${errorMessage(error)}`;
@@ -124,6 +133,17 @@ function isSupportedStatus(status: unknown): status is CurrentPageResourceHostSt
 
 function isStringArray(input: unknown): input is string[] {
   return Array.isArray(input) && input.every((item) => typeof item === "string");
+}
+
+function isCurrentPageResourceHostCollectionResult(input: unknown): input is CurrentPageResourceHostCollectionResult {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    "hosts" in input &&
+    isStringArray(input.hosts) &&
+    "pageLooksLikeErrorOrProtection" in input &&
+    typeof input.pageLooksLikeErrorOrProtection === "boolean"
+  );
 }
 
 function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageResourceHostTarget {
@@ -188,10 +208,17 @@ function resultMessage(hostCount: number, candidateCount: number): string {
   return `${hostCount} public resource host${hostCount === 1 ? "" : "s"} checked for related-domain preview. No rules were saved.`;
 }
 
-function flattenInjectionResults(results: readonly ScriptInjectionResult[]): string[] {
+function flattenInjectionResults(results: readonly ScriptInjectionResult[]): CurrentPageResourceHostCollectionResult {
   const hosts: string[] = [];
+  let pageLooksLikeErrorOrProtection = false;
 
   for (const item of results) {
+    if (isCurrentPageResourceHostCollectionResult(item.result)) {
+      hosts.push(...item.result.hosts);
+      pageLooksLikeErrorOrProtection ||= item.result.pageLooksLikeErrorOrProtection;
+      continue;
+    }
+
     if (!isStringArray(item.result)) {
       continue;
     }
@@ -199,7 +226,10 @@ function flattenInjectionResults(results: readonly ScriptInjectionResult[]): str
     hosts.push(...item.result);
   }
 
-  return hosts;
+  return {
+    hosts,
+    pageLooksLikeErrorOrProtection
+  };
 }
 
 export function sanitizeResourceHostCandidate(input: string): string | null {
@@ -244,11 +274,16 @@ export function sanitizeResourceHostCandidates(
 export function buildCurrentPageResourceHostPreview(input: {
   url?: string;
   collectedHosts: readonly string[];
+  pageLooksLikeErrorOrProtection?: boolean;
 }): CurrentPageResourceHostsResponse {
   const target = getCurrentPageResourceHostTarget(input.url);
 
   if (!target.ok) {
     return target.response;
+  }
+
+  if (input.pageLooksLikeErrorOrProtection) {
+    return response("collection_unavailable", errorOrProtectionPageMessage(), target.domain);
   }
 
   const collectedHosts = sanitizeResourceHostCandidates(input.collectedHosts);
@@ -280,10 +315,12 @@ export async function runCurrentPageResourceHostPreview(
 
   try {
     const results = await options.executeScript(request.tabId);
+    const collection = flattenInjectionResults(results);
 
     return buildCurrentPageResourceHostPreview({
       url: request.url,
-      collectedHosts: flattenInjectionResults(results)
+      collectedHosts: collection.hosts,
+      pageLooksLikeErrorOrProtection: collection.pageLooksLikeErrorOrProtection
     });
   } catch (error) {
     return response(
@@ -320,7 +357,13 @@ export function isCurrentPageResourceHostsResponse(input: unknown): input is Cur
   );
 }
 
-export function collectCurrentPageResourceHostnamesFromDom(): string[] {
+export function doesTextLookLikeErrorOrProtectionPage(text: string): boolean {
+  const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
+
+  return normalized.includes("error 403 forbidden") || normalized.includes("varnish cache server");
+}
+
+export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourceHostCollectionResult {
   const maxHosts = 80;
   const hosts = new Set<string>();
 
@@ -389,5 +432,10 @@ export function collectCurrentPageResourceHostnamesFromDom(): string[] {
   addAttributeValues("video[poster]", "poster");
   addAttributeValues("source[src]", "src");
 
-  return [...hosts];
+  const pageText = [document.title, document.body?.innerText ?? document.body?.textContent ?? ""].join("\n");
+
+  return {
+    hosts: [...hosts],
+    pageLooksLikeErrorOrProtection: doesTextLookLikeErrorOrProtectionPage(pageText)
+  };
 }

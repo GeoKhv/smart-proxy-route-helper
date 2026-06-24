@@ -126,18 +126,43 @@
         display: flex;
         align-items: flex-start;
         gap: 8px;
-        padding: 8px 0;
-        border-top: 1px solid color-mix(in srgb, CanvasText 12%, Canvas);
+        margin-top: 2px;
+        padding: 8px;
+        border: 1px solid transparent;
+        border-top-color: color-mix(in srgb, CanvasText 12%, Canvas);
+        border-radius: 6px;
         font-size: 12px;
+      }
+
+      label.candidate-row {
+        cursor: pointer;
       }
 
       .candidate-row:first-of-type {
         border-top: 0;
       }
 
+      .candidate-row[data-selected="true"] {
+        border-color: color-mix(in srgb, Highlight 58%, Canvas);
+        background: color-mix(in srgb, Highlight 14%, Canvas);
+        box-shadow: inset 3px 0 0 Highlight;
+      }
+
+      .candidate-row[data-covered="true"] {
+        background: color-mix(in srgb, CanvasText 5%, Canvas);
+        color: color-mix(in srgb, CanvasText 70%, Canvas);
+      }
+
+      .candidate-row[data-category="ignored"] {
+        color: color-mix(in srgb, CanvasText 68%, Canvas);
+      }
+
       .candidate-row input {
         flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
         margin: 2px 0 0;
+        accent-color: Highlight;
       }
 
       .candidate-content {

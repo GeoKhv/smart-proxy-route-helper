@@ -9,6 +9,7 @@ import {
   getCurrentTabDomain,
   getDiagnosticActionStatus,
   getPopupRuleStatus,
+  getRelatedDomainSaveActionStatus,
   getRelatedDomainPreviewActionStatus,
   removeCurrentSiteRule
 } from "../src/popup/popup";
@@ -229,8 +230,9 @@ describe("popup related-domain preview messages", () => {
         }
       })
     ).toEqual({
-      message: "Likely related: ltrbxd.com. Review manually: image.tmdb.org. No rules were saved.",
-      kind: "success"
+      message:
+        "Related-domain preview found candidates. No rules were saved yet. Likely related: ltrbxd.com. Review manually: image.tmdb.org.",
+      kind: "neutral"
     });
   });
 
@@ -721,6 +723,33 @@ describe("popup related-domain selected save helper", () => {
       skippedDomains: []
     });
   });
+
+  it("formats explicit save completion as success only after selected rules are added", () => {
+    expect(
+      getRelatedDomainSaveActionStatus({
+        ok: true,
+        status: "added",
+        rules: [manualRule("media.licdn.com", false)],
+        addedRules: [manualRule("media.licdn.com", false)],
+        skippedDomains: []
+      })
+    ).toEqual({
+      message: "Added synced proxy route for media.licdn.com.",
+      kind: "success"
+    });
+
+    expect(
+      getRelatedDomainSaveActionStatus({
+        ok: true,
+        status: "none-selected",
+        rules: [],
+        addedRules: [],
+        skippedDomains: []
+      })
+    ).toMatchObject({
+      kind: "neutral"
+    });
+  });
 });
 
 describe("popup runtime boundaries", () => {
@@ -744,6 +773,16 @@ describe("popup runtime boundaries", () => {
     expect(previewHandler).not.toContain("updateSyncSettings");
     expect(previewHandler).not.toContain("setSyncSettings");
     expect(saveHandler).toContain("updateSyncSettings");
+  });
+
+  it("marks selected related-domain rows with a visible styling state", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+    const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
+
+    expect(popupSource).toContain('row.dataset.selected = candidate.selected && candidate.saveable ? "true" : "false"');
+    expect(popupSource).toContain("updateCandidateRowSelection(row, checkbox)");
+    expect(popupHtml).toContain('.candidate-row[data-selected="true"]');
+    expect(popupHtml).toContain("accent-color: Highlight");
   });
 });
 

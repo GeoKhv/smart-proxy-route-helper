@@ -135,7 +135,8 @@ const relatedDomainReasonLabels: Record<RelatedDomainCandidateReason, string> = 
   "explicit-related-domain": "known related domain",
   "third-party-resource": "resource on current page",
   "known-tracking-or-analytics": "analytics or tracking host",
-  "shared-infrastructure": "shared infrastructure"
+  "shared-infrastructure": "shared infrastructure",
+  "local-or-adblock-helper": "local or adblock helper"
 };
 
 type ActiveTabSnapshot = {
@@ -537,11 +538,43 @@ export function getRelatedDomainPreviewActionStatus(
   }
 
   if (ignoredCount > 0) {
-    parts.push(`${ignoredCount} analytics or infrastructure host${ignoredCount === 1 ? "" : "s"} ignored`);
+    parts.push(`${ignoredCount} analytics, helper, or infrastructure host${ignoredCount === 1 ? "" : "s"} ignored`);
   }
 
   return {
-    message: `${parts.join(". ")}. No rules were saved.`,
+    message: `Related-domain preview found candidates. No rules were saved yet. ${parts.join(". ")}.`,
+    kind: "neutral"
+  };
+}
+
+export function getRelatedDomainSaveActionStatus(
+  addResult: AddSelectedRelatedDomainRulesResult
+): RelatedDomainPreviewActionStatus {
+  if (!addResult.ok) {
+    return {
+      message: addResult.error,
+      kind: "error"
+    };
+  }
+
+  if (addResult.status === "none-selected") {
+    return {
+      message: "Select at least one related domain before adding rules.",
+      kind: "neutral"
+    };
+  }
+
+  if (addResult.status === "no-new-rules") {
+    return {
+      message: "No new related-domain rules were added; selected domains are already covered.",
+      kind: "neutral"
+    };
+  }
+
+  const addedDomains = addResult.addedRules.map((rule) => rule.domain).join(", ");
+
+  return {
+    message: `Added synced proxy route${addResult.addedRules.length === 1 ? "" : "s"} for ${addedDomains}.`,
     kind: "success"
   };
 }
@@ -718,6 +751,10 @@ function candidateIncludeSubdomainsLabel(candidate: RelatedDomainCandidateView):
   return candidate.includeSubdomains ? "include subdomains" : "exact domain";
 }
 
+function updateCandidateRowSelection(row: HTMLElement, checkbox: HTMLInputElement): void {
+  row.dataset.selected = checkbox.checked && !checkbox.disabled ? "true" : "false";
+}
+
 function updateRelatedDomainSaveButtonState(): void {
   const saveButton = getElement<HTMLButtonElement>("#add-selected-related-domains");
 
@@ -737,6 +774,9 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
 
   row.className = "candidate-row";
   row.dataset.category = candidate.category;
+  row.dataset.covered = candidate.alreadyCovered ? "true" : "false";
+  row.dataset.saveable = candidate.saveable ? "true" : "false";
+  row.dataset.selected = candidate.selected && candidate.saveable ? "true" : "false";
 
   if (candidate.category !== "ignored") {
     const checkbox = document.createElement("input");
@@ -745,7 +785,10 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
     checkbox.checked = candidate.selected;
     checkbox.disabled = !candidate.saveable;
     checkbox.dataset.relatedDomain = candidate.domain;
-    checkbox.addEventListener("change", updateRelatedDomainSaveButtonState);
+    checkbox.addEventListener("change", () => {
+      updateCandidateRowSelection(row, checkbox);
+      updateRelatedDomainSaveButtonState();
+    });
     row.append(checkbox);
   }
 
@@ -1123,29 +1166,30 @@ async function handleAddSelectedRelatedDomains(): Promise<void> {
     "diagnostic"
   );
 
+  const saveStatus = getRelatedDomainSaveActionStatus(addResult);
+
   if (!addResult.ok) {
-    setStatus(actionStatus, addResult.error, "error");
+    setStatus(actionStatus, saveStatus.message, saveStatus.kind);
     return;
   }
 
   if (addResult.status === "none-selected") {
-    setStatus(actionStatus, "Select at least one related domain before adding rules.", "neutral");
+    setStatus(actionStatus, saveStatus.message, saveStatus.kind);
     return;
   }
 
   if (addResult.status === "no-new-rules") {
     renderSupported(currentResult.domain, current);
-    setStatus(actionStatus, "No new related-domain rules were added; selected domains are already covered.", "neutral");
+    setStatus(actionStatus, saveStatus.message, saveStatus.kind);
     return;
   }
 
   const updated = await updateSyncSettings({
     rules: addResult.rules
   });
-  const addedDomains = addResult.addedRules.map((rule) => rule.domain).join(", ");
 
   renderSupported(currentResult.domain, updated);
-  setStatus(actionStatus, `Added synced proxy route${addResult.addedRules.length === 1 ? "" : "s"} for ${addedDomains}.`, "success");
+  setStatus(actionStatus, saveStatus.message, saveStatus.kind);
 }
 
 async function handleSaveDiagnosticRule(): Promise<void> {

@@ -183,6 +183,86 @@ describe("related-domain candidate engine", () => {
     expect(result.mediumCandidates).toEqual([]);
   });
 
+  it("keeps obvious adtech and analytics domains ignored instead of saveable", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "linkedin.com",
+      observedUrlsOrHosts: [
+        "ads.stickyadstv.com",
+        "eb2.3lift.com",
+        "lex.33across.com",
+        "sync.teads.tv",
+        "token.rubiconproject.com",
+        "dpm.demdex.net",
+        "lnkd.demdex.net",
+        "ad.doubleclick.net",
+        "www.google-analytics.com",
+        "www.googletagmanager.com",
+        "connect.facebook.net",
+        "script.hotjar.com"
+      ]
+    });
+
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.ignoredCandidates.map((candidate) => candidate.domain)).toEqual([
+      "33across.com",
+      "3lift.com",
+      "demdex.net",
+      "doubleclick.net",
+      "facebook.net",
+      "google-analytics.com",
+      "googletagmanager.com",
+      "hotjar.com",
+      "rubiconproject.com",
+      "stickyadstv.com",
+      "teads.tv"
+    ]);
+    expect(result.ignoredCandidates.every((candidate) => candidate.reason === "known-tracking-or-analytics")).toBe(true);
+    expect(result.ignoredCandidates.every((candidate) => candidate.defaultSelected === false)).toBe(true);
+  });
+
+  it("keeps local adblock helper hosts ignored and non-saveable", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "last.fm",
+      observedUrlsOrHosts: ["local.adguard.org"]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([
+      {
+        domain: "local.adguard.org",
+        reason: "local-or-adblock-helper",
+        sourceHosts: ["local.adguard.org"],
+        sourceHostCount: 1,
+        suggestedIncludeSubdomains: false,
+        defaultSelected: false
+      }
+    ]);
+  });
+
+  it("keeps observed LinkedIn media and static hosts visible while adtech stays ignored", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "https://www.linkedin.com/feed/",
+      observedUrlsOrHosts: [
+        "https://media.licdn.com/media/image.jpg",
+        "https://static.licdn.com/sc/h/app.js",
+        "https://dms.licdn.com/playlist/video.mp4",
+        "https://ads.stickyadstv.com/sync",
+        "https://dpm.demdex.net/id"
+      ]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.mediumCandidates.map((candidate) => candidate.domain)).toEqual([
+      "dms.licdn.com",
+      "media.licdn.com",
+      "static.licdn.com"
+    ]);
+    expect(result.mediumCandidates.every((candidate) => candidate.defaultSelected === false)).toBe(true);
+    expect(result.ignoredCandidates.map((candidate) => candidate.domain)).toEqual(["demdex.net", "stickyadstv.com"]);
+  });
+
   it("classifies unknown third-party domains as medium and not default-selected", () => {
     const result = buildRelatedDomainCandidates({
       currentDomain: "example.com",

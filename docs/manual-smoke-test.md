@@ -159,43 +159,48 @@ await chrome.proxy.settings.get({ incognito: false });
 3. Click "Preview related domains".
 4. Confirm the popup shows categorized strong, manually reviewable, or ignored domains when candidates are found.
 5. Confirm saveable candidates show a checkbox, domain, short reason, include-subdomains default, and whether an exact or parent rule already covers them.
-6. Confirm strong candidates are selected only when the engine marks them default-selected.
-7. Confirm medium candidates are not selected by default.
-8. Confirm ignored analytics/shared-infrastructure candidates are not selected and are not saveable.
-9. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
-10. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
-11. Confirm collected hosts are not written to `chrome.storage.sync`:
+6. Confirm a checked candidate row is visually obvious, and that already-covered rows are visually distinct from checked rows.
+7. Confirm strong candidates are selected only when the engine marks them default-selected.
+8. Confirm medium candidates are not selected by default.
+9. Confirm ignored analytics/adtech/shared-infrastructure/local-helper candidates are not selected and are not saveable.
+10. Confirm obvious noisy hosts such as `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, `demdex.net`, `doubleclick.net`, `google-analytics.com`, `googletagmanager.com`, `facebook.net`, and `hotjar.com` are ignored rather than shown as normal reviewable candidates.
+11. Confirm `local.adguard.org` is ignored or absent from the saveable candidate list.
+12. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
+13. Confirm preview completion uses neutral/info styling and wording such as "No rules were saved yet", not green save-success styling.
+14. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
+15. Confirm collected hosts are not written to `chrome.storage.sync`:
 
 ```js
 await chrome.storage.sync.get(null);
 ```
 
-12. Confirm collected hosts are not written to `chrome.storage.local`:
+16. Confirm collected hosts are not written to `chrome.storage.local`:
 
 ```js
 await chrome.storage.local.get(null);
 ```
 
-13. Confirm no domain rule is added after preview alone.
-14. Select one or more saveable candidates and click "Add selected domains".
-15. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
+17. Confirm no domain rule is added after preview alone.
+18. Select one or more saveable candidates and click "Add selected domains".
+19. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
+20. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
 
 - `includeSubdomains` matching the candidate suggestion.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
 
-16. Confirm local proxy settings in `chrome.storage.local` are unchanged.
-17. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
-18. Confirm the preview action alone does not create or modify proxy settings:
+21. Confirm local proxy settings in `chrome.storage.local` are unchanged.
+22. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
+23. Confirm the preview action alone does not create or modify proxy settings:
 
 ```js
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-19. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
-20. If Chrome reports that the active tab is an error page, confirm the popup shows friendly page-not-loaded copy rather than raw text such as "Frame with ID 0 is showing error page".
-21. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
-22. Confirm the preview and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
+24. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
+25. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
+26. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
+27. Confirm the preview and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
 
 ## LinkedIn-Like Related-Domain Save Check
 
@@ -204,8 +209,9 @@ await chrome.proxy.settings.get({ incognito: false });
 3. Add or keep a synced rule for `linkedin.com` if needed, route or check the page through proxy, then reload the page so resources load.
 4. Open the popup and click "Preview related domains".
 5. Confirm `media.licdn.com` and `static.licdn.com`, when observed, appear as manually reviewable medium candidates and are not selected by default.
-6. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
-7. Confirm the two selected domains are added as synced proxy rules and that no ignored or unselected candidates are saved.
+6. Confirm adtech/tracking hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, and `rubiconproject.com`, when observed, do not crowd the normal saveable list.
+7. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
+8. Confirm the two selected domains are added as synced proxy rules and that no ignored or unselected candidates are saved.
 
 ## Real-World Visible Route Checks
 
