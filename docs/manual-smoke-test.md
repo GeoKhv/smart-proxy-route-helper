@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current placeholder extension scaffold and later runtime releases.
+This checklist covers the current Manifest V3 extension scaffold and runtime PAC application. The product is not user-ready yet because popup/options settings behavior is not implemented.
 
 ## Test Environment
 
@@ -22,9 +22,7 @@ Record:
 4. Confirm the extension has no telemetry or backend requests.
 5. Confirm diagnostics are absent in v0.1 or disabled by default in later releases.
 
-## Current Scaffold Checks
-
-Run these checks before MVP runtime logic exists:
+## Current Runtime Checks
 
 1. Run `npm install`.
 2. Run `npm test`.
@@ -32,8 +30,92 @@ Run these checks before MVP runtime logic exists:
 4. Load `dist/` as an unpacked extension in Chrome.
 5. Open the popup and confirm the placeholder UI renders.
 6. Open the options page and confirm the placeholder UI renders.
-7. Inspect the service worker and confirm it starts without errors.
-8. Confirm no proxy settings, storage data, diagnostics, backend calls, or telemetry are created by the placeholder scaffold.
+7. Inspect the service worker and confirm it starts without uncaught errors.
+8. Confirm no diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
+9. Confirm manifest permissions remain unchanged: `proxy`, `storage`, and `activeTab`.
+
+## Runtime PAC Apply Checks
+
+Use the extension service worker DevTools console because UI settings are not implemented yet.
+
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Open the loaded extension's service worker inspection link.
+4. In the service worker console, configure a local proxy and one manual synced domain rule:
+
+```js
+await chrome.storage.local.set({
+  deviceProxy: {
+    enabled: true,
+    config: {
+      scheme: "socks5",
+      host: "127.0.0.1",
+      port: 10808
+    }
+  },
+  diagnostics: {
+    enabled: false
+  }
+});
+
+await chrome.storage.sync.set({
+  rules: [
+    {
+      domain: "example.com",
+      includeSubdomains: true,
+      mode: "proxy",
+      source: "manual",
+      createdAt: new Date().toISOString()
+    }
+  ],
+  ignoredDomains: [],
+  denylist: []
+});
+```
+
+5. Confirm the service worker logs say PAC proxy routing was applied.
+6. Inspect Chrome's current proxy setting:
+
+```js
+await chrome.proxy.settings.get({ incognito: false });
+```
+
+7. Confirm the value uses `mode: "pac_script"` and contains inline PAC `data`, not a PAC `url`.
+8. If a local test proxy is running on the configured host/port, visit the test domain and confirm matching traffic reaches that local proxy.
+9. Visit a non-matching domain and confirm it uses the direct route.
+
+## Empty Rules and Missing Config Checks
+
+1. Keep the valid local proxy config and clear synced rules:
+
+```js
+await chrome.storage.sync.set({
+  rules: [],
+  ignoredDomains: [],
+  denylist: []
+});
+await chrome.proxy.settings.get({ incognito: false });
+```
+
+2. Confirm a PAC script is still applied, but its rule list is empty and ordinary traffic uses `DIRECT`.
+3. Disable local proxy routing:
+
+```js
+await chrome.storage.local.set({
+  deviceProxy: {
+    enabled: false,
+    config: null
+  },
+  diagnostics: {
+    enabled: false
+  }
+});
+await chrome.proxy.settings.get({ incognito: false });
+```
+
+4. Confirm the extension clears its proxy setting. The resulting Chrome value may show the user's system proxy state; it should not remain an extension-applied PAC.
+5. Store an invalid local proxy config, such as port `70000`, and confirm the service worker clears extension proxy routing instead of applying a PAC.
+6. Confirm these checks do not add host permissions, `webRequest`, `webNavigation`, notifications, content scripts, diagnostics, backend calls, telemetry, or remote PAC URLs.
 
 ## MVP Configuration Checks
 
@@ -55,6 +137,8 @@ Run these checks before MVP runtime logic exists:
 6. Reload the extension and confirm stored rules are restored.
 
 ## PAC Apply Checks
+
+Run these checks once UI settings exist:
 
 1. Start with no enabled rules and apply settings.
 2. Confirm ordinary sites use the direct route.
