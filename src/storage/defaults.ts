@@ -1,0 +1,37 @@
+import type { LocalSettings, SyncSettings } from "./storageTypes";
+
+export const defaultSyncSettings: Readonly<SyncSettings> = {
+  rules: [],
+  ignoredDomains: [],
+  denylist: []
+};
+
+export const defaultLocalSettings: Readonly<LocalSettings> = {
+  deviceProxy: {
+    enabled: false,
+    config: null
+  },
+  diagnostics: {
+    enabled: false
+  }
+};
+
+export function createDefaultSyncSettings(): SyncSettings {
+  return {
+    rules: [...defaultSyncSettings.rules],
+    ignoredDomains: [...defaultSyncSettings.ignoredDomains],
+    denylist: [...defaultSyncSettings.denylist]
+  };
+}
+
+export function createDefaultLocalSettings(): LocalSettings {
+  return {
+    deviceProxy: {
+      enabled: defaultLocalSettings.deviceProxy.enabled,
+      config: defaultLocalSettings.deviceProxy.config
+    },
+    diagnostics: {
+      enabled: defaultLocalSettings.diagnostics.enabled
+    }
+  };
+}

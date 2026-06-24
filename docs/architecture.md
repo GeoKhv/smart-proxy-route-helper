@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, and pure modules for domain rules and PAC generation.
+This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, and typed storage helpers.
 
 ## Design Principles
 
@@ -60,12 +60,12 @@ These modules should be unit-tested without Chrome.
 
 Use `chrome.storage.sync` for domain routing rules because users should be able to keep the same domain list across Chrome profiles.
 
-Expected synced data:
+Current synced data:
 
-- Schema version.
 - Domain rules.
-- Rule enabled/disabled state.
-- Safe rule metadata.
+- Ignored domains.
+- Denylist entries.
+- Safe rule metadata such as manual/import/diagnostic source and creation time.
 
 Do not store local proxy host, port, credentials, device state, or diagnostics history in synced storage.
 
@@ -73,14 +73,15 @@ Do not store local proxy host, port, credentials, device state, or diagnostics h
 
 Use `chrome.storage.local` for settings that are specific to one Chrome installation.
 
-Expected local data:
+Current local data:
 
 - Local proxy scheme.
 - Local proxy host.
 - Local proxy port.
-- Device enabled/disabled state.
-- Last apply status.
-- Local diagnostics preference once diagnostics exist.
+- Device proxy enabled/disabled state.
+- Local diagnostics preference.
+
+Do not store telemetry, browsing history, raw diagnostic history, secrets, synced proxy host/port values, or temporary probe state.
 
 ## Planned Domain Rule Semantics
 
@@ -162,4 +163,6 @@ Manual checks:
 
 ## Current Runtime Boundary
 
-Do not add storage wiring, `chrome.proxy.settings.set`, diagnostics, host permissions, `webRequest`, or `webNavigation` until the project explicitly moves to those implementation slices.
+Typed storage helpers exist for `chrome.storage.sync` and `chrome.storage.local`, but they are not wired into popup behavior, options behavior, service worker proxy application, or diagnostics.
+
+Do not add `chrome.proxy.settings.set`, diagnostics, host permissions, `webRequest`, or `webNavigation` until the project explicitly moves to those implementation slices.
