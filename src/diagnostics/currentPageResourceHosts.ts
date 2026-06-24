@@ -9,6 +9,23 @@ export const currentPageResourceHostLimit = 80;
 
 export type CurrentPageResourceHostStatus = "success" | "unsupported_url" | "collection_unavailable" | "error";
 
+export type CurrentPageResourceHostResultState =
+  | "page_not_loaded"
+  | "error_or_protection_page"
+  | "no_resource_entries_collected"
+  | "hosts_collected_but_all_internal_or_ignored"
+  | "hosts_collected_but_no_related_candidates"
+  | "candidates_available";
+
+export type CurrentPageResourceHostPreviewSummary = {
+  rawEntriesInspected: number;
+  hostsExtracted: number;
+  hostsAfterSanitization: number;
+  hostsIgnoredOrInternal: number;
+  reviewableCandidates: number;
+  ignoredCandidates: number;
+};
+
 export type CurrentPageResourceHostsRequest = {
   type: typeof currentPageResourceHostsMessageType;
   tabId: number;
@@ -19,6 +36,8 @@ export type CurrentPageResourceHostsResponse = {
   status: CurrentPageResourceHostStatus;
   message: string;
   currentDomain?: string;
+  resultState?: CurrentPageResourceHostResultState;
+  summary?: CurrentPageResourceHostPreviewSummary;
   collectedHosts?: string[];
   candidates?: RelatedDomainCandidatesResult;
 };
@@ -26,6 +45,9 @@ export type CurrentPageResourceHostsResponse = {
 type CurrentPageResourceHostCollectionResult = {
   hosts: string[];
   pageLooksLikeErrorOrProtection: boolean;
+  summary?: Pick<CurrentPageResourceHostPreviewSummary, "rawEntriesInspected" | "hostsExtracted"> & {
+    hostsRejected: number;
+  };
 };
 
 export type ScriptInjectionResult = {
@@ -52,12 +74,14 @@ function response(
   status: CurrentPageResourceHostStatus,
   message: string,
   currentDomain?: string,
-  extra?: Pick<CurrentPageResourceHostsResponse, "collectedHosts" | "candidates">
+  extra?: Pick<CurrentPageResourceHostsResponse, "resultState" | "summary" | "collectedHosts" | "candidates">
 ): CurrentPageResourceHostsResponse {
   return {
     status,
     message,
     ...(currentDomain ? { currentDomain } : {}),
+    ...(extra?.resultState ? { resultState: extra.resultState } : {}),
+    ...(extra?.summary ? { summary: extra.summary } : {}),
     ...(extra?.collectedHosts ? { collectedHosts: extra.collectedHosts } : {}),
     ...(extra?.candidates ? { candidates: extra.candidates } : {})
   };
@@ -131,8 +155,38 @@ function isSupportedStatus(status: unknown): status is CurrentPageResourceHostSt
   );
 }
 
+function isSupportedResultState(state: unknown): state is CurrentPageResourceHostResultState {
+  return (
+    state === "page_not_loaded" ||
+    state === "error_or_protection_page" ||
+    state === "no_resource_entries_collected" ||
+    state === "hosts_collected_but_all_internal_or_ignored" ||
+    state === "hosts_collected_but_no_related_candidates" ||
+    state === "candidates_available"
+  );
+}
+
 function isStringArray(input: unknown): input is string[] {
   return Array.isArray(input) && input.every((item) => typeof item === "string");
+}
+
+function isPreviewSummary(input: unknown): input is CurrentPageResourceHostPreviewSummary {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    "rawEntriesInspected" in input &&
+    typeof input.rawEntriesInspected === "number" &&
+    "hostsExtracted" in input &&
+    typeof input.hostsExtracted === "number" &&
+    "hostsAfterSanitization" in input &&
+    typeof input.hostsAfterSanitization === "number" &&
+    "hostsIgnoredOrInternal" in input &&
+    typeof input.hostsIgnoredOrInternal === "number" &&
+    "reviewableCandidates" in input &&
+    typeof input.reviewableCandidates === "number" &&
+    "ignoredCandidates" in input &&
+    typeof input.ignoredCandidates === "number"
+  );
 }
 
 function isCurrentPageResourceHostCollectionResult(input: unknown): input is CurrentPageResourceHostCollectionResult {
@@ -142,7 +196,16 @@ function isCurrentPageResourceHostCollectionResult(input: unknown): input is Cur
     "hosts" in input &&
     isStringArray(input.hosts) &&
     "pageLooksLikeErrorOrProtection" in input &&
-    typeof input.pageLooksLikeErrorOrProtection === "boolean"
+    typeof input.pageLooksLikeErrorOrProtection === "boolean" &&
+    (!("summary" in input) ||
+      (typeof input.summary === "object" &&
+        input.summary !== null &&
+        "rawEntriesInspected" in input.summary &&
+        typeof input.summary.rawEntriesInspected === "number" &&
+        "hostsExtracted" in input.summary &&
+        typeof input.summary.hostsExtracted === "number" &&
+        "hostsRejected" in input.summary &&
+        typeof input.summary.hostsRejected === "number"))
   );
 }
 
@@ -196,30 +259,40 @@ function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageR
   };
 }
 
-function resultMessage(hostCount: number, candidateCount: number, ignoredCandidateCount: number): string {
-  if (hostCount === 0) {
-    return "No public resource hosts were available for related-domain preview. No rules were saved.";
+function resultMessage(resultState: CurrentPageResourceHostResultState, summary: CurrentPageResourceHostPreviewSummary): string {
+  if (resultState === "no_resource_entries_collected") {
+    return "No page resource hosts were found. Try reloading the page, then preview again.";
   }
 
-  if (candidateCount === 0) {
-    if (ignoredCandidateCount > 0) {
-      return `${hostCount} public resource host${hostCount === 1 ? "" : "s"} checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.`;
-    }
-
-    return `${hostCount} public resource host${hostCount === 1 ? "" : "s"} checked. No related-domain candidates were found and no rules were saved.`;
+  if (resultState === "hosts_collected_but_all_internal_or_ignored") {
+    return "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.";
   }
 
-  return `${hostCount} public resource host${hostCount === 1 ? "" : "s"} checked for related-domain preview. No rules were saved.`;
+  if (resultState === "hosts_collected_but_no_related_candidates") {
+    return "Resource hosts were found, but no new related-domain candidates were identified. No rules were saved.";
+  }
+
+  return `${summary.hostsAfterSanitization} resource host${summary.hostsAfterSanitization === 1 ? "" : "s"} checked for related-domain preview. No rules were saved.`;
 }
 
 function flattenInjectionResults(results: readonly ScriptInjectionResult[]): CurrentPageResourceHostCollectionResult {
   const hosts: string[] = [];
   let pageLooksLikeErrorOrProtection = false;
+  let rawEntriesInspected = 0;
+  let hostsExtracted = 0;
+  let hostsRejected = 0;
+  let hasCollectorSummary = false;
 
   for (const item of results) {
     if (isCurrentPageResourceHostCollectionResult(item.result)) {
       hosts.push(...item.result.hosts);
       pageLooksLikeErrorOrProtection ||= item.result.pageLooksLikeErrorOrProtection;
+      if (item.result.summary) {
+        hasCollectorSummary = true;
+        rawEntriesInspected += item.result.summary.rawEntriesInspected;
+        hostsExtracted += item.result.summary.hostsExtracted;
+        hostsRejected += item.result.summary.hostsRejected;
+      }
       continue;
     }
 
@@ -232,7 +305,16 @@ function flattenInjectionResults(results: readonly ScriptInjectionResult[]): Cur
 
   return {
     hosts,
-    pageLooksLikeErrorOrProtection
+    pageLooksLikeErrorOrProtection,
+    ...(hasCollectorSummary
+      ? {
+          summary: {
+            rawEntriesInspected,
+            hostsExtracted,
+            hostsRejected
+          }
+        }
+      : {})
   };
 }
 
@@ -258,7 +340,20 @@ export function sanitizeResourceHostCandidates(
   inputs: readonly string[],
   maxHosts: number = currentPageResourceHostLimit
 ): string[] {
+  return sanitizeResourceHostCandidatesWithSummary(inputs, maxHosts).hosts;
+}
+
+function sanitizeResourceHostCandidatesWithSummary(
+  inputs: readonly string[],
+  maxHosts: number = currentPageResourceHostLimit
+): {
+  hosts: string[];
+  acceptedHostCount: number;
+  rejectedHostCount: number;
+} {
   const hosts = new Set<string>();
+  let acceptedHostCount = 0;
+  let rejectedHostCount = 0;
 
   for (const input of inputs) {
     if (hosts.size >= maxHosts) {
@@ -268,17 +363,25 @@ export function sanitizeResourceHostCandidates(
     const host = sanitizeResourceHostCandidate(input);
 
     if (host) {
+      acceptedHostCount += 1;
       hosts.add(host);
+    } else {
+      rejectedHostCount += 1;
     }
   }
 
-  return [...hosts].sort((left, right) => left.localeCompare(right));
+  return {
+    hosts: [...hosts].sort((left, right) => left.localeCompare(right)),
+    acceptedHostCount,
+    rejectedHostCount
+  };
 }
 
 export function buildCurrentPageResourceHostPreview(input: {
   url?: string;
   collectedHosts: readonly string[];
   pageLooksLikeErrorOrProtection?: boolean;
+  collectionSummary?: CurrentPageResourceHostCollectionResult["summary"];
 }): CurrentPageResourceHostsResponse {
   const target = getCurrentPageResourceHostTarget(input.url);
 
@@ -287,18 +390,42 @@ export function buildCurrentPageResourceHostPreview(input: {
   }
 
   if (input.pageLooksLikeErrorOrProtection) {
-    return response("collection_unavailable", errorOrProtectionPageMessage(), target.domain);
+    return response("collection_unavailable", errorOrProtectionPageMessage(), target.domain, {
+      resultState: "error_or_protection_page"
+    });
   }
 
-  const collectedHosts = sanitizeResourceHostCandidates(input.collectedHosts);
+  const sanitized = sanitizeResourceHostCandidatesWithSummary(input.collectedHosts);
+  const collectedHosts = sanitized.hosts;
   const candidates = buildRelatedDomainCandidates({
     currentDomain: target.domain,
     observedUrlsOrHosts: collectedHosts
   });
-  const candidateCount = candidates.strongCandidates.length + candidates.mediumCandidates.length;
-  const ignoredCandidateCount = candidates.ignoredCandidates.length;
+  const reviewableCandidates = candidates.strongCandidates.length + candidates.mediumCandidates.length;
+  const ignoredCandidates = candidates.ignoredCandidates.length;
+  const rawEntriesInspected = input.collectionSummary?.rawEntriesInspected ?? input.collectedHosts.length;
+  const hostsExtracted = input.collectionSummary?.hostsExtracted ?? sanitized.acceptedHostCount;
+  const hostsIgnoredOrInternal = (input.collectionSummary?.hostsRejected ?? 0) + sanitized.rejectedHostCount;
+  const summary: CurrentPageResourceHostPreviewSummary = {
+    rawEntriesInspected,
+    hostsExtracted,
+    hostsAfterSanitization: collectedHosts.length,
+    hostsIgnoredOrInternal,
+    reviewableCandidates,
+    ignoredCandidates
+  };
+  const resultState: CurrentPageResourceHostResultState =
+    rawEntriesInspected === 0
+      ? "no_resource_entries_collected"
+      : hostsExtracted === 0 || collectedHosts.length === 0 || (reviewableCandidates === 0 && ignoredCandidates > 0)
+        ? "hosts_collected_but_all_internal_or_ignored"
+        : reviewableCandidates === 0
+          ? "hosts_collected_but_no_related_candidates"
+          : "candidates_available";
 
-  return response("success", resultMessage(collectedHosts.length, candidateCount, ignoredCandidateCount), target.domain, {
+  return response("success", resultMessage(resultState, summary), target.domain, {
+    resultState,
+    summary,
     collectedHosts,
     candidates
   });
@@ -325,13 +452,17 @@ export async function runCurrentPageResourceHostPreview(
     return buildCurrentPageResourceHostPreview({
       url: request.url,
       collectedHosts: collection.hosts,
-      pageLooksLikeErrorOrProtection: collection.pageLooksLikeErrorOrProtection
+      pageLooksLikeErrorOrProtection: collection.pageLooksLikeErrorOrProtection,
+      collectionSummary: collection.summary
     });
   } catch (error) {
     return response(
       "collection_unavailable",
       collectionUnavailableMessage(error),
-      target.domain
+      target.domain,
+      {
+        resultState: "page_not_loaded"
+      }
     );
   }
 }
@@ -357,6 +488,8 @@ export function isCurrentPageResourceHostsResponse(input: unknown): input is Cur
     isSupportedStatus(input.status) &&
     typeof input.message === "string" &&
     (!("currentDomain" in input) || typeof input.currentDomain === "string") &&
+    (!("resultState" in input) || isSupportedResultState(input.resultState)) &&
+    (!("summary" in input) || isPreviewSummary(input.summary)) &&
     (!("collectedHosts" in input) || isStringArray(input.collectedHosts)) &&
     (!("candidates" in input) || (typeof input.candidates === "object" && input.candidates !== null))
   );
@@ -371,8 +504,12 @@ export function doesTextLookLikeErrorOrProtectionPage(text: string): boolean {
 export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourceHostCollectionResult {
   const maxHosts = 80;
   const maxAttributeValueLength = 4096;
+  const maxStyleUrlMatches = 40;
   const internalHostSuffixes = [".local", ".lan", ".localhost", ".internal", ".home", ".home.arpa"];
   const hosts = new Set<string>();
+  let rawEntriesInspected = 0;
+  let hostsRejected = 0;
+  let styleUrlMatches = 0;
 
   const isBlockedHostname = (hostname: string): boolean => {
     if (hostname === "localhost" || !hostname.includes(".") || internalHostSuffixes.some((suffix) => hostname.endsWith(suffix))) {
@@ -391,9 +528,11 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
       return;
     }
 
+    rawEntriesInspected += 1;
     const boundedValue = value.trim();
 
     if (boundedValue.length === 0 || boundedValue.length > maxAttributeValueLength) {
+      hostsRejected += 1;
       return;
     }
 
@@ -401,6 +540,7 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
       const parsedUrl = new URL(boundedValue, document.baseURI);
 
       if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        hostsRejected += 1;
         return;
       }
 
@@ -408,9 +548,11 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
 
       if (hostname.length > 0 && !isBlockedHostname(hostname)) {
         hosts.add(hostname);
+      } else {
+        hostsRejected += 1;
       }
     } catch {
-      // Ignore individual resource values that cannot be parsed as URLs.
+      hostsRejected += 1;
     }
   };
 
@@ -456,13 +598,41 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
     }
   };
 
-  try {
-    for (const entry of performance.getEntriesByType("resource")) {
-      if (hosts.size >= maxHosts) {
-        break;
+  const addStyleUrlValues = (): void => {
+    for (const element of Array.from(document.querySelectorAll("[style]"))) {
+      if (hosts.size >= maxHosts || styleUrlMatches >= maxStyleUrlMatches) {
+        return;
       }
 
-      addUrlHostname(entry.name);
+      const value = element.getAttribute("style")?.trim();
+
+      if (!value || value.length > maxAttributeValueLength) {
+        continue;
+      }
+
+      const urlPattern = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
+      let match: RegExpExecArray | null;
+
+      while ((match = urlPattern.exec(value)) !== null) {
+        if (hosts.size >= maxHosts || styleUrlMatches >= maxStyleUrlMatches) {
+          return;
+        }
+
+        styleUrlMatches += 1;
+        addUrlHostname(match[1]);
+      }
+    }
+  };
+
+  try {
+    for (const entryType of ["resource", "navigation"]) {
+      for (const entry of performance.getEntriesByType(entryType)) {
+        if (hosts.size >= maxHosts) {
+          break;
+        }
+
+        addUrlHostname(entry.name);
+      }
     }
   } catch {
     // Resource timing can be unavailable in some document contexts.
@@ -483,19 +653,26 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
   addAttributeValues('link[href][rel~="preconnect"]', "href");
   addAttributeValues('link[href][rel~="dns-prefetch"]', "href");
   addAttributeValues('link[href][rel~="prefetch"]', "href");
+  addAttributeValues('link[href][rel~="icon"]', "href");
+  addAttributeValues('link[href][rel~="apple-touch-icon"]', "href");
+  addAttributeValues('link[href][rel~="apple-touch-startup-image"]', "href");
   addAttributeValues("iframe[src]", "src");
   addAttributeValues("audio[src]", "src");
   addAttributeValues("video[src]", "src");
   addAttributeValues("video[poster]", "poster");
   addAttributeValues("source[src]", "src");
   addSrcsetAttributeValues("[srcset]");
+  addStyleUrlValues();
   addAttributeValues("[src]", "src");
   addAttributeValues("[href]", "href");
 
-  const pageText = [document.title, document.body?.innerText ?? document.body?.textContent ?? ""].join("\n");
-
   return {
     hosts: [...hosts],
-    pageLooksLikeErrorOrProtection: doesTextLookLikeErrorOrProtectionPage(pageText)
+    pageLooksLikeErrorOrProtection: doesTextLookLikeErrorOrProtectionPage(document.title),
+    summary: {
+      rawEntriesInspected,
+      hostsExtracted: hosts.size,
+      hostsRejected
+    }
   };
 }

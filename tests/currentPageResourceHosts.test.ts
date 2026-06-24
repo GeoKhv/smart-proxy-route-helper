@@ -82,8 +82,16 @@ describe("current-page resource host preview", () => {
     });
 
     expect(result.status).toBe("success");
+    expect(result.resultState).toBe("candidates_available");
     expect(result.currentDomain).toBe("letterboxd.com");
     expect(result.collectedHosts).toEqual(["a.ltrbxd.com", "image.tmdb.org"]);
+    expect(result.summary).toMatchObject({
+      rawEntriesInspected: 3,
+      hostsAfterSanitization: 2,
+      hostsIgnoredOrInternal: 1,
+      reviewableCandidates: 2,
+      ignoredCandidates: 0
+    });
     expect(result.candidates?.strongCandidates.map((candidate) => candidate.domain)).toEqual(["ltrbxd.com"]);
     expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual(["image.tmdb.org"]);
   });
@@ -111,7 +119,13 @@ describe("current-page resource host preview", () => {
     });
 
     expect(result.status).toBe("success");
+    expect(result.resultState).toBe("candidates_available");
     expect(result.message).not.toContain("No public resource hosts");
+    expect(result.summary).toMatchObject({
+      hostsAfterSanitization: 15,
+      reviewableCandidates: 3,
+      ignoredCandidates: 12
+    });
     expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual([
       "dms.licdn.com",
       "media.licdn.com",
@@ -140,21 +154,75 @@ describe("current-page resource host preview", () => {
     });
 
     expect(result.status).toBe("success");
+    expect(result.resultState).toBe("hosts_collected_but_all_internal_or_ignored");
     expect(result.collectedHosts).toEqual(["dpm.demdex.net", "local.adguard.org"]);
     expect(result.message).toBe(
-      "2 public resource hosts checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved."
+      "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved."
     );
+    expect(result.summary).toMatchObject({
+      rawEntriesInspected: 2,
+      hostsAfterSanitization: 2,
+      reviewableCandidates: 0,
+      ignoredCandidates: 2
+    });
   });
 
-  it("collects hostnames from resource timing, srcset, media, and bounded generic attributes", () => {
+  it("reports no collected resource entries separately from filtered resource entries", () => {
+    expect(
+      buildCurrentPageResourceHostPreview({
+        url: "https://www.linkedin.com/feed/",
+        collectedHosts: []
+      })
+    ).toMatchObject({
+      status: "success",
+      resultState: "no_resource_entries_collected",
+      message: "No page resource hosts were found. Try reloading the page, then preview again.",
+      summary: {
+        rawEntriesInspected: 0,
+        hostsExtracted: 0,
+        hostsAfterSanitization: 0,
+        hostsIgnoredOrInternal: 0,
+        reviewableCandidates: 0,
+        ignoredCandidates: 0
+      }
+    });
+
+    expect(
+      buildCurrentPageResourceHostPreview({
+        url: "https://www.linkedin.com/feed/",
+        collectedHosts: ["chrome://extensions/app.js", "http://127.0.0.1/debug.js"]
+      })
+    ).toMatchObject({
+      status: "success",
+      resultState: "hosts_collected_but_all_internal_or_ignored",
+      message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
+      summary: {
+        rawEntriesInspected: 2,
+        hostsExtracted: 0,
+        hostsAfterSanitization: 0,
+        hostsIgnoredOrInternal: 2,
+        reviewableCandidates: 0,
+        ignoredCandidates: 0
+      }
+    });
+  });
+
+  it("collects hostnames from resource timing, navigation, srcset, media, style URLs, and bounded generic attributes", () => {
     const selectorResults: Record<string, Element[]> = {
       "script[src]": [fakeElement({ src: "https://static.licdn.com/sc/h/app.js?cache=1" })],
       'link[href][rel~="stylesheet"]': [fakeElement({ href: "https://static.licdn.com/aero.css" })],
+      'link[href][rel~="icon"]': [fakeElement({ href: "https://static.licdn.com/favicon.ico" })],
       "source[src]": [fakeElement({ src: "https://dms.licdn.com/video.mp4" })],
       "[srcset]": [
         fakeElement({
           srcset:
             "https://media.licdn.com/profile-1.jpg 1x, https://static.licdn.com/profile-2.jpg 2x, data:image/png;base64,abc 3x"
+        })
+      ],
+      "[style]": [
+        fakeElement({
+          style:
+            "background-image: url('https://media.licdn.com/background.jpg?secret=1'); mask-image: url(data:image/png;base64,abc)"
         })
       ],
       "[src]": [
@@ -187,15 +255,19 @@ describe("current-page resource host preview", () => {
     });
     vi.stubGlobal("performance", {
       getEntriesByType(entryType: string): PerformanceEntry[] {
-        if (entryType !== "resource") {
-          return [];
+        if (entryType === "resource") {
+          return [
+            { name: "https://ads.stickyadstv.com/sync?uid=1" },
+            { name: "https://static.licdn.com/perf-entry.js#hash" },
+            { name: "https://192.168.1.10/private.js" }
+          ] as PerformanceEntry[];
         }
 
-        return [
-          { name: "https://ads.stickyadstv.com/sync?uid=1" },
-          { name: "https://static.licdn.com/perf-entry.js#hash" },
-          { name: "https://192.168.1.10/private.js" }
-        ] as PerformanceEntry[];
+        if (entryType === "navigation") {
+          return [{ name: "https://www.linkedin.com/feed/" }] as PerformanceEntry[];
+        }
+
+        return [];
       }
     });
 
@@ -208,11 +280,17 @@ describe("current-page resource host preview", () => {
         "dms.licdn.com",
         "local.adguard.org",
         "media.licdn.com",
+        "www.linkedin.com",
         "static.licdn.com"
       ])
     );
     expect(result.hosts).not.toEqual(expect.arrayContaining(["127.0.0.1", "192.168.1.10", "router.local"]));
     expect(result.hosts.every((host) => !host.includes("/") && !host.includes("?") && !host.includes("#"))).toBe(true);
+    expect(result.summary).toMatchObject({
+      hostsExtracted: result.hosts.length
+    });
+    expect(result.summary?.rawEntriesInspected).toBeGreaterThan(result.hosts.length);
+    expect(result.summary?.hostsRejected).toBeGreaterThan(0);
   });
 
   it("rejects unsupported current pages before attempting script collection", async () => {
@@ -252,7 +330,8 @@ describe("current-page resource host preview", () => {
     expect(result).toEqual({
       status: "collection_unavailable",
       message: "Could not collect resource hosts from this page: Cannot access this page.",
-      currentDomain: "example.com"
+      currentDomain: "example.com",
+      resultState: "page_not_loaded"
     });
   });
 
@@ -274,7 +353,8 @@ describe("current-page resource host preview", () => {
       status: "collection_unavailable",
       message:
         "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains.",
-      currentDomain: "example.com"
+      currentDomain: "example.com",
+      resultState: "page_not_loaded"
     });
   });
 
@@ -292,7 +372,8 @@ describe("current-page resource host preview", () => {
       status: "collection_unavailable",
       message:
         "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains.",
-      currentDomain: "last.fm"
+      currentDomain: "last.fm",
+      resultState: "error_or_protection_page"
     });
   });
 
@@ -300,6 +381,9 @@ describe("current-page resource host preview", () => {
     const source = await readFile(resolve(__dirname, "../src/diagnostics/currentPageResourceHosts.ts"), "utf8");
 
     expect(source).not.toContain("chrome.storage");
+    expect(source).not.toContain("document.body");
+    expect(source).not.toContain("innerText");
+    expect(source).not.toContain("textContent");
     expect(source).not.toContain("updateSyncSettings");
     expect(source).not.toContain("setSyncSettings");
     expect(source).not.toContain("addCurrentSiteRule");

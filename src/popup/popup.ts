@@ -10,6 +10,8 @@ import {
 import {
   currentPageResourceHostsMessageType,
   isCurrentPageResourceHostsResponse,
+  type CurrentPageResourceHostPreviewSummary,
+  type CurrentPageResourceHostResultState,
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
 import type { RelatedDomainCandidate, RelatedDomainCandidateReason } from "../diagnostics/relatedDomainCandidates";
@@ -79,6 +81,10 @@ export type RelatedDomainPreviewActionStatus = {
   kind: MessageKind;
 };
 
+export type RelatedDomainPopupResultState =
+  | CurrentPageResourceHostResultState
+  | "hosts_collected_but_all_already_covered";
+
 export type RelatedDomainCandidateCategory = "strong" | "medium" | "ignored";
 
 export type RelatedDomainCandidateView = {
@@ -98,6 +104,11 @@ export type RelatedDomainCandidateView = {
 export type RelatedDomainPopupView = {
   message: string;
   kind: MessageKind;
+  resultState?: RelatedDomainPopupResultState;
+  summary?: CurrentPageResourceHostPreviewSummary & {
+    alreadyCoveredCandidates: number;
+    saveableCandidates: number;
+  };
   candidates: RelatedDomainCandidateView[];
   hiddenSaveableCount: number;
   hiddenIgnoredCount: number;
@@ -496,6 +507,43 @@ function formatCandidateDomains(candidates: readonly RelatedDomainCandidate[], l
   return extraCount > 0 ? `${domains.join(", ")} and ${extraCount} more` : domains.join(", ");
 }
 
+function formatCandidateViewDomains(candidates: readonly RelatedDomainCandidateView[], limit = 4): string {
+  const domains = candidates.slice(0, limit).map((candidate) => candidate.domain);
+  const extraCount = candidates.length - domains.length;
+
+  return extraCount > 0 ? `${domains.join(", ")} and ${extraCount} more` : domains.join(", ");
+}
+
+function emptyPreviewSummary(): CurrentPageResourceHostPreviewSummary {
+  return {
+    rawEntriesInspected: 0,
+    hostsExtracted: 0,
+    hostsAfterSanitization: 0,
+    hostsIgnoredOrInternal: 0,
+    reviewableCandidates: 0,
+    ignoredCandidates: 0
+  };
+}
+
+function previewSummary(preview: CurrentPageResourceHostsResponse): CurrentPageResourceHostPreviewSummary {
+  if (preview.summary) {
+    return preview.summary;
+  }
+
+  const hostsAfterSanitization = preview.collectedHosts?.length ?? 0;
+  const reviewableCandidates =
+    (preview.candidates?.strongCandidates.length ?? 0) + (preview.candidates?.mediumCandidates.length ?? 0);
+
+  return {
+    ...emptyPreviewSummary(),
+    rawEntriesInspected: hostsAfterSanitization,
+    hostsExtracted: hostsAfterSanitization,
+    hostsAfterSanitization,
+    reviewableCandidates,
+    ignoredCandidates: preview.candidates?.ignoredCandidates.length ?? 0
+  };
+}
+
 export function getRelatedDomainPreviewActionStatus(
   preview: CurrentPageResourceHostsResponse
 ): RelatedDomainPreviewActionStatus {
@@ -507,11 +555,14 @@ export function getRelatedDomainPreviewActionStatus(
   }
 
   const candidates = preview.candidates;
-  const collectedHostCount = preview.collectedHosts?.length ?? 0;
+  const summary = previewSummary(preview);
 
-  if (collectedHostCount === 0) {
+  if (
+    preview.resultState === "no_resource_entries_collected" ||
+    (summary.rawEntriesInspected === 0 && summary.hostsAfterSanitization === 0)
+  ) {
     return {
-      message: "No public resource hosts were available for related-domain preview. No rules were saved.",
+      message: "No page resource hosts were found. Try reloading the page, then preview again.",
       kind: "neutral"
     };
   }
@@ -528,15 +579,15 @@ export function getRelatedDomainPreviewActionStatus(
   const ignoredCount = candidates.ignoredCandidates.length;
 
   if (strongCandidates.length === 0 && mediumCandidates.length === 0) {
-    if (ignoredCount > 0) {
+    if (preview.resultState === "hosts_collected_but_all_internal_or_ignored" || ignoredCount > 0) {
       return {
-        message: `${collectedHostCount} public resource host${collectedHostCount === 1 ? "" : "s"} checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.`,
+        message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
         kind: "neutral"
       };
     }
 
     return {
-      message: `${collectedHostCount} public resource host${collectedHostCount === 1 ? "" : "s"} checked. No related-domain candidates were found and no rules were saved.`,
+      message: "Resource hosts were found, but no new related-domain candidates were identified. No rules were saved.",
       kind: "neutral"
     };
   }
@@ -598,10 +649,17 @@ export function buildRelatedDomainPopupView(
   settings: Pick<SyncSettings, "rules" | "denylist">
 ): RelatedDomainPopupView {
   const status = getRelatedDomainPreviewActionStatus(preview);
+  const baseSummary = previewSummary(preview);
 
   if (preview.status !== "success" || !preview.candidates) {
     return {
       ...status,
+      resultState: preview.resultState,
+      summary: {
+        ...baseSummary,
+        alreadyCoveredCandidates: 0,
+        saveableCandidates: 0
+      },
       candidates: [],
       hiddenSaveableCount: 0,
       hiddenIgnoredCount: 0
@@ -619,6 +677,45 @@ export function buildRelatedDomainPopupView(
       candidateViewFromCandidate(candidate, "ignored" as const, settings)
     )
   ].filter((candidate): candidate is RelatedDomainCandidateView => candidate !== null);
+  const reviewableCandidates = candidates.filter((candidate) => candidate.category !== "ignored");
+  const saveableCandidates = reviewableCandidates.filter((candidate) => candidate.saveable);
+  const alreadyCoveredCandidates = reviewableCandidates.filter((candidate) => candidate.alreadyCovered);
+  const summary = {
+    ...baseSummary,
+    alreadyCoveredCandidates: alreadyCoveredCandidates.length,
+    saveableCandidates: saveableCandidates.length
+  };
+  const resultState: RelatedDomainPopupResultState =
+    preview.resultState === "candidates_available" && saveableCandidates.length === 0 && alreadyCoveredCandidates.length > 0
+      ? "hosts_collected_but_all_already_covered"
+      : preview.resultState ?? (saveableCandidates.length > 0 ? "candidates_available" : "hosts_collected_but_no_related_candidates");
+  const strongSaveableCandidates = saveableCandidates.filter((candidate) => candidate.category === "strong");
+  const mediumSaveableCandidates = saveableCandidates.filter((candidate) => candidate.category === "medium");
+  const messageParts: string[] = [];
+  let message = status.message;
+
+  if (resultState === "hosts_collected_but_all_already_covered") {
+    message = "Resource hosts were found, but they are already covered by existing rules. No rules were saved.";
+  } else if (saveableCandidates.length > 0) {
+    if (strongSaveableCandidates.length > 0) {
+      messageParts.push(`Likely related: ${formatCandidateViewDomains(strongSaveableCandidates)}`);
+    }
+
+    if (mediumSaveableCandidates.length > 0) {
+      messageParts.push(`Review manually: ${formatCandidateViewDomains(mediumSaveableCandidates)}`);
+    }
+
+    if (alreadyCoveredCandidates.length > 0) {
+      messageParts.push(`${alreadyCoveredCandidates.length} already-covered candidate${alreadyCoveredCandidates.length === 1 ? "" : "s"}`);
+    }
+
+    if (summary.ignoredCandidates > 0) {
+      messageParts.push(`${summary.ignoredCandidates} analytics, helper, or infrastructure host${summary.ignoredCandidates === 1 ? "" : "s"} ignored`);
+    }
+
+    message = `Related-domain preview found candidates. No rules were saved yet. ${messageParts.join(". ")}.`;
+  }
+
   const capped = cappedRelatedDomainCandidateViews(candidates);
   const hiddenParts: string[] = [];
 
@@ -631,8 +728,10 @@ export function buildRelatedDomainPopupView(
   }
 
   return {
-    message: hiddenParts.length > 0 ? `${status.message} ${hiddenParts.join(". ")}.` : status.message,
+    message: hiddenParts.length > 0 ? `${message} ${hiddenParts.join(". ")}.` : message,
     kind: status.kind,
+    resultState,
+    summary,
     ...capped
   };
 }

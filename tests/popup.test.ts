@@ -298,9 +298,17 @@ describe("popup related-domain preview messages", () => {
     expect(
       getRelatedDomainPreviewActionStatus({
         status: "success",
-        message:
-          "2 public resource hosts checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.",
+        message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
         currentDomain: "linkedin.com",
+        resultState: "hosts_collected_but_all_internal_or_ignored",
+        summary: {
+          rawEntriesInspected: 2,
+          hostsExtracted: 2,
+          hostsAfterSanitization: 2,
+          hostsIgnoredOrInternal: 0,
+          reviewableCandidates: 0,
+          ignoredCandidates: 2
+        },
         collectedHosts: ["local.adguard.org", "demdex.net"],
         candidates: {
           currentDomain: "linkedin.com",
@@ -327,8 +335,36 @@ describe("popup related-domain preview messages", () => {
         }
       })
     ).toEqual({
-      message:
-        "2 public resource hosts checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.",
+      message: "Resource hosts were found, but they look like analytics/adtech/local helper domains. No rules were saved.",
+      kind: "neutral"
+    });
+  });
+
+  it("maps empty preview collection to no-resource wording", () => {
+    expect(
+      getRelatedDomainPreviewActionStatus({
+        status: "success",
+        message: "No page resource hosts were found. Try reloading the page, then preview again.",
+        currentDomain: "linkedin.com",
+        resultState: "no_resource_entries_collected",
+        summary: {
+          rawEntriesInspected: 0,
+          hostsExtracted: 0,
+          hostsAfterSanitization: 0,
+          hostsIgnoredOrInternal: 0,
+          reviewableCandidates: 0,
+          ignoredCandidates: 0
+        },
+        collectedHosts: [],
+        candidates: {
+          currentDomain: "linkedin.com",
+          strongCandidates: [],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      })
+    ).toEqual({
+      message: "No page resource hosts were found. Try reloading the page, then preview again.",
       kind: "neutral"
     });
   });
@@ -496,6 +532,185 @@ describe("popup related-domain candidate view model", () => {
       alreadyCovered: true,
       coveredBy: "github.com"
     });
+  });
+
+  it("keeps LinkedIn media/static hosts saveable while exact covered hosts stay covered", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "5 resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "www.linkedin.com",
+        resultState: "candidates_available",
+        summary: {
+          rawEntriesInspected: 7,
+          hostsExtracted: 6,
+          hostsAfterSanitization: 6,
+          hostsIgnoredOrInternal: 1,
+          reviewableCandidates: 4,
+          ignoredCandidates: 1
+        },
+        collectedHosts: [
+          "linkedin.com",
+          "www.linkedin.com",
+          "dms.licdn.com",
+          "media.licdn.com",
+          "static.licdn.com",
+          "dpm.demdex.net"
+        ],
+        candidates: {
+          currentDomain: "www.linkedin.com",
+          strongCandidates: [
+            {
+              domain: "linkedin.com",
+              reason: "same-site-subdomain",
+              sourceHosts: ["linkedin.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [
+            {
+              domain: "dms.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["dms.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "media.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["media.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "static.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["static.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: [
+            {
+              domain: "demdex.net",
+              reason: "known-tracking-or-analytics",
+              sourceHosts: ["dpm.demdex.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ]
+        }
+      },
+      {
+        rules: [manualRule("linkedin.com", true), manualRule("www.linkedin.com", false), manualRule("dms.licdn.com", false)],
+        denylist: []
+      }
+    );
+
+    expect(view.message).toContain("Review manually: media.licdn.com, static.licdn.com");
+    expect(view.message).toContain("2 already-covered candidates");
+    expect(view.message).not.toContain("No public resource hosts");
+    expect(view.resultState).toBe("candidates_available");
+    expect(view.summary).toMatchObject({
+      alreadyCoveredCandidates: 2,
+      saveableCandidates: 2
+    });
+    expect(view.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          domain: "linkedin.com",
+          saveable: false,
+          alreadyCovered: true,
+          coveredBy: "linkedin.com"
+        }),
+        expect.objectContaining({
+          domain: "dms.licdn.com",
+          saveable: false,
+          alreadyCovered: true,
+          coveredBy: "dms.licdn.com"
+        }),
+        expect.objectContaining({
+          domain: "media.licdn.com",
+          category: "medium",
+          selected: false,
+          saveable: true,
+          alreadyCovered: false
+        }),
+        expect.objectContaining({
+          domain: "static.licdn.com",
+          category: "medium",
+          selected: false,
+          saveable: true,
+          alreadyCovered: false
+        }),
+        expect.objectContaining({
+          domain: "demdex.net",
+          category: "ignored",
+          saveable: false
+        })
+      ])
+    );
+  });
+
+  it("reports collected hosts as already covered when no saveable candidates remain", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "2 resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "linkedin.com",
+        resultState: "candidates_available",
+        summary: {
+          rawEntriesInspected: 2,
+          hostsExtracted: 2,
+          hostsAfterSanitization: 2,
+          hostsIgnoredOrInternal: 0,
+          reviewableCandidates: 2,
+          ignoredCandidates: 0
+        },
+        collectedHosts: ["media.licdn.com", "static.licdn.com"],
+        candidates: {
+          currentDomain: "linkedin.com",
+          strongCandidates: [],
+          mediumCandidates: [
+            {
+              domain: "media.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["media.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "static.licdn.com",
+              reason: "third-party-resource",
+              sourceHosts: ["static.licdn.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      {
+        rules: [manualRule("media.licdn.com", false), manualRule("static.licdn.com", false)],
+        denylist: []
+      }
+    );
+
+    expect(view.resultState).toBe("hosts_collected_but_all_already_covered");
+    expect(view.message).toBe("Resource hosts were found, but they are already covered by existing rules. No rules were saved.");
+    expect(view.summary).toMatchObject({
+      alreadyCoveredCandidates: 2,
+      saveableCandidates: 0
+    });
+    expect(view.candidates.every((candidate) => candidate.alreadyCovered && !candidate.saveable)).toBe(true);
   });
 
   it("rejects denylisted, internal, and private candidates before display", () => {

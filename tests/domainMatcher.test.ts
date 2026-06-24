@@ -30,6 +30,14 @@ describe("domainMatchesRule", () => {
     expect(domainMatchesRule("badexample.com", { domain: "example.com", includeSubdomains: true })).toBe(false);
   });
 
+  it("does not treat LinkedIn rules as covering separate licdn.com resource domains", () => {
+    expect(domainMatchesRule("www.linkedin.com", { domain: "linkedin.com", includeSubdomains: true })).toBe(true);
+    expect(domainMatchesRule("media.licdn.com", { domain: "linkedin.com", includeSubdomains: true })).toBe(false);
+    expect(domainMatchesRule("static.licdn.com", { domain: "linkedin.com", includeSubdomains: true })).toBe(false);
+    expect(domainMatchesRule("dms.licdn.com", { domain: "dms.licdn.com", includeSubdomains: false })).toBe(true);
+    expect(domainMatchesRule("video.dms.licdn.com", { domain: "dms.licdn.com", includeSubdomains: false })).toBe(false);
+  });
+
   it("finds the first matching rule", () => {
     const rules = [
       { domain: "example.com", includeSubdomains: true },
