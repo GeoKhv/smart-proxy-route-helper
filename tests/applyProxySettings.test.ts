@@ -325,6 +325,15 @@ describe("proxy settings storage change handling", () => {
     });
     expect(proxySettings.calls).toHaveLength(1);
 
+    const forcedResult = await controller.apply("diagnostic-restore", { force: true });
+
+    expect(forcedResult).toMatchObject({
+      ok: true,
+      status: "applied-pac",
+      reason: "diagnostic-restore"
+    });
+    expect(proxySettings.calls).toHaveLength(2);
+
     await localStorage.set({
       deviceProxy: {
         enabled: false,
@@ -341,8 +350,8 @@ describe("proxy settings storage change handling", () => {
       ok: true,
       status: "cleared"
     });
-    expect(proxySettings.calls).toHaveLength(2);
-    expect(proxySettings.calls[1]).toEqual({
+    expect(proxySettings.calls).toHaveLength(3);
+    expect(proxySettings.calls[2]).toEqual({
       type: "clear"
     });
   });

@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold, Popup current-site rule management, Options configuration UI, and runtime PAC application. Diagnostics are not implemented.
+This checklist covers the current Manifest V3 extension scaffold, Popup current-site rule management, manual current-site diagnostics, Options configuration UI, and runtime PAC application.
 
 ## Test Environment
 
@@ -20,7 +20,7 @@ Record:
 2. Confirm requested permissions match the current release plan.
 3. Confirm no required host permissions appear in the MVP.
 4. Confirm the extension has no telemetry or backend requests.
-5. Confirm diagnostics are absent in v0.1 or disabled by default in later releases.
+5. Confirm diagnostics are manual only and start only after the user clicks "Check via proxy".
 
 ## Current Runtime Checks
 
@@ -31,7 +31,7 @@ Record:
 5. Open the popup on a regular `http` or `https` site and confirm the current domain renders.
 6. Open the options page and confirm local proxy settings, synced domain rules, and read-only denylist/ignored-domain sections render.
 7. Inspect the service worker and confirm it starts without uncaught errors.
-8. Confirm no diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
+8. Confirm no automatic diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
 9. Confirm manifest permissions remain unchanged: `proxy`, `storage`, and `activeTab`.
 
 ## Runtime PAC Apply Checks
@@ -106,7 +106,40 @@ await chrome.storage.sync.get(["rules"]);
 10. Confirm the popup explains that routing is inherited from the parent rule and does not remove the parent rule silently.
 11. Open `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
 12. Confirm the popup can open Options through the "Open Options" button.
-13. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
+13. Confirm the popup shows a "Check via proxy" button on supported sites.
+14. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
+
+## Manual Current-Site Diagnostics Checks
+
+1. Start with a supported `http` or `https` site and no matching synced rule.
+2. Confirm no diagnostic check runs when the popup opens.
+3. Configure a working local proxy in Options.
+4. Click "Check via proxy".
+5. Confirm the popup shows cautious wording:
+
+- "This site appears reachable through your local proxy.", or
+- "This site did not appear reachable through your local proxy."
+
+6. If the check appears reachable, confirm the popup offers a separate "Add checked site as rule" action and does not add a rule automatically.
+7. Click "Add checked site as rule" and confirm the rule is stored in `chrome.storage.sync` with:
+
+- `includeSubdomains: true`.
+- `mode: "proxy"`.
+- `source: "diagnostic"`.
+
+8. Remove the diagnostic rule before the next scenario.
+9. Disable or clear local proxy settings in Options, then click "Check via proxy" again.
+10. Confirm the popup shows "Configure local proxy in Options first." and does not add or change synced rules.
+11. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the diagnostic action is unavailable or returns a clear unsupported/protected-page message.
+12. With no permanent active rules, run a failed or timed-out check and then inspect Chrome's proxy setting:
+
+```js
+await chrome.proxy.settings.get({ incognito: false });
+```
+
+13. Confirm the extension restores normal proxy routing after success, failure, and timeout. If no permanent active rules exist, the extension should clear its proxy setting rather than leaving a temporary probe PAC.
+14. Confirm temporary probe state is not written to `chrome.storage.sync` or `chrome.storage.local`.
+15. Confirm diagnostics do not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, notifications, content scripts, telemetry, backend calls, remote PAC URLs, or remote executable code.
 
 ## Real-World Visible Route Checks
 
@@ -153,7 +186,7 @@ await chrome.proxy.settings.get({ incognito: false });
 
 4. Confirm the extension clears its proxy setting. The resulting Chrome value may show the user's system proxy state; it should not remain an extension-applied PAC.
 5. Store an invalid local proxy config, such as port `70000`, and confirm the service worker clears extension proxy routing instead of applying a PAC.
-6. Confirm these checks do not add host permissions, `webRequest`, `webNavigation`, notifications, content scripts, diagnostics, backend calls, telemetry, or remote PAC URLs.
+6. Confirm these checks do not add host permissions, `webRequest`, `webNavigation`, notifications, content scripts, automatic diagnostics, backend calls, telemetry, or remote PAC URLs.
 
 ## PAC Apply Checks
 
@@ -190,18 +223,6 @@ With Chrome Sync enabled on two Chrome profiles or devices:
 3. Confirm domain rules are not transmitted to the developer.
 4. Confirm local proxy settings are not transmitted to the developer.
 5. Confirm uninstalling the extension removes extension-managed local data.
-
-## Diagnostics Checks for v0.3 or Later
-
-Run only when diagnostics exist:
-
-1. Confirm diagnostics are disabled by default.
-2. Enable diagnostics explicitly.
-3. Trigger a check manually.
-4. Confirm the check explains what it is doing.
-5. Confirm no rule is added automatically.
-6. Confirm accepting a suggestion requires explicit confirmation.
-7. Disable diagnostics and confirm checks no longer run.
 
 ## Release Result
 

@@ -1,6 +1,6 @@
 # Release Plan
 
-This repository is currently in a documentation-only bootstrap phase. The versions below describe planned runtime milestones, not already implemented releases.
+This repository has moved beyond the documentation-only bootstrap phase. The versions below describe intended release slices; some runtime pieces are already implemented on `main`.
 
 ## v0.1: Manual PAC MVP
 
@@ -11,6 +11,7 @@ Scope:
 - Manifest V3 extension.
 - Simple popup/options UI.
 - Manual domain rule add/edit/disable/remove.
+- Current-site popup rule management.
 - Domain rules stored in `chrome.storage.sync`.
 - Local proxy configuration stored in `chrome.storage.local`.
 - Local PAC generation from synced rules and local proxy settings.
@@ -21,12 +22,12 @@ Scope:
 Permissions:
 
 - Required: `storage`, `proxy`.
+- Required for current-site popup actions: `activeTab`.
 - Required host permissions: none.
 
 Out of scope:
 
-- Diagnostics.
-- Current-tab quick add.
+- Automatic diagnostics.
 - Content scripts.
 - Required `<all_urls>`.
 - `webRequest`.
@@ -79,13 +80,12 @@ Exit criteria:
 
 ## v0.3: Optional Safe Diagnostics
 
-Goal: introduce a carefully scoped diagnostics preview if the design can satisfy privacy, permission, and Chrome Web Store constraints.
+Goal: keep the current manual diagnostics path carefully scoped, and expand it only if the design can satisfy privacy, permission, and Chrome Web Store constraints.
 
 Candidate scope:
 
-- Diagnostics opt-in setting.
-- User-initiated reachability check for a user-entered or explicitly selected domain.
-- Clear explanation before any additional permission request.
+- User-initiated reachability check for the current site or an explicitly selected domain.
+- Clear explanation before any additional permission request, if a future design needs one.
 - Recommendation UI that suggests a domain rule only when appropriate.
 - Explicit confirmation before adding a suggested rule.
 - Minimal local diagnostic status with no developer upload.
@@ -106,8 +106,7 @@ Out of scope:
 
 Exit criteria:
 
-- Diagnostics are disabled by default.
-- Diagnostics can be turned off.
+- Diagnostics are manual and opt-in per check.
 - Each check is user-initiated.
 - No diagnostic path mutates rules without confirmation.
 - Privacy and Chrome Web Store disclosures are updated before release.

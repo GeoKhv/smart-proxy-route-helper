@@ -1,14 +1,14 @@
 # Smart Proxy Route Helper
 
-Smart Proxy Route Helper is a planned open-source Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
+Smart Proxy Route Helper is an open-source Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
 
-The extension will let a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is intended to be local-first, permission-minimal, and publishable to Chrome Web Store.
+The extension lets a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is intended to be local-first, permission-minimal, and publishable to Chrome Web Store.
 
 ## Repository Status
 
-This repository currently contains initial documentation, project guidance, and a minimal Manifest V3 TypeScript extension scaffold.
+This repository currently contains initial documentation, project guidance, and an initial Manifest V3 TypeScript runtime.
 
-The scaffold includes placeholder popup/options pages and a background service worker. It does not implement proxy routing, PAC generation, storage logic, diagnostics, telemetry, backend calls, or remote executable code.
+The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, and manual current-site diagnostics. It does not include telemetry, backend calls, host permissions, content scripts, `webRequest`, `webNavigation`, or remote executable code.
 
 ## Local Development
 
@@ -34,7 +34,7 @@ The build output is written to `dist/`. Load that directory from `chrome://exten
 
 ## MVP Scope
 
-The first runtime milestone should provide a small manual PAC manager:
+The current MVP runtime provides a small manual PAC manager:
 
 - Add, edit, disable, and remove domain rules manually.
 - Sync domain rules with `chrome.storage.sync`.
@@ -42,6 +42,7 @@ The first runtime milestone should provide a small manual PAC manager:
 - Generate a PAC script locally from the user's rules and local proxy settings.
 - Apply the generated PAC script through `chrome.proxy`.
 - Provide simple popup/options HTML and TypeScript UI.
+- Provide manual current-site diagnostics only after explicit user action.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
 ## Out of Scope for MVP
@@ -57,23 +58,23 @@ The MVP will not include:
 - `webRequest` or `webNavigation`.
 - Content scripts.
 - Automatic domain rule creation.
-- Default-on diagnostics.
+- Default-on or automatic diagnostics.
 - Managed remote domain lists.
 - Proxy authentication management.
 
 ## Permission Strategy
 
-Planned MVP permissions:
+MVP permissions:
 
 - `storage` for extension settings.
 - `proxy` to apply the locally generated PAC configuration.
-- `activeTab` for future user-initiated page-context actions; the current scaffold does not read tab data.
+- `activeTab` for explicit user-initiated current-site popup actions and diagnostics.
 
 Planned MVP host permissions:
 
 - None.
 
-The MVP should rely on manual domain entry so it does not need broad page access. Future features that need page context or diagnostic checks must use optional permissions where possible, explain the reason in the UI, and remain opt-in.
+The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab, and future features that need more page context must use optional permissions where possible, explain the reason in the UI, and remain opt-in.
 
 See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 
@@ -82,15 +83,14 @@ See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 Synced across the user's Chrome profile:
 
 - Domain routing rules.
-- Rule enabled/disabled state.
-- Rule metadata that is safe to sync, such as creation/update timestamps and schema version.
+- Ignored domains and denylist entries.
+- Rule metadata that is safe to sync, such as source and creation timestamps.
 
 Device-specific:
 
 - Local proxy host, port, and scheme.
 - Extension enabled state for the current device.
-- Last local apply/status details.
-- Diagnostic preferences once diagnostics exist.
+- Local diagnostics preference.
 
 The project should not store secrets in synced storage.
 

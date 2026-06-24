@@ -1,7 +1,12 @@
 import { checkDenylistedHost } from "../rules/denylist";
 import { domainMatchesRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
-import type { DomainRule } from "../rules/ruleTypes";
+import type { DomainRule, RuleSource } from "../rules/ruleTypes";
+import {
+  currentSiteDiagnosticMessageType,
+  isCurrentSiteDiagnosticResponse,
+  type CurrentSiteDiagnosticResponse
+} from "../diagnostics/currentSiteDiagnostics";
 import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
 import type { SyncSettings } from "../storage/storageTypes";
 
@@ -56,6 +61,8 @@ export type RemoveCurrentSiteRuleResult = {
   domain: string;
   parentRule?: DomainRule;
 };
+
+let checkedReachableDomain: string | null = null;
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
@@ -203,7 +210,8 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
 export function addCurrentSiteRule(
   currentRules: readonly DomainRule[],
   input: string,
-  createdAt: string = new Date().toISOString()
+  createdAt: string = new Date().toISOString(),
+  source: RuleSource = "manual"
 ): AddCurrentSiteRuleResult {
   const normalized = normalizeDomain(input);
 
@@ -253,7 +261,7 @@ export function addCurrentSiteRule(
         domain: normalized.domain,
         includeSubdomains: true,
         mode: "proxy",
-        source: "manual",
+        source,
         createdAt
       }
     ],
@@ -311,6 +319,11 @@ function setButtonVisible(button: HTMLButtonElement, visible: boolean): void {
   button.hidden = !visible;
 }
 
+function resetDiagnosticOffer(): void {
+  checkedReachableDomain = null;
+  setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), false);
+}
+
 async function getActiveTabUrl(): Promise<string | undefined> {
   const [tab] = await chrome.tabs.query({
     active: true,
@@ -321,14 +334,17 @@ async function getActiveTabUrl(): Promise<string | undefined> {
 }
 
 function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }>): void {
+  resetDiagnosticOffer();
   getElement<HTMLElement>("#current-domain").textContent = "Not available";
   setStatus(getElement<HTMLElement>("#route-status"), result.message, "error");
   setStatus(getElement<HTMLElement>("#action-status"), "Open a regular website tab to add a proxy route.", "neutral");
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), false);
+  setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), false);
 }
 
 function renderSupported(domain: string, settings: SyncSettings): void {
+  resetDiagnosticOffer();
   const status = getPopupRuleStatus(domain, settings);
 
   getElement<HTMLElement>("#current-domain").textContent = domain;
@@ -337,6 +353,7 @@ function renderSupported(domain: string, settings: SyncSettings): void {
 
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), status.state === "none");
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), status.state === "exact");
+  setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), status.state !== "blocked");
 }
 
 async function refreshPopup(): Promise<CurrentTabDomainResult> {
@@ -353,6 +370,7 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
 }
 
 async function handleAddCurrentSite(): Promise<void> {
+  resetDiagnosticOffer();
   const result = getCurrentTabDomain(await getActiveTabUrl());
   const actionStatus = getElement<HTMLElement>("#action-status");
 
@@ -394,6 +412,7 @@ async function handleAddCurrentSite(): Promise<void> {
 }
 
 async function handleRemoveCurrentSite(): Promise<void> {
+  resetDiagnosticOffer();
   const result = getCurrentTabDomain(await getActiveTabUrl());
   const actionStatus = getElement<HTMLElement>("#action-status");
 
@@ -429,6 +448,130 @@ async function handleRemoveCurrentSite(): Promise<void> {
   setStatus(actionStatus, `Removed exact synced rule for ${removeResult.domain}.`, "success");
 }
 
+async function requestCurrentSiteDiagnostic(url: string): Promise<CurrentSiteDiagnosticResponse> {
+  const response = (await chrome.runtime.sendMessage({
+    type: currentSiteDiagnosticMessageType,
+    url
+  })) as unknown;
+
+  if (!isCurrentSiteDiagnosticResponse(response)) {
+    return {
+      status: "error",
+      message: "Could not complete the proxy check."
+    };
+  }
+
+  return response;
+}
+
+async function handleCheckViaProxy(): Promise<void> {
+  resetDiagnosticOffer();
+
+  const activeUrl = await getActiveTabUrl();
+  const result = getCurrentTabDomain(activeUrl);
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const checkButton = getElement<HTMLButtonElement>("#check-via-proxy");
+
+  if (!result.ok) {
+    renderUnsupported(result);
+    return;
+  }
+
+  if (!activeUrl) {
+    setStatus(actionStatus, "Open a supported site before checking proxy reachability.", "error");
+    return;
+  }
+
+  checkButton.disabled = true;
+  setStatus(actionStatus, "Checking via your configured local proxy...", "neutral");
+
+  try {
+    const diagnostic = await requestCurrentSiteDiagnostic(activeUrl);
+    const current = await getSyncSettings();
+    renderSupported(result.domain, current);
+
+    if (diagnostic.status === "proxy_reachable") {
+      const routeStatus = getPopupRuleStatus(result.domain, current);
+
+      if (routeStatus.state === "none") {
+        checkedReachableDomain = diagnostic.domain ?? result.domain;
+        setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), true);
+        setStatus(
+          actionStatus,
+          "This site appears reachable through your local proxy. You can add it as a synced proxy route.",
+          "success"
+        );
+        return;
+      }
+
+      setStatus(
+        actionStatus,
+        "This site appears reachable through your local proxy. A synced rule already covers it.",
+        "success"
+      );
+      return;
+    }
+
+    if (diagnostic.status === "proxy_unreachable") {
+      setStatus(actionStatus, "This site did not appear reachable through your local proxy.", "error");
+      return;
+    }
+
+    setStatus(actionStatus, diagnostic.message, diagnostic.status === "missing_proxy_config" ? "neutral" : "error");
+  } finally {
+    checkButton.disabled = false;
+  }
+}
+
+async function handleSaveDiagnosticRule(): Promise<void> {
+  const domain = checkedReachableDomain;
+  const actionStatus = getElement<HTMLElement>("#action-status");
+
+  if (!domain) {
+    setStatus(actionStatus, "Run a successful proxy check before adding a diagnostic rule.", "neutral");
+    return;
+  }
+
+  const currentResult = getCurrentTabDomain(await getActiveTabUrl());
+
+  if (!currentResult.ok || currentResult.domain !== domain) {
+    resetDiagnosticOffer();
+    setStatus(actionStatus, "Run the proxy check again for the current site before adding a rule.", "error");
+    return;
+  }
+
+  const current = await getSyncSettings();
+  const addResult = addCurrentSiteRule(current.rules, domain, new Date().toISOString(), "diagnostic");
+
+  if (!addResult.ok) {
+    setStatus(actionStatus, addResult.error, "error");
+    return;
+  }
+
+  if (addResult.status === "duplicate") {
+    renderSupported(domain, current);
+    setStatus(actionStatus, `${addResult.domain} already has a synced rule.`, "neutral");
+    return;
+  }
+
+  if (addResult.status === "inherited") {
+    renderSupported(domain, current);
+    setStatus(
+      actionStatus,
+      `${addResult.domain} is already routed by parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
+      "neutral"
+    );
+    return;
+  }
+
+  const updated = await updateSyncSettings({
+    rules: addResult.rules
+  });
+
+  renderSupported(domain, updated);
+  setStatus(actionStatus, `Added synced proxy route for ${addResult.domain}.`, "success");
+}
+
 function initPopupPage(): void {
   getElement<HTMLButtonElement>("#add-current-site").addEventListener("click", () => {
     void handleAddCurrentSite().catch((error: unknown) => {
@@ -445,6 +588,26 @@ function initPopupPage(): void {
       setStatus(
         getElement<HTMLElement>("#action-status"),
         error instanceof Error ? error.message : "Could not remove the current site.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#check-via-proxy").addEventListener("click", () => {
+    void handleCheckViaProxy().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not complete the proxy check.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#save-diagnostic-rule").addEventListener("click", () => {
+    void handleSaveDiagnosticRule().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not add the checked site.",
         "error"
       );
     });

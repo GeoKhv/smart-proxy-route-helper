@@ -17,7 +17,7 @@ Required extension permissions:
 | --- | --- | --- |
 | `storage` | Store synced domain rules and local proxy configuration. | Required |
 | `proxy` | Apply the locally generated PAC configuration in Chrome. | Required |
-| `activeTab` | Reserved for explicit user-initiated page-context actions. The initial scaffold does not read tab data. | Required by current scaffold |
+| `activeTab` | Read the current tab URL after the user invokes the popup and allow a manual current-origin diagnostic check. | Required |
 
 Required host permissions:
 
@@ -37,7 +37,7 @@ The MVP must not request:
 - Content script matches.
 - Remote code exemptions or debugger capabilities.
 
-The MVP should not include a feature that depends on reading the active page URL. If quick-add-from-current-tab is added later, it should be designed as a separate permission review.
+The MVP may read the active page URL only after the user invokes the extension popup. It must not observe navigation, inspect page content, or request broad host access.
 
 ## Why No Broad Host Access in MVP
 
@@ -53,23 +53,19 @@ Possible future candidates:
 
 | Feature | Possible permission | Requirement |
 | --- | --- | --- |
-| Add current tab domain after user action | `activeTab` or a narrow tab-related design | Must be user-initiated and clearly explained. |
-| User-initiated diagnostics | Optional host permissions for a specific site, if needed | Must be opt-in, narrow, and revocable. |
+| Additional current-tab features | `activeTab` or a narrow optional permission | Must be user-initiated and clearly explained. |
+| Broader diagnostics beyond the current-origin check | Optional host permissions for a specific site, if needed | Must be opt-in, narrow, and revocable. |
 
 No future permission should be added just because it might be useful later.
 
 ## Diagnostics Permission Rules
 
-Diagnostics are not part of the MVP.
+Current-site diagnostics are part of the MVP and must follow these rules:
 
-When diagnostics are designed, they must follow these rules:
-
-- Disabled by default.
-- Enabled only after explicit opt-in.
-- Run only after a user action.
+- Run only after the user clicks "Check via proxy".
 - Request the narrowest feasible access.
-- Explain what is checked before requesting access.
-- Store only minimal local status.
+- Avoid host permissions, `<all_urls>`, `webRequest`, `webNavigation`, and content scripts unless a future design is explicitly approved.
+- Store no diagnostic history or temporary probe state.
 - Never add a domain rule without explicit confirmation.
 
 ## Chrome Web Store Risks

@@ -1,8 +1,8 @@
 # Privacy Policy
 
-This document describes the intended privacy posture for Smart Proxy Route Helper.
+This document describes the privacy posture for Smart Proxy Route Helper.
 
-The repository currently contains documentation only. The statements below are requirements for future implementation work and must be kept aligned with the actual extension behavior before any public release.
+The repository currently contains the initial Manifest V3 extension runtime. The statements below must be kept aligned with the actual extension behavior before any public release.
 
 ## Summary
 
@@ -18,13 +18,13 @@ Smart Proxy Route Helper is designed to be local-first:
 
 ## Data the Extension Is Expected to Store
 
-The MVP is expected to store only user-provided settings needed for proxy routing.
+The MVP stores only user-provided settings needed for proxy routing.
 
 Synced with `chrome.storage.sync`:
 
 - Domain routing rules.
-- Whether each rule is enabled.
-- Safe rule metadata, such as schema version and timestamps.
+- Ignored domains and denylist entries.
+- Safe rule metadata, such as source and creation timestamps.
 
 Stored only on the local device with `chrome.storage.local`:
 
@@ -32,9 +32,9 @@ Stored only on the local device with `chrome.storage.local`:
 - Local proxy port.
 - Local proxy scheme.
 - Device enabled/disabled state.
-- Last local apply/status details.
+- Local diagnostics preference.
 
-The project should not store secrets in synced storage.
+The project does not store secrets, local proxy configuration, browsing history, raw diagnostic history, or temporary probe state in synced storage.
 
 ## Chrome Sync
 
@@ -56,13 +56,15 @@ The project must not send the developer:
 
 ## Network Requests
 
-The MVP must not contact a project backend because no backend exists.
+The extension must not contact a project backend because no backend exists.
 
-Future optional diagnostics may make user-initiated network checks from the extension context only after the user turns diagnostics on and requests a check. Diagnostics must not upload results to the developer and must not add a rule without explicit confirmation.
+Manual current-site diagnostics may make a user-initiated best-effort request from the extension context to the current tab origin after the user clicks "Check via proxy". The check temporarily routes the current normalized domain through the configured local proxy, then restores normal proxy routing.
+
+Diagnostics do not upload results to the developer, do not store diagnostic history, do not sync temporary probe state, and do not add a rule without explicit confirmation. The current site and the user's configured local proxy provider may observe the diagnostic request in the same way they can observe ordinary network requests routed to that site.
 
 ## Limited Use Statement
 
-Information received from Chrome extension APIs must be used only to provide and improve the extension's single purpose: local proxy routing management and, if enabled in a future release, user-initiated diagnostics.
+Information received from Chrome extension APIs must be used only to provide and improve the extension's single purpose: local proxy routing management and user-initiated diagnostics.
 
 The project must not use or transfer user data for advertising, profiling, resale, or unrelated purposes.
 
@@ -70,8 +72,8 @@ The project must not use or transfer user data for advertising, profiling, resal
 
 Users should be able to delete stored extension data by:
 
-- Removing domain rules in the extension UI once implemented.
-- Clearing local proxy settings in the extension UI once implemented.
+- Removing domain rules in the extension UI.
+- Clearing local proxy settings in the extension UI.
 - Removing the extension from Chrome.
 
 ## Changes

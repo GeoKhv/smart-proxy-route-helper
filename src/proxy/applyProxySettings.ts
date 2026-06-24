@@ -11,7 +11,7 @@ export type ProxySettingsAdapter = {
   clearExtensionSettings(): Promise<void>;
 };
 
-export type ProxyApplyReason = "startup" | "storage-change" | "manual";
+export type ProxyApplyReason = "startup" | "storage-change" | "manual" | "diagnostic-restore";
 
 export type ProxyClearReason =
   | "device-proxy-disabled"
@@ -72,7 +72,7 @@ export type ApplyProxySettingsOptions = {
 };
 
 export type ProxySettingsController = {
-  apply(reason?: ProxyApplyReason): Promise<ApplyProxySettingsResult>;
+  apply(reason?: ProxyApplyReason, options?: { force?: boolean }): Promise<ApplyProxySettingsResult>;
   handleStorageChange(changes: StorageChanges, areaName: StorageAreaName): Promise<ApplyProxySettingsResult | null>;
 };
 
@@ -254,12 +254,12 @@ export function createProxySettingsController(options: ProxySettingsControllerOp
   let inFlight: Promise<ApplyProxySettingsResult> | null = null;
   let applyQueued = false;
 
-  async function runApply(reason: ProxyApplyReason): Promise<ApplyProxySettingsResult> {
+  async function runApply(reason: ProxyApplyReason, force = false): Promise<ApplyProxySettingsResult> {
     const result = await applyProxySettings({
       proxySettings,
       syncStorage: options.syncStorage,
       localStorage: options.localStorage,
-      lastAppliedSignature,
+      lastAppliedSignature: force ? null : lastAppliedSignature,
       reason
     });
 
@@ -278,14 +278,17 @@ export function createProxySettingsController(options: ProxySettingsControllerOp
     return result;
   }
 
-  async function apply(reason: ProxyApplyReason = "manual"): Promise<ApplyProxySettingsResult> {
+  async function apply(
+    reason: ProxyApplyReason = "manual",
+    applyOptions: { force?: boolean } = {}
+  ): Promise<ApplyProxySettingsResult> {
     if (inFlight) {
       applyQueued = true;
       return inFlight;
     }
 
     inFlight = (async () => {
-      let result = await runApply(reason);
+      let result = await runApply(reason, applyOptions.force === true);
 
       while (applyQueued) {
         applyQueued = false;

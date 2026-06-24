@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, an Options UI for local proxy settings and synced manual rules, a Popup UI for current-site rule management, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, an Options UI for local proxy settings and synced manual rules, a Popup UI for current-site rule management and manual diagnostics, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -24,6 +24,8 @@ Popup:
 - Show whether the current domain is routed by an exact rule, inherited from a parent `includeSubdomains` rule, blocked by internal protection or synced denylist, or currently direct.
 - Add a manual synced rule for the current domain only after an explicit user click.
 - Remove exact current-domain rules only; parent inherited rules must be edited from Options.
+- Start a current-site diagnostic only after the user clicks "Check via proxy".
+- Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
 - Provide quick access to Options.
 
 The popup does not inspect page content, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
@@ -45,6 +47,7 @@ The service worker currently coordinates:
 - Generating PAC data locally.
 - Applying proxy settings through `chrome.proxy`.
 - Reacting to relevant storage changes.
+- Handling current-site diagnostic messages from the popup.
 
 It does not yet report current apply status to the UI.
 
@@ -57,7 +60,7 @@ Once implementation begins, core logic should be isolated from Chrome APIs:
 - Domain rule model and migrations.
 - PAC generation.
 - Storage serialization and migration helpers.
-- Diagnostic decision helpers once diagnostics are implemented.
+- Diagnostic decision helpers for current-site target validation, temporary probe planning, and conservative result mapping.
 
 These modules should be unit-tested without Chrome.
 
@@ -146,16 +149,24 @@ Current runtime behavior:
 
 ## Diagnostics Architecture
 
-Diagnostics are a future feature and must not be part of the MVP runtime.
+Current-site diagnostics are manual and best-effort. They are designed to help the user decide whether the current site appears reachable through the configured local proxy before saving a permanent synced rule.
 
-Future diagnostics should be isolated behind:
+The current diagnostic flow:
 
-- An explicit opt-in preference.
-- A user action for each check.
-- A narrow permission request, if a permission is needed.
-- A pure recommendation model that never mutates rules by itself.
+- Requires the user to open the popup on a supported `http` or `https` page and click "Check via proxy".
+- Uses the existing `activeTab` permission for temporary current-tab URL/origin access after that user gesture.
+- Rejects browser/internal pages, local/private/internal hosts, invalid domains, and synced denylist matches.
+- Requires a valid enabled local proxy configuration. If it is missing, the popup shows "Configure local proxy in Options first."
+- Sends a runtime message to the background service worker with the current URL.
+- Builds a temporary PAC from permanent synced rules plus a diagnostic probe rule for the current normalized domain.
+- Applies the temporary PAC through the background proxy adapter.
+- Makes a short best-effort fetch to the current tab origin from the extension context.
+- Restores normal proxy routing afterward, including clearing extension-controlled proxy settings when there are no permanent active rules.
+- Returns cautious results such as "appears reachable" or "did not appear reachable"; it does not claim absolute site availability.
 
-Diagnostic results should be short-lived unless the user explicitly saves something.
+Diagnostic probe state is not written to sync or local storage. A permanent synced rule is created only if the user explicitly clicks the follow-up add button after a successful check. That saved rule uses `source: "diagnostic"`.
+
+Diagnostics do not use `webRequest`, `webNavigation`, content scripts, notifications, host permissions, `<all_urls>`, telemetry, backend services, remote PAC URLs, or remote executable code. Chrome Web Store review risk should be reconsidered before adding broader diagnostic permissions or any remote resource.
 
 ## Test Strategy
 
@@ -173,6 +184,7 @@ Extension integration:
 - Proxy apply lifecycle.
 - Permission behavior.
 - UI state transitions.
+- Manual diagnostic planning, timeout/error handling, and restore behavior.
 
 Manual checks:
 
@@ -185,8 +197,8 @@ Typed storage helpers exist for `chrome.storage.sync` and `chrome.storage.local`
 The runtime boundary remains narrow:
 
 - The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
-- The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, and does not call `chrome.proxy.settings` directly.
-- No diagnostics are implemented.
+- The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
+- Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.
 - No backend, telemetry, remote PAC URL, or remote executable code is used.

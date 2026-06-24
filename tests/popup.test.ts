@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -95,6 +97,20 @@ describe("popup add current site rule helper", () => {
     });
   });
 
+  it("adds a diagnostic-sourced rule only when the confirmation helper is called", () => {
+    expect(addCurrentSiteRule([], "https://letterboxd.com/films", createdAt, "diagnostic")).toEqual({
+      ok: true,
+      status: "added",
+      domain: "letterboxd.com",
+      rules: [
+        {
+          ...manualRule("letterboxd.com", true),
+          source: "diagnostic"
+        }
+      ]
+    });
+  });
+
   it("prevents duplicate exact-domain rules", () => {
     const rules = [manualRule("letterboxd.com", false)];
 
@@ -127,6 +143,14 @@ describe("popup add current site rule helper", () => {
       ok: false,
       error: "Private network addresses cannot be routed."
     });
+  });
+});
+
+describe("popup runtime boundaries", () => {
+  it("does not call chrome.proxy.settings directly", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+
+    expect(popupSource).not.toContain("chrome.proxy");
   });
 });
 

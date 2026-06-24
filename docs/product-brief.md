@@ -2,7 +2,7 @@
 
 ## Product
 
-Smart Proxy Route Helper is a planned Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
+Smart Proxy Route Helper is a Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
 
 The user owns both important pieces of configuration:
 
@@ -25,7 +25,7 @@ Help a user manage local PAC-based proxy routing for specific domains in Chrome.
 
 Chrome can use PAC scripts, but manually maintaining per-domain PAC configuration is inconvenient and error-prone.
 
-The MVP should provide a small, transparent UI for maintaining the domain list, configuring the local proxy on each device, and applying the resulting PAC configuration through Chrome's extension APIs.
+The MVP provides a small, transparent UI for maintaining the domain list, configuring the local proxy on each device, applying the resulting PAC configuration through Chrome's extension APIs, and manually checking whether the current site appears reachable through the configured local proxy.
 
 ## MVP Goals
 
@@ -34,6 +34,7 @@ The MVP should provide a small, transparent UI for maintaining the domain list, 
 - Device-local proxy settings.
 - Locally generated PAC configuration.
 - Clear current status in the extension UI.
+- Manual current-site diagnostics after explicit user action.
 - Minimal permissions.
 - No backend and no telemetry.
 
@@ -97,14 +98,14 @@ Avoid non-neutral access-control framing. Product copy should stay factual, tech
 3. Extension returns Chrome proxy settings to the intended direct or system state according to the implementation design.
 4. Synced domain rules remain unchanged.
 
-## Future Diagnostics
+## Manual Diagnostics
 
-Diagnostics are not part of the MVP.
+Diagnostics are manual and best-effort. They help a user check whether the current site appears reachable through the configured local proxy before saving a permanent synced rule.
 
-Future diagnostics may help a user manually check whether a site appears reachable through the configured local proxy. This feature must be:
+This feature must be:
 
 - Optional.
-- Opt-in.
+- Opt-in per check.
 - User-initiated.
 - Transparent about what is checked.
 - Limited in stored data.
@@ -117,6 +118,7 @@ The MVP is successful when:
 - A user can configure a local proxy on one device.
 - A user can manage a synced list of domain rules.
 - The extension can apply local PAC-based proxy routing from those settings.
+- A user can run a manual current-site check without automatic rule creation.
 - The extension uses only the permissions needed for shipped functionality.
 - The project can present a clear privacy story for Chrome Web Store review.
 - Manual smoke tests cover install, configuration, rule changes, storage split, and permission expectations.
