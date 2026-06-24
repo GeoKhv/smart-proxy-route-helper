@@ -21,6 +21,7 @@ Record:
 3. Confirm no required host permissions appear in the MVP.
 4. Confirm the extension has no telemetry or backend requests.
 5. Confirm diagnostics are manual only and start only after the user clicks "Check via proxy".
+6. Confirm related-domain candidate logic is covered by unit tests only and does not collect browser resources in this release slice.
 
 ## Current Runtime Checks
 
@@ -33,6 +34,7 @@ Record:
 7. Inspect the service worker and confirm it starts without uncaught errors.
 8. Confirm no automatic diagnostics, backend calls, telemetry, content scripts, or host permissions are present.
 9. Confirm manifest permissions remain unchanged: `proxy`, `storage`, and `activeTab`.
+10. Confirm no UI or runtime path collects page resource hosts for related-domain suggestions.
 
 ## Runtime PAC Apply Checks
 

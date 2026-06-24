@@ -84,6 +84,7 @@ Goal: keep the current manual diagnostics path carefully scoped, and expand it o
 
 Candidate scope:
 
+- Pure related-domain candidate engine that categorizes caller-provided observed hosts or URLs without collecting browser resources.
 - User-initiated reachability check for the current site or an explicitly selected domain.
 - Clear explanation before any additional permission request, if a future design needs one.
 - Recommendation UI that suggests a domain rule only when appropriate.
@@ -99,6 +100,7 @@ Permissions:
 Out of scope:
 
 - Automatic rule creation.
+- Browser resource collection until a separate explicit opt-in design is reviewed.
 - Continuous page monitoring.
 - Uploading diagnostic results.
 - Remote diagnostic services.
@@ -109,6 +111,7 @@ Exit criteria:
 - Diagnostics are manual and opt-in per check.
 - Each check is user-initiated.
 - No diagnostic path mutates rules without confirmation.
+- Related-domain candidates remain suggestions only and are never saved without user confirmation.
 - Privacy and Chrome Web Store disclosures are updated before release.
 
 ## Chrome Web Store Submission Checklist

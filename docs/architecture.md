@@ -61,6 +61,7 @@ Once implementation begins, core logic should be isolated from Chrome APIs:
 - PAC generation.
 - Storage serialization and migration helpers.
 - Diagnostic decision helpers for current-site target validation, temporary probe planning, and conservative result mapping.
+- Related-domain candidate suggestions from caller-provided observed hosts or URLs.
 
 These modules should be unit-tested without Chrome.
 
@@ -170,6 +171,14 @@ Diagnostic probe state is not written to sync or local storage. A permanent sync
 
 Diagnostics do not use `webRequest`, `webNavigation`, content scripts, notifications, host permissions, `<all_urls>`, telemetry, backend services, remote PAC URLs, or remote executable code. Chrome Web Store review risk should be reconsidered before adding broader diagnostic permissions or any remote resource.
 
+### Related-Domain Candidate Engine
+
+The related-domain candidate engine is currently pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
+
+The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default.
+
+This module does not collect browser resources, inspect page content, request optional permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Any future advanced diagnostics UI must add a separate explicit opt-in collection mechanism, explain any additional permission request before use, and require explicit user confirmation before saving any suggested rule.
+
 ## Test Strategy
 
 Pure modules:
@@ -179,6 +188,7 @@ Pure modules:
 - Storage migrations.
 - PAC generation.
 - Diagnostics recommendation logic once added.
+- Related-domain candidate categorization.
 
 Extension integration:
 
