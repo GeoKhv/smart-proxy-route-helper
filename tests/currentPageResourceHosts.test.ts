@@ -1,15 +1,28 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildCurrentPageResourceHostPreview,
+  collectCurrentPageResourceHostnamesFromDom,
   currentPageResourceHostsMessageType,
   doesTextLookLikeErrorOrProtectionPage,
   runCurrentPageResourceHostPreview,
   sanitizeResourceHostCandidate,
   sanitizeResourceHostCandidates
 } from "../src/diagnostics/currentPageResourceHosts";
+
+function fakeElement(attributes: Record<string, string>): Element {
+  return {
+    getAttribute(attributeName: string): string | null {
+      return attributes[attributeName] ?? null;
+    }
+  } as Element;
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("current-page resource host sanitization", () => {
   it("converts URLs to hostnames and strips paths, query strings, fragments, and credentials", () => {
@@ -73,6 +86,133 @@ describe("current-page resource host preview", () => {
     expect(result.collectedHosts).toEqual(["a.ltrbxd.com", "image.tmdb.org"]);
     expect(result.candidates?.strongCandidates.map((candidate) => candidate.domain)).toEqual(["ltrbxd.com"]);
     expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual(["image.tmdb.org"]);
+  });
+
+  it("keeps LinkedIn-like media/static hosts reviewable while noisy helpers stay ignored", () => {
+    const result = buildCurrentPageResourceHostPreview({
+      url: "https://www.linkedin.com/feed/",
+      collectedHosts: [
+        "https://media.licdn.com/media/image.jpg",
+        "https://static.licdn.com/sc/h/app.js",
+        "https://dms.licdn.com/playlist/video.mp4",
+        "https://ads.stickyadstv.com/sync",
+        "https://eb2.3lift.com/id",
+        "https://lex.33across.com/id",
+        "https://sync.teads.tv/id",
+        "https://token.rubiconproject.com/id",
+        "https://dpm.demdex.net/id",
+        "https://ad.doubleclick.net/activity",
+        "https://www.google-analytics.com/analytics.js",
+        "https://www.googletagmanager.com/gtm.js",
+        "https://connect.facebook.net/sdk.js",
+        "https://script.hotjar.com/modules.js",
+        "https://local.adguard.org/script.js"
+      ]
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.message).not.toContain("No public resource hosts");
+    expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual([
+      "dms.licdn.com",
+      "media.licdn.com",
+      "static.licdn.com"
+    ]);
+    expect(result.candidates?.ignoredCandidates.map((candidate) => candidate.domain)).toEqual([
+      "33across.com",
+      "3lift.com",
+      "demdex.net",
+      "doubleclick.net",
+      "facebook.net",
+      "google-analytics.com",
+      "googletagmanager.com",
+      "hotjar.com",
+      "local.adguard.org",
+      "rubiconproject.com",
+      "stickyadstv.com",
+      "teads.tv"
+    ]);
+  });
+
+  it("reports collected-but-ignored hosts separately from no public hosts", () => {
+    const result = buildCurrentPageResourceHostPreview({
+      url: "https://www.linkedin.com/feed/",
+      collectedHosts: ["https://local.adguard.org/script.js", "https://dpm.demdex.net/id"]
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.collectedHosts).toEqual(["dpm.demdex.net", "local.adguard.org"]);
+    expect(result.message).toBe(
+      "2 public resource hosts checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved."
+    );
+  });
+
+  it("collects hostnames from resource timing, srcset, media, and bounded generic attributes", () => {
+    const selectorResults: Record<string, Element[]> = {
+      "script[src]": [fakeElement({ src: "https://static.licdn.com/sc/h/app.js?cache=1" })],
+      'link[href][rel~="stylesheet"]': [fakeElement({ href: "https://static.licdn.com/aero.css" })],
+      "source[src]": [fakeElement({ src: "https://dms.licdn.com/video.mp4" })],
+      "[srcset]": [
+        fakeElement({
+          srcset:
+            "https://media.licdn.com/profile-1.jpg 1x, https://static.licdn.com/profile-2.jpg 2x, data:image/png;base64,abc 3x"
+        })
+      ],
+      "[src]": [
+        fakeElement({ src: "https://media.licdn.com/generic.jpg" }),
+        fakeElement({ src: "http://127.0.0.1/debug.js" })
+      ],
+      "[href]": [
+        fakeElement({ href: "https://local.adguard.org/script.js" }),
+        fakeElement({ href: "mailto:person@example.com" }),
+        fakeElement({ href: "https://router.local/admin" })
+      ]
+    };
+
+    vi.stubGlobal("document", {
+      baseURI: "https://www.linkedin.com/feed/",
+      title: "Feed | LinkedIn",
+      body: {
+        innerText: "Regular loaded feed",
+        textContent: "Regular loaded feed"
+      },
+      images: [
+        {
+          currentSrc: "https://media.licdn.com/feed-image.jpg?secret=1",
+          src: ""
+        }
+      ],
+      querySelectorAll(selector: string): Element[] {
+        return selectorResults[selector] ?? [];
+      }
+    });
+    vi.stubGlobal("performance", {
+      getEntriesByType(entryType: string): PerformanceEntry[] {
+        if (entryType !== "resource") {
+          return [];
+        }
+
+        return [
+          { name: "https://ads.stickyadstv.com/sync?uid=1" },
+          { name: "https://static.licdn.com/perf-entry.js#hash" },
+          { name: "https://192.168.1.10/private.js" }
+        ] as PerformanceEntry[];
+      }
+    });
+
+    const result = collectCurrentPageResourceHostnamesFromDom();
+
+    expect(result.pageLooksLikeErrorOrProtection).toBe(false);
+    expect(result.hosts).toEqual(
+      expect.arrayContaining([
+        "ads.stickyadstv.com",
+        "dms.licdn.com",
+        "local.adguard.org",
+        "media.licdn.com",
+        "static.licdn.com"
+      ])
+    );
+    expect(result.hosts).not.toEqual(expect.arrayContaining(["127.0.0.1", "192.168.1.10", "router.local"]));
+    expect(result.hosts.every((host) => !host.includes("/") && !host.includes("?") && !host.includes("#"))).toBe(true);
   });
 
   it("rejects unsupported current pages before attempting script collection", async () => {

@@ -29,5 +29,8 @@ describe("extension scaffold manifest", () => {
 
     expect(manifest.host_permissions ?? []).toEqual([]);
     expect(manifest.content_scripts ?? []).toEqual([]);
+    expect(manifest.permissions ?? []).not.toContain("<all_urls>");
+    expect(manifest.permissions ?? []).not.toContain("webRequest");
+    expect(manifest.permissions ?? []).not.toContain("webNavigation");
   });
 });

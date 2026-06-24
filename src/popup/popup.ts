@@ -509,9 +509,16 @@ export function getRelatedDomainPreviewActionStatus(
   const candidates = preview.candidates;
   const collectedHostCount = preview.collectedHosts?.length ?? 0;
 
-  if (!candidates || collectedHostCount === 0) {
+  if (collectedHostCount === 0) {
     return {
       message: "No public resource hosts were available for related-domain preview. No rules were saved.",
+      kind: "neutral"
+    };
+  }
+
+  if (!candidates) {
+    return {
+      message: preview.message,
       kind: "neutral"
     };
   }
@@ -521,6 +528,13 @@ export function getRelatedDomainPreviewActionStatus(
   const ignoredCount = candidates.ignoredCandidates.length;
 
   if (strongCandidates.length === 0 && mediumCandidates.length === 0) {
+    if (ignoredCount > 0) {
+      return {
+        message: `${collectedHostCount} public resource host${collectedHostCount === 1 ? "" : "s"} checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.`,
+        kind: "neutral"
+      };
+    }
+
     return {
       message: `${collectedHostCount} public resource host${collectedHostCount === 1 ? "" : "s"} checked. No related-domain candidates were found and no rules were saved.`,
       kind: "neutral"

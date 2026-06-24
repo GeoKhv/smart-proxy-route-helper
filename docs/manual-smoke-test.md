@@ -205,13 +205,14 @@ await chrome.proxy.settings.get({ incognito: false });
 ## LinkedIn-Like Related-Domain Save Check
 
 1. Configure a working local proxy in Options.
-2. Open `https://www.linkedin.com/` or another page that loads `licdn.com` media/static resources.
-3. Add or keep a synced rule for `linkedin.com` if needed, route or check the page through proxy, then reload the page so resources load.
+2. Open `https://www.linkedin.com/` or another loaded feed page that includes `licdn.com` media/static resources.
+3. Add or keep a synced rule for `linkedin.com` if needed, route or check the page through proxy, then reload the loaded feed page so resources load.
 4. Open the popup and click "Preview related domains".
 5. Confirm `media.licdn.com` and `static.licdn.com`, when observed, appear as manually reviewable medium candidates and are not selected by default.
-6. Confirm adtech/tracking hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, and `rubiconproject.com`, when observed, do not crowd the normal saveable list.
-7. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
-8. Confirm the two selected domains are added as synced proxy rules and that no ignored or unselected candidates are saved.
+6. Confirm the popup does not show "No public resource hosts" when those `licdn.com` hosts are present on the loaded page.
+7. Confirm adtech/tracking hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, and `rubiconproject.com`, when observed, do not crowd the normal saveable list.
+8. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
+9. Confirm the two selected domains are added as synced proxy rules and that no ignored or unselected candidates are saved.
 
 ## Real-World Visible Route Checks
 

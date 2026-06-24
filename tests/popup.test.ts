@@ -248,6 +248,90 @@ describe("popup related-domain preview messages", () => {
       kind: "neutral"
     });
   });
+
+  it("does not report no public hosts when LinkedIn-like reviewable hosts exist", () => {
+    const status = getRelatedDomainPreviewActionStatus({
+      status: "success",
+      message: "4 public resource hosts checked for related-domain preview. No rules were saved.",
+      currentDomain: "linkedin.com",
+      collectedHosts: ["media.licdn.com", "static.licdn.com", "dms.licdn.com", "demdex.net"],
+      candidates: {
+        currentDomain: "linkedin.com",
+        strongCandidates: [],
+        mediumCandidates: [
+          {
+            domain: "media.licdn.com",
+            reason: "third-party-resource",
+            sourceHosts: ["media.licdn.com"],
+            sourceHostCount: 1,
+            suggestedIncludeSubdomains: false,
+            defaultSelected: false
+          },
+          {
+            domain: "static.licdn.com",
+            reason: "third-party-resource",
+            sourceHosts: ["static.licdn.com"],
+            sourceHostCount: 1,
+            suggestedIncludeSubdomains: false,
+            defaultSelected: false
+          }
+        ],
+        ignoredCandidates: [
+          {
+            domain: "demdex.net",
+            reason: "known-tracking-or-analytics",
+            sourceHosts: ["dpm.demdex.net"],
+            sourceHostCount: 1,
+            suggestedIncludeSubdomains: false,
+            defaultSelected: false
+          }
+        ]
+      }
+    });
+
+    expect(status.message).toContain("Related-domain preview found candidates.");
+    expect(status.message).toContain("Review manually: media.licdn.com, static.licdn.com");
+    expect(status.message).not.toContain("No public resource hosts");
+  });
+
+  it("reports all-ignored previews separately from empty page collection", () => {
+    expect(
+      getRelatedDomainPreviewActionStatus({
+        status: "success",
+        message:
+          "2 public resource hosts checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.",
+        currentDomain: "linkedin.com",
+        collectedHosts: ["local.adguard.org", "demdex.net"],
+        candidates: {
+          currentDomain: "linkedin.com",
+          strongCandidates: [],
+          mediumCandidates: [],
+          ignoredCandidates: [
+            {
+              domain: "local.adguard.org",
+              reason: "local-or-adblock-helper",
+              sourceHosts: ["local.adguard.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "demdex.net",
+              reason: "known-tracking-or-analytics",
+              sourceHosts: ["dpm.demdex.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ]
+        }
+      })
+    ).toEqual({
+      message:
+        "2 public resource hosts checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.",
+      kind: "neutral"
+    });
+  });
 });
 
 describe("popup related-domain candidate view model", () => {

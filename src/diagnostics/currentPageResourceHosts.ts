@@ -196,12 +196,16 @@ function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageR
   };
 }
 
-function resultMessage(hostCount: number, candidateCount: number): string {
+function resultMessage(hostCount: number, candidateCount: number, ignoredCandidateCount: number): string {
   if (hostCount === 0) {
     return "No public resource hosts were available for related-domain preview. No rules were saved.";
   }
 
   if (candidateCount === 0) {
+    if (ignoredCandidateCount > 0) {
+      return `${hostCount} public resource host${hostCount === 1 ? "" : "s"} checked. Only ignored analytics, helper, or infrastructure hosts were found; no rules were saved.`;
+    }
+
     return `${hostCount} public resource host${hostCount === 1 ? "" : "s"} checked. No related-domain candidates were found and no rules were saved.`;
   }
 
@@ -292,8 +296,9 @@ export function buildCurrentPageResourceHostPreview(input: {
     observedUrlsOrHosts: collectedHosts
   });
   const candidateCount = candidates.strongCandidates.length + candidates.mediumCandidates.length;
+  const ignoredCandidateCount = candidates.ignoredCandidates.length;
 
-  return response("success", resultMessage(collectedHosts.length, candidateCount), target.domain, {
+  return response("success", resultMessage(collectedHosts.length, candidateCount, ignoredCandidateCount), target.domain, {
     collectedHosts,
     candidates
   });
@@ -365,15 +370,35 @@ export function doesTextLookLikeErrorOrProtectionPage(text: string): boolean {
 
 export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourceHostCollectionResult {
   const maxHosts = 80;
+  const maxAttributeValueLength = 4096;
+  const internalHostSuffixes = [".local", ".lan", ".localhost", ".internal", ".home", ".home.arpa"];
   const hosts = new Set<string>();
+
+  const isBlockedHostname = (hostname: string): boolean => {
+    if (hostname === "localhost" || !hostname.includes(".") || internalHostSuffixes.some((suffix) => hostname.endsWith(suffix))) {
+      return true;
+    }
+
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":")) {
+      return true;
+    }
+
+    return false;
+  };
 
   const addUrlHostname = (value: string | null | undefined): void => {
     if (!value || hosts.size >= maxHosts) {
       return;
     }
 
+    const boundedValue = value.trim();
+
+    if (boundedValue.length === 0 || boundedValue.length > maxAttributeValueLength) {
+      return;
+    }
+
     try {
-      const parsedUrl = new URL(value, document.baseURI);
+      const parsedUrl = new URL(boundedValue, document.baseURI);
 
       if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
         return;
@@ -381,11 +406,33 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
 
       const hostname = parsedUrl.hostname.toLowerCase().replace(/\.+$/, "");
 
-      if (hostname.length > 0) {
+      if (hostname.length > 0 && !isBlockedHostname(hostname)) {
         hosts.add(hostname);
       }
     } catch {
       // Ignore individual resource values that cannot be parsed as URLs.
+    }
+  };
+
+  const addSrcsetHostnames = (value: string | null | undefined): void => {
+    if (!value || hosts.size >= maxHosts) {
+      return;
+    }
+
+    const boundedValue = value.trim();
+
+    if (boundedValue.length === 0 || boundedValue.length > maxAttributeValueLength) {
+      return;
+    }
+
+    for (const candidate of boundedValue.split(",")) {
+      if (hosts.size >= maxHosts) {
+        return;
+      }
+
+      const urlCandidate = candidate.trim().split(/\s+/, 1)[0];
+
+      addUrlHostname(urlCandidate);
     }
   };
 
@@ -396,6 +443,16 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
       }
 
       addUrlHostname(element.getAttribute(attributeName));
+    }
+  };
+
+  const addSrcsetAttributeValues = (selector: string): void => {
+    for (const element of Array.from(document.querySelectorAll(selector))) {
+      if (hosts.size >= maxHosts) {
+        return;
+      }
+
+      addSrcsetHostnames(element.getAttribute("srcset"));
     }
   };
 
@@ -431,6 +488,9 @@ export function collectCurrentPageResourceHostnamesFromDom(): CurrentPageResourc
   addAttributeValues("video[src]", "src");
   addAttributeValues("video[poster]", "poster");
   addAttributeValues("source[src]", "src");
+  addSrcsetAttributeValues("[srcset]");
+  addAttributeValues("[src]", "src");
+  addAttributeValues("[href]", "href");
 
   const pageText = [document.title, document.body?.innerText ?? document.body?.textContent ?? ""].join("\n");
 
