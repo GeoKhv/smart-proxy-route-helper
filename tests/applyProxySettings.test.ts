@@ -150,7 +150,7 @@ describe("applyProxySettings", () => {
     expect(runPac(call.pacScript, "other.test")).toBe("DIRECT");
   });
 
-  it("applies an all-direct local PAC script when proxy config is valid but rules are empty", async () => {
+  it("clears extension proxy settings when proxy config is valid but sanitized rules are empty", async () => {
     const proxySettings = createProxySettingsRecorder();
 
     const result = await applyProxySettings({
@@ -163,20 +163,44 @@ describe("applyProxySettings", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      status: "applied-pac",
-      ruleCount: 0
+      status: "cleared",
+      clearReason: "empty-proxy-rules"
     });
-    expect(proxySettings.calls).toHaveLength(1);
+    expect(proxySettings.calls).toEqual([
+      {
+        type: "clear"
+      }
+    ]);
+  });
 
-    const call = proxySettings.calls[0];
+  it("clears extension proxy settings when stored rules sanitize to an empty list", async () => {
+    const proxySettings = createProxySettingsRecorder();
 
-    expect(call.type).toBe("apply-pac");
+    const result = await applyProxySettings({
+      proxySettings: proxySettings.adapter,
+      syncStorage: createMemoryStorage({
+        rules: [
+          {
+            domain: "example.com",
+            includeSubdomains: true,
+            mode: "proxy",
+            source: "manual"
+          }
+        ]
+      }),
+      localStorage: createMemoryStorage(enabledLocalProxyState())
+    });
 
-    if (call.type !== "apply-pac") {
-      throw new Error("Expected PAC application call.");
-    }
-
-    expect(runPac(call.pacScript, "example.com")).toBe("DIRECT");
+    expect(result).toMatchObject({
+      ok: true,
+      status: "cleared",
+      clearReason: "empty-proxy-rules"
+    });
+    expect(proxySettings.calls).toEqual([
+      {
+        type: "clear"
+      }
+    ]);
   });
 
   it("clears extension proxy settings when local proxy config is missing", async () => {

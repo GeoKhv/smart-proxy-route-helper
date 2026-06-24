@@ -13,7 +13,11 @@ export type ProxySettingsAdapter = {
 
 export type ProxyApplyReason = "startup" | "storage-change" | "manual";
 
-export type ProxyClearReason = "device-proxy-disabled" | "missing-local-proxy-config" | "invalid-local-proxy-config";
+export type ProxyClearReason =
+  | "device-proxy-disabled"
+  | "missing-local-proxy-config"
+  | "invalid-local-proxy-config"
+  | "empty-proxy-rules";
 
 export type ProxyApplyPlan =
   | {
@@ -146,6 +150,14 @@ export function buildProxyApplyPlan(syncSettings: SyncSettings, localSettings: L
     return {
       action: "clear",
       reason: "invalid-local-proxy-config",
+      signature: "clear"
+    };
+  }
+
+  if (pacResult.rules.length === 0) {
+    return {
+      action: "clear",
+      reason: "empty-proxy-rules",
       signature: "clear"
     };
   }

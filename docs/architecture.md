@@ -132,8 +132,8 @@ The extension should:
 
 Current runtime behavior:
 
-- If local device proxy settings are enabled and contain a valid local proxy config, the service worker builds a PAC script from synced rules and applies it with `chrome.proxy.settings.set`.
-- If the rule list is empty, the applied PAC routes all requests directly.
+- If local device proxy settings are enabled, contain a valid local proxy config, and at least one synced rule remains after sanitization, the service worker builds a PAC script from the sanitized rules and applies it with `chrome.proxy.settings.set`.
+- If the sanitized rule list is empty, the service worker calls `chrome.proxy.settings.clear` for the regular profile instead of applying a direct-only PAC.
 - If the local proxy config is missing, disabled, or sanitized as invalid, the service worker calls `chrome.proxy.settings.clear` for the regular profile.
 - Clearing is intentional: it releases this extension's proxy setting and lets Chrome return to the user's/system proxy state. Setting Chrome to `direct` would keep the extension controlling all traffic and could override user or system proxy intent.
 - Proxy API errors are caught and logged; they must not produce uncaught service worker exceptions.

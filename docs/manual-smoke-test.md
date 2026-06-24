@@ -97,7 +97,7 @@ await chrome.storage.sync.set({
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-2. Confirm a PAC script is still applied, but its rule list is empty and ordinary traffic uses `DIRECT`.
+2. Confirm the extension clears its proxy setting instead of applying a direct-only PAC. The resulting Chrome value may show the user's system proxy state; it should not remain an extension-applied PAC.
 3. Disable local proxy routing:
 
 ```js
