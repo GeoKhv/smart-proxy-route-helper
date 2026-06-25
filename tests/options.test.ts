@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { addDomainRule, parseLocalProxyForm, removeRuleAtIndex } from "../src/options/options";
@@ -115,5 +117,18 @@ describe("options synced rule helpers", () => {
     expect(removeRuleAtIndex(currentRules, 0)).toEqual([manualRule("ltrbxd.com", true)]);
     expect(removeRuleAtIndex(currentRules, 99)).toEqual(currentRules);
     expect(currentRules).toEqual([manualRule("letterboxd.com", true), manualRule("ltrbxd.com", true)]);
+  });
+});
+
+describe("options classification override UI boundary", () => {
+  it("renders storage-only classification override management", async () => {
+    const optionsSource = await readFile(resolve(__dirname, "../src/options/options.ts"), "utf8");
+    const optionsHtml = await readFile(resolve(__dirname, "../src/options/options.html"), "utf8");
+
+    expect(optionsHtml).toContain("Classification overrides");
+    expect(optionsHtml).toContain("classification-overrides-list");
+    expect(optionsSource).toContain("removeUserClassificationOverride");
+    expect(optionsSource).toContain("classificationOverrides: removeUserClassificationOverride");
+    expect(optionsSource).not.toContain("chrome.proxy");
   });
 });

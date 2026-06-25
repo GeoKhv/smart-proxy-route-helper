@@ -44,14 +44,25 @@ The extension does not fetch GitHub raw files, managed blocklists, remote PAC fi
 
 ## User Overrides
 
-The pure model already supports storage-friendly user override inputs for later UI work:
+The extension supports personal user overrides for related-domain candidate classification:
 
 - Always ignore a domain globally.
 - Always review a domain globally.
 - Always suggest a domain for a site.
 - Always ignore a domain for a site.
 
-This slice does not add override UI and does not change storage behavior. A future implementation should define defensive defaults, migration behavior, and tests before persisting personal overrides. Override data should stay domain-level only and must not store raw URLs, page text, screenshots, or browsing history.
+Overrides are stored in `chrome.storage.sync` so the same Chrome profile can carry the user's personal classification choices across synced Chrome installations. The storage shape is intentionally small:
+
+- Global overrides: normalized candidate domain to `ignored` or `review`.
+- Site-scoped overrides: normalized site domain plus normalized candidate domain to `suggested` or `ignored`.
+
+Stored override data is domain-level only. The extension normalizes domain or URL input to hostnames before storage and does not store full URLs, paths, query strings, fragments, credentials, raw page resource lists, page text, screenshots, browsing history, or diagnostic history as classification overrides.
+
+Related-domain preview exposes compact explicit actions for candidate rows, such as ignoring a candidate globally, ignoring it for the current site, keeping an ignored candidate in review globally, or suggesting a candidate for the current site. Saving a classification override does not create a proxy routing rule. After an override is saved, the preview is refreshed so the visible classification reflects the new preference.
+
+Options includes a small management section for current classification overrides and allows removing them. Removing an override does not remove proxy routing rules.
+
+User overrides are personal preferences, not community votes. They are not uploaded, submitted, or synced to GitHub by the extension.
 
 ## Community Proposals
 

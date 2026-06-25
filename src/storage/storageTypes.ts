@@ -1,10 +1,12 @@
 import type { LocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainRule } from "../rules/ruleTypes";
+import type { UserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 
 export type SyncSettings = {
   rules: DomainRule[];
   ignoredDomains: string[];
   denylist: string[];
+  classificationOverrides: UserClassificationOverrides;
 };
 
 export type DeviceProxySettings = {

@@ -277,6 +277,16 @@
         <p>Read-only in this slice. Editing these lists will be added separately if needed.</p>
         <div id="denylist-summary" class="empty">Loading stored lists...</div>
       </section>
+
+      <section aria-labelledby="classification-overrides-title">
+        <h2 id="classification-overrides-title">Classification overrides</h2>
+        <p>
+          Stored in Chrome Sync as domain-level personal preferences. Removing an override does not change proxy routing
+          rules.
+        </p>
+        <p class="status" id="classification-overrides-status" aria-live="polite"></p>
+        <ul class="rule-list" id="classification-overrides-list"></ul>
+      </section>
     </main>
     <script type="module" src="./options.ts"></script>
   </body>

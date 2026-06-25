@@ -60,7 +60,11 @@ describe("sync storage settings", () => {
     await expect(getSyncSettings(createMemoryStorage())).resolves.toEqual({
       rules: [],
       ignoredDomains: [],
-      denylist: []
+      denylist: [],
+      classificationOverrides: {
+        global: {},
+        site: {}
+      }
     });
   });
 
@@ -102,17 +106,104 @@ describe("sync storage settings", () => {
     expect(settings.denylist).toEqual(["blocked.example"]);
   });
 
+  it("preserves valid classification overrides as synced domain-level data", async () => {
+    const settings = await getSyncSettings(
+      createMemoryStorage({
+        classificationOverrides: {
+          global: {
+            "DoubleClick.net": "review",
+            "noisy.example": "ignored"
+          },
+          site: {
+            "https://Letterboxd.com/films": {
+              "https://image.tmdb.org/t/p/w500/poster.jpg?token=secret": "suggested",
+              "ads.example.net": "ignored"
+            }
+          }
+        }
+      })
+    );
+
+    expect(settings.classificationOverrides).toEqual({
+      global: {
+        "doubleclick.net": "review",
+        "noisy.example": "ignored"
+      },
+      site: {
+        "letterboxd.com": {
+          "ads.example.net": "ignored",
+          "image.tmdb.org": "suggested"
+        }
+      }
+    });
+    expect(JSON.stringify(settings.classificationOverrides)).not.toContain("/t/p/w500");
+    expect(JSON.stringify(settings.classificationOverrides)).not.toContain("token=secret");
+  });
+
+  it("drops malformed, internal, and private classification overrides", async () => {
+    const settings = await getSyncSettings(
+      createMemoryStorage({
+        classificationOverrides: {
+          global: {
+            "example.com": "ignored",
+            "localhost": "ignored",
+            "192.168.1.1": "review",
+            "chrome://extensions": "ignored",
+            "bad host": "review",
+            "wrong.example": "useful"
+          },
+          site: {
+            "example.com": {
+              "assets.example.net": "suggested",
+              "10.0.0.1": "ignored",
+              "router.local": "ignored",
+              "bad.example": "review"
+            },
+            "chrome://extensions": {
+              "assets.example.net": "suggested"
+            },
+            "other.example": "not an object"
+          }
+        }
+      })
+    );
+
+    expect(settings.classificationOverrides).toEqual({
+      global: {
+        "example.com": "ignored"
+      },
+      site: {
+        "example.com": {
+          "assets.example.net": "suggested"
+        }
+      }
+    });
+  });
+
   it("merges sync updates through the same validation path", async () => {
     const storage = createMemoryStorage({
       rules: [manualRule("example.com", false)],
       ignoredDomains: ["existing.example"],
-      denylist: []
+      denylist: [],
+      classificationOverrides: {
+        global: {
+          "doubleclick.net": "review"
+        },
+        site: {}
+      }
     });
 
     const updatedSettings = await updateSyncSettings(
       (current) => ({
         rules: [...current.rules, manualRule("added.example", true)],
-        ignoredDomains: [...current.ignoredDomains, "bad host"]
+        ignoredDomains: [...current.ignoredDomains, "bad host"],
+        classificationOverrides: {
+          global: {
+            ...current.classificationOverrides.global,
+            "localhost": "ignored"
+          },
+          site: current.classificationOverrides.site
+        }
       }),
       storage
     );
@@ -120,7 +211,13 @@ describe("sync storage settings", () => {
     expect(updatedSettings).toEqual({
       rules: [manualRule("example.com", false), manualRule("added.example", true)],
       ignoredDomains: ["existing.example"],
-      denylist: []
+      denylist: [],
+      classificationOverrides: {
+        global: {
+          "doubleclick.net": "review"
+        },
+        site: {}
+      }
     });
     expect(storage.dump()).toEqual(updatedSettings);
   });
@@ -264,7 +361,18 @@ describe("storage writes", () => {
       {
         rules: [manualRule("Example.com", true), manualRule("localhost", true)],
         ignoredDomains: ["Ignored.example", "bad host"],
-        denylist: ["Denied.example"]
+        denylist: ["Denied.example"],
+        classificationOverrides: {
+          global: {
+            "Track.Example": "ignored",
+            "127.0.0.1": "review"
+          },
+          site: {
+            "Example.com": {
+              "https://assets.example.net/path?secret=1": "suggested"
+            }
+          }
+        }
       },
       storage
     );
@@ -272,7 +380,17 @@ describe("storage writes", () => {
     expect(storage.dump()).toEqual({
       rules: [manualRule("example.com", true)],
       ignoredDomains: ["ignored.example"],
-      denylist: ["denied.example"]
+      denylist: ["denied.example"],
+      classificationOverrides: {
+        global: {
+          "track.example": "ignored"
+        },
+        site: {
+          "example.com": {
+            "assets.example.net": "suggested"
+          }
+        }
+      }
     });
   });
 });

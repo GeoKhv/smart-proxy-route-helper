@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules and PAC generation, typed storage helpers, an Options UI for local proxy settings and synced manual rules, a Popup UI for current-site rule management and manual diagnostics, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -28,6 +28,7 @@ Popup:
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
 - Preview related-domain candidates from current-page resource hosts only after the user clicks "Preview related domains".
 - Let the user explicitly select previewed related-domain candidates and save only those selected candidates as synced diagnostic-sourced rules.
+- Let the user explicitly save personal classification overrides for preview candidates without creating proxy routing rules.
 - Provide quick access to Options.
 
 The popup does not inspect page content on open, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
@@ -36,6 +37,7 @@ Options page:
 
 - Configure local proxy settings.
 - Manage domain rules.
+- Show and remove synced personal classification overrides.
 - Show which settings are local to this device and which domain rules are synced.
 - Show storage status for saves, additions, and removals.
 - Provide reset/export affordances only after implementation design is settled.
@@ -51,6 +53,7 @@ The service worker currently coordinates:
 - Reacting to relevant storage changes.
 - Handling current-site diagnostic messages from the popup.
 - Handling current-page related-domain preview messages from the popup.
+- Reading synced classification overrides for explicit related-domain preview classification.
 
 It does not yet report current apply status to the UI.
 
@@ -81,9 +84,10 @@ Current synced data:
 - Domain rules.
 - Ignored domains.
 - Denylist entries.
+- Personal classification overrides for related-domain preview, stored as normalized domain-level global and site-scoped preferences.
 - Safe rule metadata such as manual/import/diagnostic source and creation time.
 
-Do not store local proxy host, port, credentials, device state, or diagnostics history in synced storage.
+Do not store local proxy host, port, credentials, device state, raw URLs, page resource lists, browsing history, diagnostics history, or temporary preview/probe state in synced storage.
 
 ### Local Storage
 
@@ -196,8 +200,10 @@ The preview flow:
 - Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers them.
 - Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.
 - Saves only selected, saveable candidates after the user clicks "Add selected domains".
+- Offers explicit classification override actions on candidate rows where appropriate. Overrides are saved as personal domain-level preferences in `chrome.storage.sync`, not as proxy routing rules.
+- Refreshes the preview after an override is saved so the user sees the updated classification.
 
-The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
+The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. Classification overrides are separate synced preferences and do not trigger PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
 
 Because the preview inspects resources from the currently loaded page, results can be noisy. The engine uses a small, local-only classification layer for obvious analytics, adtech, shared-infrastructure, schema-helper, local-helper, and site-scoped related hosts so high-confidence noise is not offered as a normal saveable related domain. Unknown and suspicious hosts stay visible for manual review instead of being hidden aggressively. The classifier does not fetch remote blocklists or use remotely controlled candidate logic.
 
@@ -221,9 +227,9 @@ The engine can mark conservative same-site or explicitly known related domains a
 
 Built-in classification data is bundled locally in the extension source. It includes a small set of high-confidence ignored domains and site-scoped related hints such as `linkedin.com` to `licdn.com` and `letterboxd.com` to `ltrbxd.com`. It does not fetch GitHub raw files, remote lists, remote PAC data, or remotely controlled classification logic at runtime.
 
-The pure user override model supports future personal choices such as always ignoring a domain globally, always reviewing a domain globally, always suggesting a domain for a site, or always ignoring a domain for a site. This slice does not add override UI or storage wiring; future storage work should add defensive defaults and migrations before persisting override data.
+The user override model supports personal choices such as always ignoring a domain globally, always reviewing a domain globally, always suggesting a domain for a site, or always ignoring a domain for a site. Overrides are stored in `chrome.storage.sync` as normalized domain-level data. Malformed, internal, local, private, or unsupported override domains are dropped during sanitization, and missing override data defaults to an empty model for migration safety.
 
-This pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and popup saving requires explicit user selection and confirmation before any suggested rule is written.
+The pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and popup saving requires explicit user selection and confirmation before any suggested rule is written. The background preview handler reads synced overrides and passes them into the pure engine as caller-provided input.
 
 See [domain-classification.md](domain-classification.md) for the classification model, precedence, and contribution workflow.
 
@@ -234,6 +240,7 @@ Pure modules:
 - Domain normalization.
 - Proxy config validation.
 - Storage migrations.
+- Classification override defaults and sanitization.
 - PAC generation.
 - Diagnostics recommendation logic once added.
 - Related-domain candidate categorization.
@@ -260,6 +267,8 @@ The runtime boundary remains narrow:
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
 - Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
+- Popup classification override actions write only the synced `classificationOverrides` data and then refresh preview; they do not create proxy routing rules.
+- Options classification override removal updates storage only and does not call `chrome.proxy.settings`.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.
 - No backend, telemetry, remote PAC URL, or remote executable code is used.

@@ -24,6 +24,7 @@ Synced with `chrome.storage.sync`:
 
 - Domain routing rules.
 - Ignored domains and denylist entries.
+- Personal classification overrides for related-domain preview, stored as normalized global or site-scoped domain preferences.
 - Safe rule metadata, such as source and creation timestamps.
 
 Stored only on the local device with `chrome.storage.local`:
@@ -36,11 +37,11 @@ Stored only on the local device with `chrome.storage.local`:
 
 The project does not store secrets, local proxy configuration, browsing history, raw diagnostic history, or temporary probe state in synced storage.
 
-User-invoked related-domain preview may collect sanitized resource hostnames from bounded resource references on the current page in memory. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules.
+User-invoked related-domain preview may collect sanitized resource hostnames from bounded resource references on the current page in memory. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
 
 ## Chrome Sync
 
-If the user has Chrome Sync enabled, Chrome may sync the domain rule list through the user's Chrome profile because the MVP plans to use `chrome.storage.sync` for rules.
+If the user has Chrome Sync enabled, Chrome may sync the domain rule list and personal classification overrides through the user's Chrome profile because the MVP uses `chrome.storage.sync` for those domain-level settings.
 
 The local proxy configuration is intentionally device-specific and should remain in `chrome.storage.local`.
 
@@ -53,6 +54,7 @@ The project must not send the developer:
 - Browsing activity.
 - Diagnostic results.
 - Related-domain preview resource hosts.
+- Classification overrides.
 - IP addresses.
 - Error logs.
 - Usage events.
@@ -65,7 +67,7 @@ Manual current-site diagnostics may make a user-initiated best-effort request fr
 
 Diagnostics do not upload results to the developer, do not store diagnostic history, do not sync temporary probe state, and do not add a rule without explicit confirmation. The current site and the user's configured local proxy provider may observe the diagnostic request in the same way they can observe ordinary network requests routed to that site.
 
-The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect bounded current-page resource references through a one-time active-tab script and use sanitized hostnames locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials as early as possible, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. It may show compact transient counts and a small sample of sanitized hostnames when no saveable candidates remain, but it does not display or retain raw full URLs. It also uses local-only filters for obvious analytics, adtech, shared-infrastructure, and local/adblock helper hosts so those hosts are not offered as normal saveable candidates. If the loaded page appears to be an error or protection page, the popup shows a neutral warning instead of normal related-domain results. Preview candidates do not become routing rules unless the user selects candidates and clicks the separate add button.
+The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect bounded current-page resource references through a one-time active-tab script and use sanitized hostnames locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials as early as possible, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. It may show compact transient counts and a small sample of sanitized hostnames when no saveable candidates remain, but it does not display or retain raw full URLs. It also uses local-only filters for obvious analytics, adtech, shared-infrastructure, and local/adblock helper hosts so those hosts are not offered as normal saveable candidates. If the loaded page appears to be an error or protection page, the popup shows a neutral warning instead of normal related-domain results. Preview candidates do not become routing rules unless the user selects candidates and clicks the separate add button. Classification override actions are separate explicit actions; they store normalized domain preferences only and do not submit community votes, create GitHub issues, or upload data.
 
 ## Limited Use Statement
 
@@ -78,6 +80,7 @@ The project must not use or transfer user data for advertising, profiling, resal
 Users should be able to delete stored extension data by:
 
 - Removing domain rules in the extension UI.
+- Removing classification overrides in the extension UI.
 - Clearing local proxy settings in the extension UI.
 - Removing the extension from Chrome.
 

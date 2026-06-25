@@ -97,6 +97,33 @@ describe("current-page resource host preview", () => {
     expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual(["image.tmdb.org"]);
   });
 
+  it("applies user classification overrides while keeping preview data domain-only", () => {
+    const result = buildCurrentPageResourceHostPreview({
+      url: "https://letterboxd.com/films/",
+      collectedHosts: [
+        "https://www.google-analytics.com/analytics.js?client=secret",
+        "https://image.tmdb.org/t/p/w500/example.jpg"
+      ],
+      userOverrides: [
+        {
+          domain: "google-analytics.com",
+          action: "review-globally"
+        },
+        {
+          domain: "image.tmdb.org",
+          action: "ignore-for-site",
+          siteDomain: "letterboxd.com"
+        }
+      ]
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual(["google-analytics.com"]);
+    expect(result.candidates?.ignoredCandidates.map((candidate) => candidate.domain)).toEqual(["image.tmdb.org"]);
+    expect(JSON.stringify(result)).not.toContain("client=secret");
+    expect(JSON.stringify(result)).not.toContain("/t/p/w500");
+  });
+
   it("groups LinkedIn-like media/static hosts as a related root while noisy helpers stay ignored", () => {
     const result = buildCurrentPageResourceHostPreview({
       url: "https://www.linkedin.com/feed/",
@@ -478,6 +505,43 @@ describe("current-page resource host preview", () => {
       currentDomain: "example.com",
       resultState: "page_not_loaded"
     });
+  });
+
+  it("passes user classification overrides through the async preview runner", async () => {
+    const result = await runCurrentPageResourceHostPreview(
+      {
+        type: currentPageResourceHostsMessageType,
+        tabId: 1,
+        url: "https://example.com/"
+      },
+      {
+        async executeScript() {
+          return [
+            {
+              result: {
+                hosts: ["https://assets.partner.example.net/app.js"],
+                pageLooksLikeErrorOrProtection: false
+              }
+            }
+          ];
+        },
+        userOverrides: [
+          {
+            domain: "partner.example.net",
+            action: "suggest-for-site",
+            siteDomain: "example.com"
+          }
+        ]
+      }
+    );
+
+    expect(result.candidates?.strongCandidates).toEqual([
+      expect.objectContaining({
+        domain: "partner.example.net",
+        suggestedIncludeSubdomains: true,
+        defaultSelected: true
+      })
+    ]);
   });
 
   it("maps browser error pages to friendly page-not-loaded copy", async () => {

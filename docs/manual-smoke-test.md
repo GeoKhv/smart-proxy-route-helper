@@ -24,6 +24,7 @@ Record:
 6. Confirm related-domain preview starts only after the user clicks "Preview related domains".
 7. Confirm related-domain preview does not store, sync, send, or automatically save collected hosts or diagnostic summary counts.
 8. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
+9. Confirm classification overrides are saved only after explicit candidate-row actions and do not create proxy routing rules.
 
 ## Current Runtime Checks
 
@@ -32,7 +33,7 @@ Record:
 3. Run `npm run build`.
 4. Load `dist/` as an unpacked extension in Chrome.
 5. Open the popup on a regular `http` or `https` site and confirm the current domain renders.
-6. Open the options page and confirm local proxy settings, synced domain rules, and read-only denylist/ignored-domain sections render.
+6. Open the options page and confirm local proxy settings, synced domain rules, classification overrides, and read-only denylist/ignored-domain sections render.
 7. Inspect the service worker and confirm it starts without uncaught errors.
 8. Confirm no automatic diagnostics, backend calls, telemetry, persistent content scripts, or host permissions are present.
 9. Confirm manifest permissions are `proxy`, `storage`, `activeTab`, and `scripting`.
@@ -92,6 +93,8 @@ await chrome.storage.sync.get(["rules"]);
 11. Try to add `localhost`, `192.168.1.1`, and `chrome://extensions`; confirm inline validation rejects them.
 12. Remove one rule and confirm it is removed from the Options list and synced storage.
 13. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
+14. If classification overrides exist, confirm they appear in the "Classification overrides" section.
+15. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
 
 ## Popup Current-Site Checks
 
@@ -168,43 +171,52 @@ await chrome.proxy.settings.get({ incognito: false });
 12. Confirm schema/helper hosts such as `www.w3.org` and `w3.org` are ignored or absent from the saveable candidate list.
 13. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
 14. Confirm preview completion uses neutral/info styling and wording such as "No rules were saved yet", not green save-success styling.
-15. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
-16. Confirm collected hosts are not written to `chrome.storage.sync`:
+15. Confirm candidate-row classification override actions are explicit buttons, such as "Ignore globally", "Ignore for site", "Review globally", or "Suggest for site", when applicable.
+16. Click an override action for a candidate and confirm the preview refreshes with a success status.
+17. Confirm the override is stored in `chrome.storage.sync.classificationOverrides` as normalized domains only:
+
+```js
+await chrome.storage.sync.get(["classificationOverrides"]);
+```
+
+18. Confirm saving the override does not add or change entries in `chrome.storage.sync.rules`.
+19. Confirm the preview lists hostnames only, not full resource URLs with paths, query strings, fragments, or credentials.
+20. Confirm collected hosts are not written to `chrome.storage.sync`:
 
 ```js
 await chrome.storage.sync.get(null);
 ```
 
-17. Confirm collected hosts are not written to `chrome.storage.local`:
+21. Confirm collected hosts are not written to `chrome.storage.local`:
 
 ```js
 await chrome.storage.local.get(null);
 ```
 
-18. Confirm no domain rule is added after preview alone.
-19. Select one or more saveable candidates and click "Add selected domains".
-20. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
-21. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
+22. Confirm no domain rule is added after preview alone.
+23. Select one or more saveable candidates and click "Add selected domains".
+24. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
+25. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
 
 - `includeSubdomains` matching the candidate suggestion.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
 
-22. Confirm local proxy settings in `chrome.storage.local` are unchanged.
-23. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
-24. Confirm the preview action alone does not create or modify proxy settings:
+26. Confirm local proxy settings in `chrome.storage.local` are unchanged.
+27. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
+28. Confirm the preview action alone and classification override actions do not create or modify proxy settings:
 
 ```js
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-25. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
-26. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
-27. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
-28. If resource hosts were found but all are analytics/adtech/local helper/schema domains, confirm the popup says those hosts were filtered and no rules were saved.
-29. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
-30. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
-31. Confirm the preview and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
+29. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
+30. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
+31. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
+32. If resource hosts were found but all are analytics/adtech/local helper/schema domains, confirm the popup says those hosts were filtered and no rules were saved.
+33. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
+34. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
+35. Confirm the preview, override, and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
 
 ## LinkedIn-Like Related-Domain Save Check
 
@@ -245,7 +257,11 @@ To repeat this neutral route check:
 await chrome.storage.sync.set({
   rules: [],
   ignoredDomains: [],
-  denylist: []
+  denylist: [],
+  classificationOverrides: {
+    global: {},
+    site: {}
+  }
 });
 await chrome.proxy.settings.get({ incognito: false });
 ```

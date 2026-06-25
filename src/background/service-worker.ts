@@ -9,7 +9,9 @@ import {
   runCurrentPageResourceHostPreview,
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
+import { domainCandidateUserOverridesFromStorage } from "../domainClassification/userClassificationOverrides";
 import { createChromeProxySettingsAdapter, createProxySettingsController } from "../proxy/applyProxySettings";
+import { getSyncSettings } from "../storage/syncStore";
 
 const extensionName = "Smart Proxy Route Helper";
 const proxySettingsAdapter = createChromeProxySettingsAdapter();
@@ -53,13 +55,17 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   }
 
   if (isCurrentPageResourceHostsRequest(message)) {
-    void runCurrentPageResourceHostPreview(message, {
-      executeScript: (tabId) =>
-        chrome.scripting.executeScript({
-          target: { tabId },
-          func: collectCurrentPageResourceHostnamesFromDom
+    void getSyncSettings()
+      .then((settings) =>
+        runCurrentPageResourceHostPreview(message, {
+          executeScript: (tabId) =>
+            chrome.scripting.executeScript({
+              target: { tabId },
+              func: collectCurrentPageResourceHostnamesFromDom
+            }),
+          userOverrides: domainCandidateUserOverridesFromStorage(settings.classificationOverrides)
         })
-    })
+      )
       .then((result) => {
         sendResponse(result);
       })

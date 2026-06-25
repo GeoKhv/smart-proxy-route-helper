@@ -1,6 +1,7 @@
 import { buildRelatedDomainCandidates, type RelatedDomainCandidatesResult } from "./relatedDomainCandidates";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
+import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
 
 export const currentPageResourceHostsMessageType =
   "smart-proxy-route-helper:preview-current-page-related-domains" as const;
@@ -75,6 +76,7 @@ type CurrentPageResourceHostTarget =
 
 export type RunCurrentPageResourceHostPreviewOptions = {
   executeScript: CurrentPageResourceHostCollector;
+  userOverrides?: readonly DomainCandidateUserOverride[];
 };
 
 function response(
@@ -406,6 +408,7 @@ export function buildCurrentPageResourceHostPreview(input: {
   collectedHosts: readonly string[];
   pageLooksLikeErrorOrProtection?: boolean;
   collectionSummary?: CurrentPageResourceHostCollectionResult["summary"];
+  userOverrides?: readonly DomainCandidateUserOverride[];
 }): CurrentPageResourceHostsResponse {
   const target = getCurrentPageResourceHostTarget(input.url);
 
@@ -423,7 +426,8 @@ export function buildCurrentPageResourceHostPreview(input: {
   const collectedHosts = sanitized.hosts;
   const candidates = buildRelatedDomainCandidates({
     currentDomain: target.domain,
-    observedUrlsOrHosts: collectedHosts
+    observedUrlsOrHosts: collectedHosts,
+    userOverrides: input.userOverrides
   });
   const reviewableCandidates = candidates.strongCandidates.length + candidates.mediumCandidates.length;
   const ignoredCandidates = candidates.ignoredCandidates.length;
@@ -484,7 +488,8 @@ export async function runCurrentPageResourceHostPreview(
       url: request.url,
       collectedHosts: collection.hosts,
       pageLooksLikeErrorOrProtection: collection.pageLooksLikeErrorOrProtection,
-      collectionSummary: collection.summary
+      collectionSummary: collection.summary,
+      userOverrides: options.userOverrides
     });
   } catch (error) {
     return response(

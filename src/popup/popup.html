@@ -124,6 +124,7 @@
 
       .candidate-row {
         display: flex;
+        flex-wrap: wrap;
         align-items: flex-start;
         gap: 8px;
         margin-top: 2px;
@@ -132,10 +133,6 @@
         border-top-color: color-mix(in srgb, CanvasText 12%, Canvas);
         border-radius: 6px;
         font-size: 12px;
-      }
-
-      label.candidate-row {
-        cursor: pointer;
       }
 
       .candidate-row:first-of-type {
@@ -166,6 +163,7 @@
       }
 
       .candidate-content {
+        flex: 1 1 auto;
         min-width: 0;
       }
 
@@ -182,6 +180,25 @@
         margin-top: 3px;
         color: color-mix(in srgb, CanvasText 66%, Canvas);
         line-height: 1.35;
+      }
+
+      .candidate-actions {
+        display: flex;
+        flex: 0 0 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding-left: 24px;
+      }
+
+      .candidate-action {
+        width: auto;
+        min-height: 28px;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      .candidate-actions button + button {
+        margin-top: 0;
       }
     </style>
   </head>

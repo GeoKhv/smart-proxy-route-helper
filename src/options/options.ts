@@ -1,5 +1,15 @@
 import { supportedLocalProxySchemes, validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { LocalProxyConfig, LocalProxyScheme } from "../proxy/proxyConfig";
+import {
+  listUserClassificationOverrideEntries,
+  removeUserClassificationOverride
+} from "../domainClassification/userClassificationOverrides";
+import type {
+  UserClassificationGlobalOverride,
+  UserClassificationOverrideEntry,
+  UserClassificationOverrideTarget,
+  UserClassificationSiteOverride
+} from "../domainClassification/userClassificationOverrides";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule } from "../rules/ruleTypes";
@@ -272,10 +282,101 @@ function renderStoredLists(settings: SyncSettings): void {
   summary.textContent = `${denylistText} ${ignoredText}`;
 }
 
+function classificationOverrideActionText(
+  action: UserClassificationGlobalOverride | UserClassificationSiteOverride
+): string {
+  const labels: Record<UserClassificationGlobalOverride | UserClassificationSiteOverride, string> = {
+    ignored: "ignored",
+    review: "manual review",
+    suggested: "suggested"
+  };
+
+  return labels[action];
+}
+
+function classificationOverrideMetadata(entry: UserClassificationOverrideEntry): string {
+  if (entry.scope === "global") {
+    return `global override · ${classificationOverrideActionText(entry.action)}`;
+  }
+
+  return `site override for ${entry.siteDomain} · ${classificationOverrideActionText(entry.action)}`;
+}
+
+function overrideTargetFromButton(button: HTMLButtonElement): UserClassificationOverrideTarget | null {
+  const scope = button.dataset.overrideScope;
+  const domain = button.dataset.overrideDomain;
+
+  if (scope === "global" && domain) {
+    return {
+      scope,
+      domain
+    };
+  }
+
+  const siteDomain = button.dataset.overrideSiteDomain;
+
+  if (scope === "site" && siteDomain && domain) {
+    return {
+      scope,
+      siteDomain,
+      domain
+    };
+  }
+
+  return null;
+}
+
+function renderClassificationOverrides(settings: SyncSettings): void {
+  const list = getElement<HTMLUListElement>("#classification-overrides-list");
+  const entries = listUserClassificationOverrideEntries(settings.classificationOverrides);
+
+  list.replaceChildren();
+
+  if (entries.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "empty";
+    empty.textContent = "No synced classification overrides yet.";
+    list.append(empty);
+    return;
+  }
+
+  entries.forEach((entry) => {
+    const item = document.createElement("li");
+    item.className = "rule-item";
+
+    const summary = document.createElement("div");
+    const domain = document.createElement("div");
+    domain.className = "rule-domain";
+    domain.textContent = entry.domain;
+
+    const metadata = document.createElement("div");
+    metadata.className = "metadata";
+    metadata.textContent = classificationOverrideMetadata(entry);
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.textContent = "Remove";
+    removeButton.dataset.overrideScope = entry.scope;
+    removeButton.dataset.overrideDomain = entry.domain;
+
+    if (entry.scope === "site") {
+      removeButton.dataset.overrideSiteDomain = entry.siteDomain;
+      removeButton.setAttribute("aria-label", `Remove override for ${entry.domain} on ${entry.siteDomain}`);
+    } else {
+      removeButton.setAttribute("aria-label", `Remove global override for ${entry.domain}`);
+    }
+
+    summary.append(domain, metadata);
+    item.append(summary, removeButton);
+    list.append(item);
+  });
+}
+
 async function refreshSyncView(): Promise<SyncSettings> {
   const settings = await getSyncSettings();
   renderRules(settings);
   renderStoredLists(settings);
+  renderClassificationOverrides(settings);
   return settings;
 }
 
@@ -330,6 +431,7 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
 
   renderRules(updated);
   renderStoredLists(updated);
+  renderClassificationOverrides(updated);
 
   if (addResult.status === "duplicate") {
     setStatus(status, `${addResult.normalizedDomain} is already in synced rules.`, "neutral");
@@ -355,7 +457,34 @@ async function handleRuleListClick(event: MouseEvent): Promise<void> {
 
   renderRules(updated);
   renderStoredLists(updated);
+  renderClassificationOverrides(updated);
   setStatus(getElement<HTMLElement>("#rule-status"), "Synced rule removed.", "success");
+}
+
+async function handleClassificationOverrideListClick(event: MouseEvent): Promise<void> {
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-override-scope]");
+
+  if (!button) {
+    return;
+  }
+
+  const target = overrideTargetFromButton(button);
+  const status = getElement<HTMLElement>("#classification-overrides-status");
+
+  if (!target) {
+    setStatus(status, "Could not identify the classification override to remove.", "error");
+    return;
+  }
+
+  const current = await getSyncSettings();
+  const updated = await updateSyncSettings({
+    classificationOverrides: removeUserClassificationOverride(current.classificationOverrides, target)
+  });
+
+  renderRules(updated);
+  renderStoredLists(updated);
+  renderClassificationOverrides(updated);
+  setStatus(status, "Classification override removed.", "success");
 }
 
 async function initOptionsPage(): Promise<void> {
@@ -363,6 +492,7 @@ async function initOptionsPage(): Promise<void> {
   renderLocalSettings(localSettings);
   setStatus(getElement<HTMLElement>("#local-proxy-status"), "Loaded local settings.", "neutral");
   setStatus(getElement<HTMLElement>("#rule-status"), "Loaded synced rules.", "neutral");
+  setStatus(getElement<HTMLElement>("#classification-overrides-status"), "Loaded classification overrides.", "neutral");
 
   getElement<HTMLFormElement>("#local-proxy-form").addEventListener("submit", (event) => {
     void handleLocalProxySubmit(event);
@@ -372,6 +502,9 @@ async function initOptionsPage(): Promise<void> {
   });
   getElement<HTMLUListElement>("#rule-list").addEventListener("click", (event) => {
     void handleRuleListClick(event);
+  });
+  getElement<HTMLUListElement>("#classification-overrides-list").addEventListener("click", (event) => {
+    void handleClassificationOverrideListClick(event);
   });
 }
 

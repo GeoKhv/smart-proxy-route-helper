@@ -1,7 +1,7 @@
 import { sanitizeSyncSettings } from "./sanitize";
 import type { SettingsUpdate, StorageAreaAdapter, SyncSettings } from "./storageTypes";
 
-const syncStorageKeys = ["rules", "ignoredDomains", "denylist"] as const;
+const syncStorageKeys = ["rules", "ignoredDomains", "denylist", "classificationOverrides"] as const;
 
 function getChromeSyncStorage(): StorageAreaAdapter {
   return chrome.storage.sync;

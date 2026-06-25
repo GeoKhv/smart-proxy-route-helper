@@ -166,4 +166,86 @@ describe("domain candidate classification", () => {
       source: "user-override"
     });
   });
+
+  it("keeps site-scoped overrides limited to the matching site", () => {
+    expect(
+      classifyDomainCandidate({
+        currentDomain: "example.com",
+        candidateDomain: "assets.partner.example.net",
+        userOverrides: [
+          {
+            domain: "partner.example.net",
+            action: "ignore-for-site",
+            siteDomain: "example.com"
+          }
+        ]
+      })
+    ).toMatchObject({
+      domain: "partner.example.net",
+      classification: "ignored",
+      scope: "site",
+      siteDomain: "example.com",
+      source: "user-override"
+    });
+
+    expect(
+      classifyDomainCandidate({
+        currentDomain: "other.example",
+        candidateDomain: "assets.partner.example.net",
+        userOverrides: [
+          {
+            domain: "partner.example.net",
+            action: "ignore-for-site",
+            siteDomain: "example.com"
+          }
+        ]
+      })
+    ).toMatchObject({
+      domain: "assets.partner.example.net",
+      classification: "review",
+      source: "built-in"
+    });
+  });
+
+  it("lets global overrides affect every site while site overrides take precedence", () => {
+    expect(
+      classifyDomainCandidate({
+        currentDomain: "first.example",
+        candidateDomain: "cdn.partner.example.net",
+        userOverrides: [
+          {
+            domain: "partner.example.net",
+            action: "ignore-globally"
+          }
+        ]
+      })
+    ).toMatchObject({
+      classification: "ignored",
+      scope: "global",
+      source: "user-override"
+    });
+
+    expect(
+      classifyDomainCandidate({
+        currentDomain: "second.example",
+        candidateDomain: "cdn.partner.example.net",
+        userOverrides: [
+          {
+            domain: "partner.example.net",
+            action: "ignore-globally"
+          },
+          {
+            domain: "partner.example.net",
+            action: "suggest-for-site",
+            siteDomain: "second.example"
+          }
+        ]
+      })
+    ).toMatchObject({
+      classification: "related",
+      scope: "site",
+      siteDomain: "second.example",
+      source: "user-override"
+    });
+  });
 });

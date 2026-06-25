@@ -1,3 +1,4 @@
+import { sanitizeUserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainRule, RuleSource } from "../rules/ruleTypes";
 import { isDenylistedHost } from "../rules/denylist";
@@ -137,7 +138,8 @@ export function sanitizeSyncSettings(input: unknown): SyncSettings {
   return {
     rules: sanitizeRules(input.rules),
     ignoredDomains: sanitizeDomainList(input.ignoredDomains),
-    denylist: sanitizeDomainList(input.denylist)
+    denylist: sanitizeDomainList(input.denylist),
+    classificationOverrides: sanitizeUserClassificationOverrides(input.classificationOverrides)
   };
 }
 

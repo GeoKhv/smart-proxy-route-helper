@@ -2,6 +2,15 @@ import { checkDenylistedHost } from "../rules/denylist";
 import { domainMatchesRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule, RuleSource } from "../rules/ruleTypes";
+import type { DomainCandidateUserOverrideAction } from "../domainClassification/domainClassificationTypes";
+import {
+  isDomainCandidateUserOverrideAction,
+  upsertUserClassificationOverride
+} from "../domainClassification/userClassificationOverrides";
+import type {
+  UpsertUserClassificationOverrideResult,
+  UserClassificationOverrides
+} from "../domainClassification/userClassificationOverrides";
 import {
   currentSiteDiagnosticMessageType,
   isCurrentSiteDiagnosticResponse,
@@ -101,6 +110,7 @@ export type RelatedDomainCandidateView = {
   saveable: boolean;
   alreadyCovered: boolean;
   coveredBy?: string;
+  overrideActions: DomainCandidateUserOverrideAction[];
 };
 
 export type RelatedDomainPopupSummary = CurrentPageResourceHostPreviewSummary & {
@@ -139,6 +149,8 @@ export type AddSelectedRelatedDomainRulesResult =
       ok: false;
       error: string;
     };
+
+export type AddRelatedDomainClassificationOverrideResult = UpsertUserClassificationOverrideResult;
 
 let checkedReachableDomain: string | null = null;
 let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
@@ -231,6 +243,25 @@ function findCoveringRule(domain: string, rules: readonly DomainRule[]): DomainR
   return exactRuleForDomain(domain, rules) ?? parentRuleForDomain(domain, rules);
 }
 
+function relatedDomainOverrideActions(
+  category: RelatedDomainCandidateCategory,
+  alreadyCovered: boolean
+): DomainCandidateUserOverrideAction[] {
+  if (alreadyCovered) {
+    return [];
+  }
+
+  if (category === "ignored") {
+    return ["review-globally", "suggest-for-site"];
+  }
+
+  if (category === "medium") {
+    return ["ignore-globally", "ignore-for-site", "suggest-for-site"];
+  }
+
+  return ["ignore-globally", "ignore-for-site"];
+}
+
 function candidateViewFromCandidate(
   candidate: RelatedDomainCandidate,
   category: RelatedDomainCandidateCategory,
@@ -258,6 +289,7 @@ function candidateViewFromCandidate(
     selected: defaultSelected,
     saveable,
     alreadyCovered,
+    overrideActions: relatedDomainOverrideActions(category, alreadyCovered),
     ...(coveringRule ? { coveredBy: coveringRule.domain } : {})
   };
 }
@@ -872,6 +904,19 @@ export function addSelectedRelatedDomainRules(
   };
 }
 
+export function addRelatedDomainClassificationOverride(
+  currentOverrides: UserClassificationOverrides,
+  currentDomain: string,
+  candidateDomain: string,
+  action: DomainCandidateUserOverrideAction
+): AddRelatedDomainClassificationOverrideResult {
+  return upsertUserClassificationOverride(currentOverrides, {
+    domain: candidateDomain,
+    siteDomain: currentDomain,
+    action
+  });
+}
+
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
   const element = root.querySelector<T>(selector);
 
@@ -929,6 +974,28 @@ function candidateIncludeSubdomainsLabel(candidate: RelatedDomainCandidateView):
   return candidate.includeSubdomains ? "include subdomains" : "exact domain";
 }
 
+function relatedDomainOverrideActionLabel(action: DomainCandidateUserOverrideAction): string {
+  const labels: Record<DomainCandidateUserOverrideAction, string> = {
+    "ignore-globally": "Ignore globally",
+    "review-globally": "Review globally",
+    "suggest-for-site": "Suggest for site",
+    "ignore-for-site": "Ignore for site"
+  };
+
+  return labels[action];
+}
+
+function relatedDomainOverrideSavedMessage(action: DomainCandidateUserOverrideAction, domain: string): string {
+  const messages: Record<DomainCandidateUserOverrideAction, string> = {
+    "ignore-globally": `${domain} will be ignored globally. Preview refreshed.`,
+    "review-globally": `${domain} will stay in manual review globally. Preview refreshed.`,
+    "suggest-for-site": `${domain} will be suggested for this site. Preview refreshed.`,
+    "ignore-for-site": `${domain} will be ignored for this site. Preview refreshed.`
+  };
+
+  return messages[action];
+}
+
 function updateCandidateRowSelection(row: HTMLElement, checkbox: HTMLInputElement): void {
   row.dataset.selected = checkbox.checked && !checkbox.disabled ? "true" : "false";
 }
@@ -948,7 +1015,7 @@ function updateRelatedDomainSaveButtonState(): void {
 }
 
 function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView): HTMLElement {
-  const row = document.createElement(candidate.saveable ? "label" : "div");
+  const row = document.createElement("div");
 
   row.className = "candidate-row";
   row.dataset.category = candidate.category;
@@ -988,6 +1055,25 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
 
   content.append(domain, meta);
   row.append(content);
+
+  if (candidate.overrideActions.length > 0) {
+    const actions = document.createElement("span");
+
+    actions.className = "candidate-actions";
+
+    for (const action of candidate.overrideActions) {
+      const actionButton = document.createElement("button");
+
+      actionButton.type = "button";
+      actionButton.className = "candidate-action";
+      actionButton.textContent = relatedDomainOverrideActionLabel(action);
+      actionButton.dataset.overrideAction = action;
+      actionButton.dataset.overrideDomain = candidate.domain;
+      actions.append(actionButton);
+    }
+
+    row.append(actions);
+  }
 
   return row;
 }
@@ -1304,7 +1390,11 @@ async function handleCheckViaProxy(): Promise<void> {
   }
 }
 
-async function handlePreviewRelatedDomains(): Promise<void> {
+async function loadRelatedDomainPreview(options: {
+  loadingMessage?: string;
+  successMessage?: string;
+  successKind?: MessageKind;
+} = {}): Promise<void> {
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
 
@@ -1324,7 +1414,11 @@ async function handlePreviewRelatedDomains(): Promise<void> {
   }
 
   previewButton.disabled = true;
-  setStatus(actionStatus, "Previewing related domains from current-page resources...", "neutral");
+  setStatus(
+    actionStatus,
+    options.loadingMessage ?? "Previewing related domains from current-page resources...",
+    "neutral"
+  );
 
   try {
     const preview = await requestRelatedDomainPreview(activeTab.id, activeTab.url);
@@ -1332,9 +1426,66 @@ async function handlePreviewRelatedDomains(): Promise<void> {
     const previewView = buildRelatedDomainPopupView(preview, current);
 
     renderRelatedDomainPreview(previewView, preview.currentDomain);
-    setStatus(actionStatus, previewView.message, previewView.kind);
+    setStatus(actionStatus, options.successMessage ?? previewView.message, options.successKind ?? previewView.kind);
   } finally {
     previewButton.disabled = false;
+  }
+}
+
+async function handlePreviewRelatedDomains(): Promise<void> {
+  await loadRelatedDomainPreview();
+}
+
+async function handleRelatedDomainClassificationOverride(button: HTMLButtonElement): Promise<void> {
+  resetDiagnosticOffer();
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const action = button.dataset.overrideAction;
+  const candidateDomain = button.dataset.overrideDomain ?? "";
+  const currentResult = getCurrentTabDomain(await getActiveTabUrl());
+
+  if (!currentResult.ok) {
+    renderUnsupported(currentResult);
+    return;
+  }
+
+  if (!relatedDomainPreviewDomain || currentResult.domain !== relatedDomainPreviewDomain) {
+    setStatus(actionStatus, "Preview related domains again for the current site before saving an override.", "error");
+    return;
+  }
+
+  if (!isDomainCandidateUserOverrideAction(action)) {
+    setStatus(actionStatus, "Choose a supported classification override action.", "error");
+    return;
+  }
+
+  button.disabled = true;
+  setStatus(actionStatus, "Saving classification override...", "neutral");
+
+  try {
+    const current = await getSyncSettings();
+    const addResult = addRelatedDomainClassificationOverride(
+      current.classificationOverrides,
+      currentResult.domain,
+      candidateDomain,
+      action
+    );
+
+    if (!addResult.ok) {
+      setStatus(actionStatus, addResult.error, "error");
+      return;
+    }
+
+    await updateSyncSettings({
+      classificationOverrides: addResult.classificationOverrides
+    });
+
+    await loadRelatedDomainPreview({
+      loadingMessage: "Refreshing related-domain preview...",
+      successMessage: relatedDomainOverrideSavedMessage(action, addResult.override.domain),
+      successKind: "success"
+    });
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -1498,6 +1649,22 @@ function initPopupPage(): void {
       setStatus(
         getElement<HTMLElement>("#action-status"),
         error instanceof Error ? error.message : "Could not add selected related domains.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLElement>("#related-domain-preview").addEventListener("click", (event) => {
+    const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-override-action]");
+
+    if (!button) {
+      return;
+    }
+
+    void handleRelatedDomainClassificationOverride(button).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not save the classification override.",
         "error"
       );
     });

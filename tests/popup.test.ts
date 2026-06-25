@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  addRelatedDomainClassificationOverride,
   addSelectedRelatedDomainRules,
   addCurrentSiteRule,
   buildRelatedDomainPopupView,
@@ -430,7 +431,8 @@ describe("popup related-domain candidate view model", () => {
         defaultSelected: true,
         selected: true,
         saveable: true,
-        alreadyCovered: false
+        alreadyCovered: false,
+        overrideActions: ["ignore-globally", "ignore-for-site"]
       },
       {
         category: "medium",
@@ -442,7 +444,8 @@ describe("popup related-domain candidate view model", () => {
         defaultSelected: false,
         selected: false,
         saveable: true,
-        alreadyCovered: false
+        alreadyCovered: false,
+        overrideActions: ["ignore-globally", "ignore-for-site", "suggest-for-site"]
       },
       {
         category: "ignored",
@@ -454,7 +457,8 @@ describe("popup related-domain candidate view model", () => {
         defaultSelected: false,
         selected: false,
         saveable: false,
-        alreadyCovered: false
+        alreadyCovered: false,
+        overrideActions: ["review-globally", "suggest-for-site"]
       }
     ]);
   });
@@ -875,6 +879,54 @@ describe("popup related-domain candidate view model", () => {
 });
 
 describe("popup related-domain selected save helper", () => {
+  it("creates classification overrides without creating route rules", () => {
+    const result = addRelatedDomainClassificationOverride(
+      {
+        global: {},
+        site: {}
+      },
+      "https://Letterboxd.com/films",
+      "https://image.tmdb.org/t/p/w500/poster.jpg?token=secret",
+      "suggest-for-site"
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      classificationOverrides: {
+        global: {},
+        site: {
+          "letterboxd.com": {
+            "image.tmdb.org": "suggested"
+          }
+        }
+      },
+      override: {
+        domain: "image.tmdb.org",
+        siteDomain: "letterboxd.com",
+        action: "suggest-for-site"
+      }
+    });
+    expect(JSON.stringify(result)).not.toContain("/t/p/w500");
+    expect(JSON.stringify(result)).not.toContain("token=secret");
+    expect(JSON.stringify(result)).not.toContain("rules");
+  });
+
+  it("rejects internal or private override domains before storage writes", () => {
+    expect(
+      addRelatedDomainClassificationOverride(
+        {
+          global: {},
+          site: {}
+        },
+        "example.com",
+        "http://192.168.1.1/status",
+        "ignore-globally"
+      )
+    ).toMatchObject({
+      ok: false
+    });
+  });
+
   it("adds only explicitly selected candidates as diagnostic-sourced rules", () => {
     const candidates = buildRelatedDomainPopupView(
       {
@@ -1203,7 +1255,7 @@ describe("popup runtime boundaries", () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const previewHandler = popupSource.slice(
       popupSource.indexOf("async function handlePreviewRelatedDomains"),
-      popupSource.indexOf("async function handleAddSelectedRelatedDomains")
+      popupSource.indexOf("async function handleRelatedDomainClassificationOverride")
     );
     const saveHandler = popupSource.slice(
       popupSource.indexOf("async function handleAddSelectedRelatedDomains"),
@@ -1215,15 +1267,30 @@ describe("popup runtime boundaries", () => {
     expect(saveHandler).toContain("updateSyncSettings");
   });
 
+  it("saves classification overrides separately from route rules and refreshes preview", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+    const overrideHandler = popupSource.slice(
+      popupSource.indexOf("async function handleRelatedDomainClassificationOverride"),
+      popupSource.indexOf("async function handleAddSelectedRelatedDomains")
+    );
+
+    expect(overrideHandler).toContain("classificationOverrides: addResult.classificationOverrides");
+    expect(overrideHandler).not.toContain("rules:");
+    expect(overrideHandler).toContain("loadRelatedDomainPreview");
+    expect(overrideHandler).toContain("successKind: \"success\"");
+  });
+
   it("marks selected related-domain rows with a visible styling state", async () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
 
     expect(popupSource).toContain('row.dataset.selected = candidate.selected && candidate.saveable ? "true" : "false"');
-    expect(popupSource).toContain('const row = document.createElement(candidate.saveable ? "label" : "div")');
+    expect(popupSource).toContain('const row = document.createElement("div")');
     expect(popupSource).toContain("if (candidate.saveable)");
     expect(popupSource).toContain("updateCandidateRowSelection(row, checkbox)");
+    expect(popupSource).toContain("button[data-override-action]");
     expect(popupHtml).toContain('.candidate-row[data-selected="true"]');
+    expect(popupHtml).toContain(".candidate-action");
     expect(popupHtml).toContain("accent-color: Highlight");
   });
 });

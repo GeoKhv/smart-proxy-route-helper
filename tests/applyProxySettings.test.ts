@@ -295,6 +295,17 @@ describe("proxy settings storage change handling", () => {
     });
 
     expect(hasRelevantStorageChange({ diagnostics: { oldValue: false, newValue: true } }, "local")).toBe(false);
+    expect(
+      hasRelevantStorageChange(
+        {
+          classificationOverrides: {
+            oldValue: { global: {}, site: {} },
+            newValue: { global: { "example.com": "ignored" }, site: {} }
+          }
+        },
+        "sync"
+      )
+    ).toBe(false);
     expect(hasRelevantStorageChange({ rules: { oldValue: [], newValue: [manualRule("example.com")] } }, "sync")).toBe(
       true
     );

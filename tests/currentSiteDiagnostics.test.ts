@@ -28,7 +28,11 @@ const localProxyConfig = {
 const syncSettings: SyncSettings = {
   rules: [],
   ignoredDomains: [],
-  denylist: []
+  denylist: [],
+  classificationOverrides: {
+    global: {},
+    site: {}
+  }
 };
 
 const enabledLocalSettings: LocalSettings = {

@@ -1,9 +1,11 @@
+import { createDefaultUserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 import type { LocalSettings, SyncSettings } from "./storageTypes";
 
 export const defaultSyncSettings: Readonly<SyncSettings> = {
   rules: [],
   ignoredDomains: [],
-  denylist: []
+  denylist: [],
+  classificationOverrides: createDefaultUserClassificationOverrides()
 };
 
 export const defaultLocalSettings: Readonly<LocalSettings> = {
@@ -20,7 +22,8 @@ export function createDefaultSyncSettings(): SyncSettings {
   return {
     rules: [...defaultSyncSettings.rules],
     ignoredDomains: [...defaultSyncSettings.ignoredDomains],
-    denylist: [...defaultSyncSettings.denylist]
+    denylist: [...defaultSyncSettings.denylist],
+    classificationOverrides: createDefaultUserClassificationOverrides()
   };
 }
 
