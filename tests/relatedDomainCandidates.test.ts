@@ -261,7 +261,7 @@ describe("related-domain candidate engine", () => {
     ]);
   });
 
-  it("keeps observed LinkedIn media and static hosts visible while adtech stays ignored", () => {
+  it("groups observed LinkedIn media and static hosts under the site-scoped related root", () => {
     const result = buildRelatedDomainCandidates({
       currentDomain: "https://www.linkedin.com/feed/",
       observedUrlsOrHosts: [
@@ -273,13 +273,17 @@ describe("related-domain candidate engine", () => {
       ]
     });
 
-    expect(result.strongCandidates).toEqual([]);
-    expect(result.mediumCandidates.map((candidate) => candidate.domain)).toEqual([
-      "dms.licdn.com",
-      "media.licdn.com",
-      "static.licdn.com"
+    expect(result.strongCandidates).toEqual([
+      {
+        domain: "licdn.com",
+        reason: "explicit-related-domain",
+        sourceHosts: ["dms.licdn.com", "media.licdn.com", "static.licdn.com"],
+        sourceHostCount: 3,
+        suggestedIncludeSubdomains: true,
+        defaultSelected: true
+      }
     ]);
-    expect(result.mediumCandidates.every((candidate) => candidate.defaultSelected === false)).toBe(true);
+    expect(result.mediumCandidates).toEqual([]);
     expect(result.ignoredCandidates.map((candidate) => candidate.domain)).toEqual(["demdex.net", "stickyadstv.com"]);
   });
 
@@ -307,6 +311,124 @@ describe("related-domain candidate engine", () => {
         defaultSelected: false
       }
     ]);
+  });
+
+  it("keeps suspicious unknown domains reviewable instead of ignored", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: ["https://track.suspicious-example.net/pixel.gif"]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([
+      {
+        domain: "track.suspicious-example.net",
+        reason: "third-party-resource",
+        sourceHosts: ["track.suspicious-example.net"],
+        sourceHostCount: 1,
+        suggestedIncludeSubdomains: false,
+        defaultSelected: false
+      }
+    ]);
+  });
+
+  it("lets user overrides move a built-in ignored domain back to manual review", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: ["https://ad.doubleclick.net/activity"],
+      userOverrides: [
+        {
+          domain: "doubleclick.net",
+          action: "review-globally"
+        }
+      ]
+    });
+
+    expect(result.ignoredCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([
+      {
+        domain: "doubleclick.net",
+        reason: "third-party-resource",
+        sourceHosts: ["ad.doubleclick.net"],
+        sourceHostCount: 1,
+        suggestedIncludeSubdomains: false,
+        defaultSelected: false
+      }
+    ]);
+  });
+
+  it("lets user overrides suggest a built-in ignored domain for a site", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: ["https://ad.doubleclick.net/activity"],
+      userOverrides: [
+        {
+          domain: "doubleclick.net",
+          action: "suggest-for-site",
+          siteDomain: "example.com"
+        }
+      ]
+    });
+
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([]);
+    expect(result.strongCandidates).toEqual([
+      {
+        domain: "doubleclick.net",
+        reason: "explicit-related-domain",
+        sourceHosts: ["ad.doubleclick.net"],
+        sourceHostCount: 1,
+        suggestedIncludeSubdomains: true,
+        defaultSelected: true
+      }
+    ]);
+  });
+
+  it("lets user overrides ignore an unknown domain", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: ["https://assets.partner-cdn.example.net/app.js"],
+      userOverrides: [
+        {
+          domain: "partner-cdn.example.net",
+          action: "ignore-globally"
+        }
+      ]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([
+      {
+        domain: "partner-cdn.example.net",
+        reason: "third-party-resource",
+        sourceHosts: ["assets.partner-cdn.example.net"],
+        sourceHostCount: 1,
+        suggestedIncludeSubdomains: false,
+        defaultSelected: false
+      }
+    ]);
+  });
+
+  it("deduplicates site-scoped related domains across related hosts", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "linkedin.com",
+      observedUrlsOrHosts: ["media.licdn.com", "static.licdn.com", "dms.licdn.com", "licdn.com"]
+    });
+
+    expect(result.strongCandidates).toEqual([
+      {
+        domain: "licdn.com",
+        reason: "explicit-related-domain",
+        sourceHosts: ["dms.licdn.com", "licdn.com", "media.licdn.com", "static.licdn.com"],
+        sourceHostCount: 4,
+        suggestedIncludeSubdomains: true,
+        defaultSelected: true
+      }
+    ]);
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([]);
   });
 
   it("returns deterministic categories and source host ordering", () => {

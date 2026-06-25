@@ -84,7 +84,10 @@ Goal: keep the current manual diagnostics path carefully scoped, and expand it o
 
 Candidate scope:
 
-- Pure related-domain candidate engine that categorizes caller-provided observed hosts or URLs without collecting browser resources.
+- Pure related-domain candidate engine that categorizes caller-provided observed hosts or URLs through a local bundled classification layer.
+- Small built-in classification data for high-confidence noise and site-scoped related hints.
+- Future local user overrides for personal classification preferences, after storage defaults and migrations are designed.
+- Future GitHub issue or pull-request workflow for sanitized domain-level community proposals.
 - User-initiated reachability check for the current site or an explicitly selected domain.
 - Clear explanation before any additional permission request, if a future design needs one.
 - Recommendation UI that suggests a domain rule only when appropriate.
@@ -105,6 +108,9 @@ Out of scope:
 - Uploading diagnostic results.
 - Remote diagnostic services.
 - Required diagnostics permissions.
+- Runtime fetching of GitHub/raw classification lists.
+- Automatic upload or reporting of collected domains.
+- Community data that changes extension behavior without a reviewed release.
 
 Exit criteria:
 
@@ -112,6 +118,8 @@ Exit criteria:
 - Each check is user-initiated.
 - No diagnostic path mutates rules without confirmation.
 - Related-domain candidates remain suggestions only and are never saved without user confirmation.
+- Unknown or suspicious related-domain candidates remain manual review by default.
+- Classification data is bundled locally or provided explicitly by the user.
 - Privacy and Chrome Web Store disclosures are updated before release.
 
 ## Chrome Web Store Submission Checklist

@@ -1,0 +1,40 @@
+name: Related domain needed
+description: Suggest a domain that should be treated as related to a site.
+title: "Related domain needed: "
+labels: ["domain-classification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share sanitized domain-level information only. Do not include full URLs, private paths, query strings, account data, page text, or unredacted screenshots.
+  - type: input
+    id: site-domain
+    attributes:
+      label: Site domain
+      description: The site where the related-domain preview was run.
+      placeholder: example.com
+    validations:
+      required: true
+  - type: input
+    id: candidate-domain
+    attributes:
+      label: Candidate domain
+      description: The domain that should be suggested as related.
+      placeholder: assets.example-cdn.com
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Explain why this domain appears to be useful for routing this site.
+      placeholder: This domain serves required site images or scripts.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I included domain-level information only and removed private or identifying details.
+          required: true

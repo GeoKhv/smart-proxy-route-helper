@@ -1,0 +1,52 @@
+name: Noisy domain
+description: Report a domain that should be ignored by related-domain preview.
+title: "Noisy domain: "
+labels: ["domain-classification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share sanitized domain-level information only. Do not include full URLs, private paths, query strings, account data, page text, or unredacted screenshots.
+  - type: input
+    id: site-domain
+    attributes:
+      label: Site domain
+      description: The site where the candidate appeared, if relevant.
+      placeholder: example.com
+    validations:
+      required: false
+  - type: input
+    id: candidate-domain
+    attributes:
+      label: Candidate domain
+      description: The noisy domain.
+      placeholder: tracker.example.net
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Why should it be ignored?
+      options:
+        - Analytics
+        - Adtech
+        - Local helper
+        - Schema/system helper
+        - Broad shared infrastructure
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Briefly explain what made this look noisy.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I included domain-level information only and removed private or identifying details.
+          required: true

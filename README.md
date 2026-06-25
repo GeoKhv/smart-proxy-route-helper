@@ -8,7 +8,7 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 This repository currently contains initial documentation, project guidance, and an initial Manifest V3 TypeScript runtime.
 
-The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, manual current-site diagnostics, and a user-invoked related-domain preview with explicit selected-candidate saving. It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, or remote executable code.
+The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, manual current-site diagnostics, a local domain-classification layer, and a user-invoked related-domain preview with explicit selected-candidate saving. It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
 
 ## Local Development
 
@@ -44,6 +44,7 @@ The current MVP runtime provides a small manual PAC manager:
 - Provide simple popup/options HTML and TypeScript UI.
 - Provide manual current-site diagnostics only after explicit user action.
 - Provide current-page related-domain preview only after explicit user action.
+- Classify related-domain candidates through bundled local data and conservative pure heuristics.
 - Save related-domain candidates only after explicit user selection and confirmation.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
@@ -62,6 +63,8 @@ The MVP will not include:
 - Automatic domain rule creation.
 - Default-on or automatic diagnostics.
 - Managed remote domain lists.
+- Runtime fetching of GitHub/raw classification lists.
+- Automatic upload or reporting of collected domains.
 - Proxy authentication management.
 
 ## Permission Strategy
@@ -129,6 +132,7 @@ See [docs/release-plan.md](docs/release-plan.md) and [SECURITY.md](SECURITY.md).
 
 - [docs/product-brief.md](docs/product-brief.md): product goals, non-goals, vocabulary, and user flows.
 - [docs/architecture.md](docs/architecture.md): planned extension architecture and storage boundaries.
+- [docs/domain-classification.md](docs/domain-classification.md): local candidate classification model, precedence, and contribution workflow.
 - [docs/permissions.md](docs/permissions.md): MVP and future permission strategy.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.

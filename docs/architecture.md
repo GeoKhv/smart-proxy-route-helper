@@ -65,6 +65,7 @@ Once implementation begins, core logic should be isolated from Chrome APIs:
 - Storage serialization and migration helpers.
 - Diagnostic decision helpers for current-site target validation, temporary probe planning, and conservative result mapping.
 - Related-domain candidate suggestions from caller-provided observed hosts or URLs.
+- Domain candidate classification from local built-in data, caller-provided user override inputs, and conservative heuristics.
 - Current-page resource host sanitization and preview planning.
 
 These modules should be unit-tested without Chrome.
@@ -198,7 +199,7 @@ The preview flow:
 
 The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
 
-Because the preview inspects resources from the currently loaded page, results can be noisy. The engine keeps a small, local-only list of obvious analytics, adtech, shared-infrastructure, and local/adblock helper hosts as ignored candidates so they are not offered as normal saveable related domains. It does not fetch remote blocklists or use remotely controlled candidate logic.
+Because the preview inspects resources from the currently loaded page, results can be noisy. The engine uses a small, local-only classification layer for obvious analytics, adtech, shared-infrastructure, schema-helper, local-helper, and site-scoped related hosts so high-confidence noise is not offered as a normal saveable related domain. Unknown and suspicious hosts stay visible for manual review instead of being hidden aggressively. The classifier does not fetch remote blocklists or use remotely controlled candidate logic.
 
 If the active tab appears to be a browser error page, server error page, protection page, or interstitial, the popup shows a neutral warning and does not present collected helper hosts as normal related-domain candidates. The user should route or check the target site through proxy, reload the real target page, and preview related domains again.
 
@@ -208,9 +209,23 @@ This spike adds the `scripting` permission because Chrome requires it for progra
 
 The related-domain candidate engine is pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
 
-The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown third-party resource hosts as medium candidates, and known tracking/analytics, local/adblock helper, or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
+The engine now delegates candidate governance to the domain classification layer. Classification precedence is:
+
+1. Caller-provided user override input, when present.
+2. Built-in site-scoped related or ignored classification.
+3. Built-in global ignored classification.
+4. Existing local heuristics.
+5. Unknown fallback.
+
+The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown or suspicious third-party resource hosts as medium candidates for manual review, and known tracking/analytics, local/adblock helper, schema-helper, or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
+
+Built-in classification data is bundled locally in the extension source. It includes a small set of high-confidence ignored domains and site-scoped related hints such as `linkedin.com` to `licdn.com` and `letterboxd.com` to `ltrbxd.com`. It does not fetch GitHub raw files, remote lists, remote PAC data, or remotely controlled classification logic at runtime.
+
+The pure user override model supports future personal choices such as always ignoring a domain globally, always reviewing a domain globally, always suggesting a domain for a site, or always ignoring a domain for a site. This slice does not add override UI or storage wiring; future storage work should add defensive defaults and migrations before persisting override data.
 
 This pure engine does not collect browser resources, inspect page content, request permissions, read or write Chrome storage, apply proxy settings, make network calls, or add rules. Current-page resource host collection is isolated in a separate explicit preview flow, and popup saving requires explicit user selection and confirmation before any suggested rule is written.
+
+See [domain-classification.md](domain-classification.md) for the classification model, precedence, and contribution workflow.
 
 ## Test Strategy
 

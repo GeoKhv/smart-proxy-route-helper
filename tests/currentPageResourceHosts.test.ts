@@ -97,7 +97,7 @@ describe("current-page resource host preview", () => {
     expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual(["image.tmdb.org"]);
   });
 
-  it("keeps LinkedIn-like media/static hosts reviewable while noisy helpers stay ignored", () => {
+  it("groups LinkedIn-like media/static hosts as a related root while noisy helpers stay ignored", () => {
     const result = buildCurrentPageResourceHostPreview({
       url: "https://www.linkedin.com/feed/",
       collectedHosts: [
@@ -124,14 +124,19 @@ describe("current-page resource host preview", () => {
     expect(result.message).not.toContain("No public resource hosts");
     expect(result.summary).toMatchObject({
       hostsAfterSanitization: 15,
-      reviewableCandidates: 3,
+      reviewableCandidates: 1,
       ignoredCandidates: 12
     });
-    expect(result.candidates?.mediumCandidates.map((candidate) => candidate.domain)).toEqual([
-      "dms.licdn.com",
-      "media.licdn.com",
-      "static.licdn.com"
+    expect(result.candidates?.strongCandidates).toEqual([
+      expect.objectContaining({
+        domain: "licdn.com",
+        sourceHosts: ["dms.licdn.com", "media.licdn.com", "static.licdn.com"],
+        sourceHostCount: 3,
+        suggestedIncludeSubdomains: true,
+        defaultSelected: true
+      })
     ]);
+    expect(result.candidates?.mediumCandidates).toEqual([]);
     expect(result.candidates?.ignoredCandidates.map((candidate) => candidate.domain)).toEqual([
       "33across.com",
       "3lift.com",
@@ -424,7 +429,7 @@ describe("current-page resource host preview", () => {
       hostsExtracted: 2,
       hostsAfterSanitization: 2,
       hostsIgnoredOrInternal: 2,
-      reviewableCandidates: 2,
+      reviewableCandidates: 1,
       ignoredCandidates: 0,
       sampleHosts: ["media.licdn.com", "static.licdn.com"]
     });

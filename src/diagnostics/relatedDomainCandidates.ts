@@ -1,9 +1,16 @@
+import { classifyDomainCandidate } from "../domainClassification/classifyDomainCandidate";
+import type {
+  DomainCandidateClassificationCategory,
+  DomainCandidateClassificationResult,
+  DomainCandidateUserOverride
+} from "../domainClassification/domainClassificationTypes";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 
 export type RelatedDomainCandidateInput = {
   currentDomain: string;
   observedUrlsOrHosts: string[];
+  userOverrides?: readonly DomainCandidateUserOverride[];
 };
 
 export type RelatedDomainCandidateReason =
@@ -37,49 +44,6 @@ type MutableCandidate = Omit<RelatedDomainCandidate, "sourceHosts" | "sourceHost
   sourceHosts: Set<string>;
 };
 
-const multiLabelPublicSuffixes = new Set([
-  "ac.uk",
-  "co.jp",
-  "co.nz",
-  "co.uk",
-  "com.au",
-  "com.br",
-  "com.cn",
-  "com.mx",
-  "com.sg",
-  "com.tr",
-  "gov.uk",
-  "net.au",
-  "org.au",
-  "org.uk"
-]);
-
-const explicitRelatedDomains = new Map<string, readonly string[]>([
-  ["letterboxd.com", ["ltrbxd.com"]],
-  ["ltrbxd.com", ["letterboxd.com"]]
-]);
-
-// Keep this conservative and local. These domains are known noisy adtech or analytics roots
-// observed as page resources, not useful proxy-routing candidates.
-const trackingOrAnalyticsDomains = new Set([
-  "33across.com",
-  "3lift.com",
-  "demdex.net",
-  "doubleclick.net",
-  "facebook.net",
-  "google-analytics.com",
-  "googletagmanager.com",
-  "hotjar.com",
-  "rubiconproject.com",
-  "sentry.io",
-  "stickyadstv.com",
-  "teads.tv"
-]);
-
-const sharedInfrastructureDomains = new Set(["akamaihd.net", "cloudfront.net", "googleapis.com", "gstatic.com"]);
-const localOrAdblockHelperHosts = new Set(["local.adguard.org"]);
-const systemOrSchemaHelperDomains = new Set(["w3.org"]);
-
 function emptyResult(currentDomain: string | null): RelatedDomainCandidatesResult {
   return {
     currentDomain,
@@ -101,26 +65,6 @@ function normalizePublicHost(input: string): string | null {
   }
 
   return normalized.domain;
-}
-
-function getBaseDomain(host: string): string {
-  const labels = host.split(".");
-
-  if (labels.length <= 2) {
-    return host;
-  }
-
-  const lastTwoLabels = labels.slice(-2).join(".");
-
-  if (multiLabelPublicSuffixes.has(lastTwoLabels) && labels.length >= 3) {
-    return labels.slice(-3).join(".");
-  }
-
-  return lastTwoLabels;
-}
-
-function isSubdomainOf(host: string, parentDomain: string): boolean {
-  return host.endsWith(`.${parentDomain}`);
 }
 
 function createCandidate(
@@ -172,6 +116,50 @@ function finalizeCandidates(candidates: Map<string, MutableCandidate>): RelatedD
     .sort((left, right) => left.domain.localeCompare(right.domain));
 }
 
+function candidateCategoryFromClassification(classification: DomainCandidateClassificationResult): CandidateCategory {
+  if (classification.classification === "related") {
+    return "strongCandidates";
+  }
+
+  if (classification.classification === "ignored") {
+    return "ignoredCandidates";
+  }
+
+  return "mediumCandidates";
+}
+
+function ignoredReasonFromCategory(category: DomainCandidateClassificationCategory): RelatedDomainCandidateReason {
+  if (category === "analytics" || category === "adtech") {
+    return "known-tracking-or-analytics";
+  }
+
+  if (category === "local-helper") {
+    return "local-or-adblock-helper";
+  }
+
+  if (category === "schema-helper") {
+    return "system-or-schema-helper";
+  }
+
+  if (category === "system-helper") {
+    return "shared-infrastructure";
+  }
+
+  return "third-party-resource";
+}
+
+function reasonFromClassification(classification: DomainCandidateClassificationResult): RelatedDomainCandidateReason {
+  if (classification.classification === "related") {
+    return classification.domain === classification.siteDomain ? "same-site-subdomain" : "explicit-related-domain";
+  }
+
+  if (classification.classification === "ignored") {
+    return ignoredReasonFromCategory(classification.category);
+  }
+
+  return "third-party-resource";
+}
+
 export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput): RelatedDomainCandidatesResult {
   const currentHost = normalizePublicHost(input.currentDomain);
 
@@ -179,8 +167,6 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
     return emptyResult(null);
   }
 
-  const currentBaseDomain = getBaseDomain(currentHost);
-  const relatedDomains = new Set(explicitRelatedDomains.get(currentBaseDomain) ?? []);
   const candidatesByCategory: Record<CandidateCategory, Map<string, MutableCandidate>> = {
     strongCandidates: new Map(),
     mediumCandidates: new Map(),
@@ -194,75 +180,26 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
       continue;
     }
 
-    if (localOrAdblockHelperHosts.has(observedHost)) {
-      addCandidate(
-        candidatesByCategory,
-        "ignoredCandidates",
-        createCandidate(observedHost, "local-or-adblock-helper", observedHost, false, false)
-      );
-      continue;
-    }
+    const classification = classifyDomainCandidate({
+      currentDomain: currentHost,
+      candidateDomain: observedHost,
+      userOverrides: input.userOverrides
+    });
 
-    const observedBaseDomain = getBaseDomain(observedHost);
-
-    if (systemOrSchemaHelperDomains.has(observedBaseDomain)) {
-      addCandidate(
-        candidatesByCategory,
-        "ignoredCandidates",
-        createCandidate(observedBaseDomain, "system-or-schema-helper", observedHost, false, false)
-      );
-      continue;
-    }
-
-    if (observedBaseDomain === currentBaseDomain) {
-      const observedIsSubdomain = isSubdomainOf(observedHost, currentBaseDomain);
-      const currentIsSubdomain = isSubdomainOf(currentHost, currentBaseDomain);
-
-      if (
-        (observedIsSubdomain && observedHost !== currentHost) ||
-        (currentIsSubdomain && observedHost === currentBaseDomain)
-      ) {
-        addCandidate(
-          candidatesByCategory,
-          "strongCandidates",
-          createCandidate(currentBaseDomain, "same-site-subdomain", observedHost, true, true)
-        );
-      }
-
-      continue;
-    }
-
-    if (relatedDomains.has(observedBaseDomain)) {
-      addCandidate(
-        candidatesByCategory,
-        "strongCandidates",
-        createCandidate(observedBaseDomain, "explicit-related-domain", observedHost, true, true)
-      );
-      continue;
-    }
-
-    if (trackingOrAnalyticsDomains.has(observedBaseDomain)) {
-      addCandidate(
-        candidatesByCategory,
-        "ignoredCandidates",
-        createCandidate(observedBaseDomain, "known-tracking-or-analytics", observedHost, false, false)
-      );
-      continue;
-    }
-
-    if (sharedInfrastructureDomains.has(observedBaseDomain)) {
-      addCandidate(
-        candidatesByCategory,
-        "ignoredCandidates",
-        createCandidate(observedBaseDomain, "shared-infrastructure", observedHost, false, false)
-      );
+    if (!classification) {
       continue;
     }
 
     addCandidate(
       candidatesByCategory,
-      "mediumCandidates",
-      createCandidate(observedHost, "third-party-resource", observedHost, false, false)
+      candidateCategoryFromClassification(classification),
+      createCandidate(
+        classification.domain,
+        reasonFromClassification(classification),
+        observedHost,
+        classification.classification === "related",
+        classification.classification === "related"
+      )
     );
   }
 
