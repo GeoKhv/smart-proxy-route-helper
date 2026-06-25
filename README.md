@@ -36,6 +36,7 @@ Chrome Web Store preparation materials are available in:
 - [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
 - [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md)
 - [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md)
+- [docs/chrome-web-store-screenshot-workflow.md](docs/chrome-web-store-screenshot-workflow.md)
 - [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md)
 
 ## Quick Start
@@ -229,7 +230,9 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md): draft Chrome Web Store listing materials.
 - [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md): draft Store privacy-field language.
 - [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md): screenshot and image asset plan.
+- [docs/chrome-web-store-screenshot-workflow.md](docs/chrome-web-store-screenshot-workflow.md): clean-profile screenshot capture workflow and demo-data guardrails.
 - [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md): Store submission readiness checklist.
+- [docs/demo-storage-fixture.json](docs/demo-storage-fixture.json): sanitized manual demo storage fixture for screenshot preparation only.
 - [PRIVACY.md](PRIVACY.md): privacy posture and data handling.
 - [SECURITY.md](SECURITY.md): security posture and vulnerability reporting.
 

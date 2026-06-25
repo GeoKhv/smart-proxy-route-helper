@@ -10,6 +10,8 @@ Preferred capture setup:
 
 - Use a clean Chrome test profile.
 - Load the built `dist/` extension as an unpacked extension.
+- Follow the clean-profile workflow in [docs/chrome-web-store-screenshot-workflow.md](chrome-web-store-screenshot-workflow.md).
+- Use the optional manual demo fixture in [docs/demo-storage-fixture.json](demo-storage-fixture.json) only inside the clean screenshot profile.
 - Use neutral sample domains such as `example.com`, `docs.example`, or `assets.example`.
 - Use a non-secret local proxy placeholder such as `127.0.0.1:8080`.
 - Keep browser bookmarks, account avatars, notifications, and unrelated tabs hidden.
@@ -47,6 +49,7 @@ Show the Options page domain rules section.
 Recommended visible state:
 
 - A short list of sample domains.
+- Suggested demo domains: `example.com`, `chatgpt.com`, `oaiusercontent.com`, `linkedin.com`, `licdn.com`, and `2ip.io`.
 - Include-subdomains setting where available.
 - Clear rule enable/edit/remove controls.
 
@@ -83,6 +86,7 @@ Show the related-domain preview with selected sample candidates.
 Recommended visible state:
 
 - A compact list of sanitized hostname-level candidates.
+- Suggested demo candidates include `oaiusercontent.com` for `chatgpt.com` and `licdn.com` for `linkedin.com`; `trkn.us` may be shown as ignored globally if that state is useful.
 - User selection controls.
 - Separate add action.
 

@@ -1,0 +1,109 @@
+{
+  "name": "Smart Proxy Route Helper Chrome Web Store screenshot demo fixture",
+  "purpose": "Manual clean-profile screenshot setup only. This file is not loaded by the extension runtime.",
+  "manualSetupOnly": true,
+  "containsPrivateData": false,
+  "chromeStorage": {
+    "local": {
+      "deviceProxy": {
+        "enabled": true,
+        "config": {
+          "scheme": "socks5",
+          "host": "127.0.0.1",
+          "port": 8080
+        }
+      },
+      "diagnostics": {
+        "enabled": true
+      }
+    },
+    "sync": {
+      "rules": [
+        {
+          "domain": "example.com",
+          "includeSubdomains": true,
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-01-01T00:00:00.000Z"
+        },
+        {
+          "domain": "chatgpt.com",
+          "includeSubdomains": true,
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-01-01T00:01:00.000Z"
+        },
+        {
+          "domain": "oaiusercontent.com",
+          "includeSubdomains": true,
+          "mode": "proxy",
+          "source": "diagnostic",
+          "createdAt": "2026-01-01T00:02:00.000Z"
+        },
+        {
+          "domain": "linkedin.com",
+          "includeSubdomains": true,
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-01-01T00:03:00.000Z"
+        },
+        {
+          "domain": "licdn.com",
+          "includeSubdomains": true,
+          "mode": "proxy",
+          "source": "diagnostic",
+          "createdAt": "2026-01-01T00:04:00.000Z"
+        },
+        {
+          "domain": "2ip.io",
+          "includeSubdomains": false,
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-01-01T00:05:00.000Z"
+        }
+      ],
+      "ignoredDomains": [],
+      "denylist": [],
+      "classificationOverrides": {
+        "global": {
+          "trkn.us": "ignored"
+        },
+        "site": {
+          "linkedin.com": {
+            "licdn.com": "suggested"
+          }
+        }
+      }
+    }
+  },
+  "relatedDomainPreviewExamples": [
+    {
+      "currentDomain": "chatgpt.com",
+      "observedHosts": [
+        "chatgpt.com",
+        "persistent.oaistatic.com",
+        "files.oaiusercontent.com",
+        "downloads.oaiusercontent.com",
+        "trkn.us"
+      ],
+      "expectedManualReviewNote": "Use this only to demonstrate that related domains are previewed before any rule is saved."
+    },
+    {
+      "currentDomain": "linkedin.com",
+      "observedHosts": [
+        "www.linkedin.com",
+        "static.licdn.com",
+        "media.licdn.com",
+        "dms.licdn.com",
+        "trkn.us"
+      ],
+      "expectedManualReviewNote": "The demo override can show licdn.com as suggested for linkedin.com while trkn.us remains ignored globally."
+    }
+  ],
+  "privacyGuards": [
+    "Use only in a separate clean Chrome profile.",
+    "Do not paste this fixture into a personal Chrome profile.",
+    "Do not replace 127.0.0.1 with a real proxy provider, credential, hostname, or IP address for Store screenshots.",
+    "Do not add personal accounts, private domains, private tabs, bookmarks, tokens, or real proxy infrastructure."
+  ]
+}
