@@ -19,6 +19,7 @@ Version `0.1.0` is the first MVP release candidate. The runtime includes:
 - User classification overrides stored as domain-level preferences.
 - Built-in local domain classification foundation.
 - Public-suffix-aware registrable-domain planning for related-domain route targets.
+- ChatGPT/OpenAI related-domain planning for generated and file-related `*.oaiusercontent.com` hosts through bundled site-scoped hints.
 
 It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
 
@@ -100,6 +101,7 @@ The MVP runtime provides a small manual PAC manager:
 - Provide diagnostic recording only after explicit start/stop/cancel actions.
 - Classify related-domain candidates through bundled local data and conservative pure heuristics.
 - Use public-suffix-aware registrable-domain parsing so route planning does not rely on unsafe "last two labels" assumptions.
+- Plan ChatGPT/OpenAI generated asset hosts as `oaiusercontent.com` with subdomains included only when bundled site-scoped hints apply.
 - Save related-domain candidates only after explicit user selection and confirmation.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
@@ -153,7 +155,11 @@ Device-specific:
 - Extension enabled state for the current device.
 - Local diagnostics preference.
 
-The project does not store raw URLs, page paths, query strings, fragments, credentials, browsing history, local proxy configuration, or diagnostics history in synced storage.
+Transient while a recording is active:
+
+- Diagnostic recording metadata in `chrome.storage.session`, such as tab/domain/time/status fields.
+
+The project does not store, sync, or send raw URLs, page paths, query strings, fragments, credentials, browsing history, local proxy configuration, collected resource host lists, or diagnostics history. `chrome.storage.session` data is short-lived recording metadata only; it is not used as persistent or synced user storage.
 
 See [docs/architecture.md](docs/architecture.md) for the planned data boundaries.
 

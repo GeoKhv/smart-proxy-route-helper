@@ -18,7 +18,23 @@ This release is not yet published on Chrome Web Store unless a separate publishi
 - Selectable related-domain suggestions with separate explicit save action.
 - Personal classification overrides for related-domain preview.
 - Bundled local built-in domain classification foundation.
+- Public-suffix-aware route target planning through bundled `tldts` data, with no runtime suffix-list fetching.
+- Conservative route target planning that keeps observed hostnames separate from the rule domain that would be saved.
+- Built-in ChatGPT/OpenAI related-domain handling for generated and file-related `*.oaiusercontent.com` hosts. Matching hosts can be suggested as `oaiusercontent.com` with subdomains included only through bundled site-scoped hints.
 - Simple bundled PNG extension icons.
+
+## Current Release Candidate Smoke Highlights
+
+Recent local smoke coverage for this release candidate included:
+
+- 2ip.ru and 2ip.io routed through the configured local proxy and showed the expected proxy IP/city behavior.
+- A wrong local proxy port did not produce false proxy success for matched proxy-route domains.
+- Popup behavior correctly showed inherited parent-rule coverage.
+- LinkedIn related-domain preview showed useful candidates such as `licdn.com` media/static resources while keeping ignored candidates separated.
+- Classification override actions updated domain-level preferences without creating proxy routing rules.
+- ChatGPT/OpenAI route planning covered generated `*.oaiusercontent.com` hosts through an `oaiusercontent.com` include-subdomains rule.
+- ChatGPT file upload testing did not require adding `files.oaiusercontent.com` separately when broader OpenAI rules already covered it.
+- Diagnostic recording captured action-specific ChatGPT upload hosts, previewed them without automatic rule creation, and canceling a recording did not change rules.
 
 ## Permissions
 
@@ -44,6 +60,7 @@ The MVP does not request host permissions, `<all_urls>`, `webRequest`, `webNavig
 - Local proxy scheme, host, port, and enabled state stay in `chrome.storage.local`.
 - Related-domain preview is transient and user-invoked.
 - Diagnostic recording is transient, bounded, and user-invoked.
+- Diagnostic recording metadata may use `chrome.storage.session` while active; that metadata is short-lived and is not synced or treated as persistent user settings.
 - Collected resource hosts, raw URLs, paths, query strings, fragments, credentials, browsing history, diagnostic history, and temporary probe state are not stored or synced.
 
 ## Known Limitations

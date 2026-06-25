@@ -17,6 +17,7 @@ Smart Proxy Route Helper is local-first:
 - No sale or transfer of user data.
 - No remote executable code.
 - No runtime remote list fetching.
+- No raw URLs stored, synced, or sent by the project.
 
 ## Data the Extension Is Expected to Store
 
@@ -43,6 +44,8 @@ Stored temporarily with `chrome.storage.session` only while diagnostic recording
 - Recorded current domain.
 - Recording start and expiry timestamps.
 - Recording status.
+
+`chrome.storage.session` is used only for short-lived recording metadata. It is not used as persistent storage, is not synced by the extension, and does not contain collected host lists.
 
 The project does not store secrets, local proxy configuration, browsing history, raw URLs, raw diagnostic history, page resource lists, or temporary probe state in synced storage.
 
