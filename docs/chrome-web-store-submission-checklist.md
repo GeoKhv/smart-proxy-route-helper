@@ -1,0 +1,185 @@
+# Chrome Web Store Submission Readiness Checklist
+
+This checklist prepares Smart Proxy Route Helper for a future Chrome Web Store submission. It is not a submission automation guide and must not be used to publish without an explicit release decision.
+
+## Submission Boundary
+
+- [ ] Do not publish to Chrome Web Store in this preparation slice.
+- [ ] Do not create or modify Chrome Web Store Developer Dashboard entries in this preparation slice.
+- [ ] Do not bump the extension version unless a separate release task explicitly requires it.
+- [ ] Do not change runtime code unless a blocker is found, documented, and approved for implementation.
+- [ ] Do not add manifest permissions.
+- [ ] Do not add `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, backend calls, telemetry, or remote executable code.
+
+## Version and Release Baseline
+
+- [ ] Confirm `manifest.json` version is `0.1.0`.
+- [ ] Confirm `package.json` version is `0.1.0`.
+- [ ] Confirm GitHub pre-release `v0.1.0` exists.
+- [ ] Confirm release asset `smart-proxy-route-helper-v0.1.0.zip` exists.
+- [ ] Confirm the release asset corresponds to the intended release commit before submission.
+- [ ] Confirm the GitHub release URL is public: https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
+
+## Build and Package Commands
+
+Run from the repository root:
+
+```sh
+npm test
+npm run build
+npm run typecheck --if-present
+git diff --check
+npm audit
+```
+
+Package for Store upload only after the build passes:
+
+```sh
+npm run package
+```
+
+Expected package path:
+
+```text
+release/smart-proxy-route-helper-v0.1.0.zip
+```
+
+Do not perform dependency upgrades in the Store-preparation slice. If `npm audit` reports findings, record them here and handle dependency maintenance separately.
+
+## Zip Inspection
+
+Inspect the package before upload:
+
+```sh
+unzip -l release/smart-proxy-route-helper-v0.1.0.zip
+```
+
+Check that the zip contains only extension package files needed by Chrome:
+
+- [ ] `manifest.json`.
+- [ ] Built background service worker.
+- [ ] Built popup files.
+- [ ] Built options files.
+- [ ] Icons.
+- [ ] No source maps unless intentionally included.
+- [ ] No tests.
+- [ ] No local development files.
+- [ ] No `.env`, secrets, private logs, or personal files.
+- [ ] No `node_modules`.
+
+## Manifest Permission Inspection
+
+Check the submitted manifest:
+
+- [ ] `permissions` are exactly `proxy`, `storage`, `activeTab`, and `scripting`.
+- [ ] `host_permissions` is absent.
+- [ ] `<all_urls>` is absent.
+- [ ] `webRequest` is absent.
+- [ ] `webNavigation` is absent.
+- [ ] No persistent content scripts are declared.
+- [ ] Background service worker is Manifest V3-compatible.
+- [ ] No externally hosted executable resources are referenced.
+
+Suggested command:
+
+```sh
+node -e "const m=require('./manifest.json'); console.log(JSON.stringify({version:m.version, permissions:m.permissions, host_permissions:m.host_permissions, content_scripts:m.content_scripts}, null, 2))"
+```
+
+## Privacy Policy Link Check
+
+- [ ] Privacy policy URL is public and stable.
+- [ ] Privacy policy matches the exact submitted behavior.
+- [ ] Store privacy fields match `PRIVACY.md`.
+- [ ] Store privacy fields match `docs/chrome-web-store-privacy-disclosure.md`.
+- [ ] Permissions justifications explain `proxy`, `storage`, `activeTab`, and `scripting`.
+- [ ] Remote code field states that no remote code is used.
+- [ ] Data usage disclosures do not understate synced domain-level data.
+- [ ] Data usage disclosures do not imply developer collection.
+
+## Screenshots Checklist
+
+- [ ] At least one `1280x800` screenshot prepared.
+- [ ] No more than five Store screenshots selected.
+- [ ] Store icon is `128x128` px.
+- [ ] Small promo tile is `440x280` px PNG or JPEG.
+- [ ] Optional marquee promo tile is `1400x560` px PNG or JPEG.
+- [ ] Screenshots use a clean test profile or equivalent private-data-safe setup.
+- [ ] Screenshots contain no private user data, credentials, proxy secrets, account pages, or sensitive tabs.
+- [ ] Screenshots match the submitted version.
+- [ ] Screenshot set covers local proxy configuration, synced rules, current-site popup controls, manual diagnostics, and related-domain preview.
+
+See `docs/chrome-web-store-screenshots.md`.
+
+## Manual Smoke Checklist
+
+Use a clean Chrome profile where feasible.
+
+- [ ] Load `dist/` as an unpacked extension.
+- [ ] Open Options.
+- [ ] Configure a safe local proxy placeholder or a real non-secret local test proxy.
+- [ ] Add a sample domain rule manually.
+- [ ] Confirm the rule appears in synced rules.
+- [ ] Open a neutral HTTP or HTTPS sample site.
+- [ ] Open the popup from the extension toolbar.
+- [ ] Confirm current-site controls show only hostname-level information.
+- [ ] Run "Check via proxy" only on a safe test page.
+- [ ] Run related-domain preview on a safe test page.
+- [ ] Confirm candidates are not saved until explicitly selected and added.
+- [ ] Start, stop, preview, and cancel diagnostic recording on a safe test page.
+- [ ] Confirm Options classification overrides can be added and removed.
+- [ ] Confirm clearing all active rules clears extension-controlled proxy settings.
+
+## Chrome Web Store Listing Checklist
+
+- [ ] Extension name matches `manifest.json`.
+- [ ] Short description is accurate and neutral.
+- [ ] Detailed description starts with a concise statement of the extension purpose.
+- [ ] Category selected, with Developer Tools as the primary suggestion.
+- [ ] Locale selected, with English as the primary suggestion.
+- [ ] Homepage/support/privacy URLs are public and correct.
+- [ ] Listing does not overpromise privacy beyond the implementation.
+- [ ] Listing does not imply Store availability before publication.
+- [ ] Listing avoids policy-sensitive positioning and stays focused on local proxy routing.
+- [ ] Known limitations are disclosed where useful.
+
+See `docs/chrome-web-store-listing.md`.
+
+## Release Asset Consistency
+
+- [ ] `npm run build` was run from the intended release commit.
+- [ ] `npm run package` was run from the intended release commit.
+- [ ] Zip contents match `dist/`.
+- [ ] Zip filename version matches `manifest.json` and `package.json`.
+- [ ] GitHub release asset matches the package intended for Store upload.
+- [ ] Release notes match the submitted feature set.
+
+## npm Audit Note
+
+Latest preparation run on 2026-06-25:
+
+```text
+npm audit reported 1 low severity vulnerability:
+esbuild 0.27.3 - 0.28.0, GHSA-g7r4-m6w7-qqqr.
+```
+
+If findings appear, do not upgrade dependencies inside a Store-preparation slice unless a separate dependency-maintenance task is approved.
+
+## Known Blocker List
+
+Current known blockers for direct submission:
+
+- Store screenshots and promotional images still need clean final capture.
+- Chrome Web Store Developer Dashboard fields have not been filled out.
+- Privacy policy URL must be reviewed immediately before submission.
+- Release asset must be re-verified against the final submitted build.
+- `npm audit` must be reviewed from the final pre-submission run.
+
+## Official References
+
+- Complete listing information: https://developer.chrome.com/docs/webstore/cws-dashboard-listing
+- Fill out privacy fields: https://developer.chrome.com/docs/webstore/cws-dashboard-privacy
+- Supplying images: https://developer.chrome.com/docs/webstore/images
+- Set up distribution: https://developer.chrome.com/docs/webstore/cws-dashboard-distribution
+- Chrome Web Store program policies: https://developer.chrome.com/docs/webstore/program-policies/policies
+- Manifest V3 remote code requirements: https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements

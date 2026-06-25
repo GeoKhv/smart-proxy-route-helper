@@ -23,6 +23,21 @@ Version `0.1.0` is the first MVP release candidate. The runtime includes:
 
 It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
 
+## Chrome Web Store Status
+
+Smart Proxy Route Helper is not yet published on Chrome Web Store.
+
+The current public pre-release is `v0.1.0` on GitHub:
+
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
+
+Chrome Web Store preparation materials are available in:
+
+- [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
+- [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md)
+- [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md)
+- [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md)
+
 ## Quick Start
 
 Install dependencies:
@@ -211,6 +226,10 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): draft release notes for v0.1.0.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
+- [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md): draft Chrome Web Store listing materials.
+- [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md): draft Store privacy-field language.
+- [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md): screenshot and image asset plan.
+- [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md): Store submission readiness checklist.
 - [PRIVACY.md](PRIVACY.md): privacy posture and data handling.
 - [SECURITY.md](SECURITY.md): security posture and vulnerability reporting.
 
