@@ -37,9 +37,16 @@ Stored only on the local device with `chrome.storage.local`:
 - Device enabled/disabled state.
 - Local diagnostics preference.
 
+Stored temporarily with `chrome.storage.session` only while diagnostic recording is active:
+
+- Recorded tab ID.
+- Recorded current domain.
+- Recording start and expiry timestamps.
+- Recording status.
+
 The project does not store secrets, local proxy configuration, browsing history, raw URLs, raw diagnostic history, page resource lists, or temporary probe state in synced storage.
 
-User-invoked related-domain preview may collect sanitized resource hostnames from bounded resource references on the current page in memory. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Paths, query strings, fragments, and credentials are dropped before preview output. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
+User-invoked related-domain preview and diagnostic recording may collect sanitized resource hostnames from bounded resource references on the current page in memory. Recording keeps collected hostnames in the temporary injected page recorder until stop, cancel, page unload, or expiry. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Paths, query strings, fragments, and credentials are dropped before preview output. The extension does not collect page text, form values, uploaded file contents, screenshots, cookies, auth/session data, or full resource URL lists. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
 
 ## Chrome Sync
 
@@ -56,6 +63,7 @@ The project must not send the developer:
 - Browsing activity.
 - Diagnostic results.
 - Related-domain preview resource hosts.
+- Diagnostic recording resource hosts.
 - Classification overrides.
 - IP addresses.
 - Error logs.
@@ -70,6 +78,8 @@ Manual current-site diagnostics may make a user-initiated best-effort request fr
 Diagnostics do not upload results to the developer, do not store diagnostic history, do not sync temporary probe state, and do not add a rule without explicit confirmation. The current site and the user's configured local proxy provider may observe the diagnostic request in the same way they can observe ordinary network requests routed to that site.
 
 The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect bounded current-page resource references through a one-time active-tab script and use sanitized hostnames locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials as early as possible, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. It may show compact transient counts and a small sample of sanitized hostnames when no saveable candidates remain, but it does not display or retain raw full URLs. It also uses local-only filters for obvious analytics, adtech, shared-infrastructure, and local/adblock helper hosts so those hosts are not offered as normal saveable candidates. If the loaded page appears to be an error or protection page, the popup shows a neutral warning instead of normal related-domain results. Preview candidates do not become routing rules unless the user selects candidates and clicks the separate add button. Classification override actions are separate explicit actions; they store normalized domain preferences only and do not submit community votes, create GitHub issues, or upload data.
+
+Diagnostic recording does not make project backend requests. After the user clicks "Start recording", it may temporarily observe bounded resource-like signals in the active tab, such as resource timing entries and selected resource URL attributes. On "Stop and preview", it returns sanitized hostnames to the same local related-domain candidate engine used by preview. It may help identify action-specific resource hosts, for example resources loaded during a file upload flow, but it does not read uploaded file contents or send uploaded files anywhere. Cancelling a recording returns no candidates and saves nothing. Recording metadata is temporary and stored in `chrome.storage.session`; recorded hostnames are not stored in `chrome.storage.sync` or `chrome.storage.local`.
 
 ## Limited Use Statement
 

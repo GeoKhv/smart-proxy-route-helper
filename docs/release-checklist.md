@@ -35,7 +35,9 @@ Use this checklist before publishing or tagging an MVP release candidate.
 - Confirm route rules and classification overrides sync through `chrome.storage.sync`.
 - Confirm raw URLs, paths, query strings, fragments, credentials, browsing history, page resource lists, diagnostic history, and temporary probe state are not stored or synced.
 - Confirm related-domain preview is user-invoked, transient, and does not save rules without a separate explicit action.
-- Confirm `scripting` is used only after a user action to inspect current loaded page resource hostnames.
+- Confirm diagnostic recording is user-invoked, bounded, transient, and does not save rules without a separate explicit action.
+- Confirm `scripting` is used only after a user action to inspect current loaded page resource hostnames for preview or diagnostic recording.
+- Confirm diagnostic recording metadata in `chrome.storage.session` contains only tab/domain/time/status fields and no collected hosts.
 
 ## Manual Smoke
 
@@ -46,6 +48,7 @@ Use this checklist before publishing or tagging an MVP release candidate.
 - Configure local proxy settings in Options and confirm they remain local to the device.
 - Add, disable, and remove synced route rules from Options.
 - Preview related domains on a loaded ChatGPT/OpenAI or LinkedIn-like page and confirm useful related asset candidates show the suggested rule domain, observed hostnames, and the intended include-subdomains setting before saving.
+- Run a diagnostic recording on a loaded ChatGPT/OpenAI or LinkedIn-like page, perform a harmless action that loads resources, stop and preview, and confirm recorded candidates still require explicit selection before saving.
 - Confirm shared-infrastructure examples such as `github.io`, `appspot.com`, `pages.dev`, `vercel.app`, `netlify.app`, `cloudfront.net`, `googleusercontent.com`, and `auth0.com` are not suggested as broad include-subdomains route targets unless an explicit site-scoped hint allows the narrower target.
 - Confirm selected related-domain candidates save the suggested rule domain, not necessarily the exact observed generated host.
 - Confirm ignored candidates remain separated and are not saved automatically.

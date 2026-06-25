@@ -6,6 +6,7 @@ import {
   addRelatedDomainClassificationOverride,
   addSelectedRelatedDomainRules,
   addCurrentSiteRule,
+  buildRelatedDomainRecordingControlView,
   buildRelatedDomainPopupView,
   getCurrentTabDomain,
   getDiagnosticActionStatus,
@@ -884,6 +885,81 @@ describe("popup related-domain candidate view model", () => {
     expect(view.hiddenSaveableCount).toBe(2);
     expect(view.hiddenAlreadyCoveredCount).toBe(0);
     expect(view.hiddenIgnoredCount).toBe(2);
+  });
+});
+
+describe("popup related-domain recording controls", () => {
+  it("shows start when no recording is active", () => {
+    expect(buildRelatedDomainRecordingControlView({ status: "idle" }, 1)).toEqual({
+      startVisible: true,
+      stopVisible: false,
+      cancelVisible: false,
+      kind: "neutral"
+    });
+  });
+
+  it("shows stop and cancel for the recorded tab", () => {
+    expect(
+      buildRelatedDomainRecordingControlView(
+        {
+          status: "recording",
+          tabId: 3,
+          currentDomain: "chatgpt.com",
+          startedAt: 1,
+          expiresAt: 121,
+          maxDurationMs: 120
+        },
+        3
+      )
+    ).toMatchObject({
+      startVisible: false,
+      stopVisible: true,
+      cancelVisible: true,
+      kind: "neutral",
+      message: "Diagnostic recording is active for chatgpt.com. No data is saved until you add selected domains."
+    });
+  });
+
+  it("allows cancellation from another tab without offering stop-and-preview", () => {
+    expect(
+      buildRelatedDomainRecordingControlView(
+        {
+          status: "recording",
+          tabId: 3,
+          currentDomain: "chatgpt.com",
+          startedAt: 1,
+          expiresAt: 121,
+          maxDurationMs: 120
+        },
+        4
+      )
+    ).toMatchObject({
+      startVisible: false,
+      stopVisible: false,
+      cancelVisible: true,
+      kind: "neutral"
+    });
+  });
+
+  it("keeps expired recordings previewable from the recorded tab", () => {
+    expect(
+      buildRelatedDomainRecordingControlView(
+        {
+          status: "expired",
+          tabId: 3,
+          currentDomain: "chatgpt.com",
+          startedAt: 1,
+          expiresAt: 121,
+          maxDurationMs: 120
+        },
+        3
+      )
+    ).toMatchObject({
+      startVisible: false,
+      stopVisible: true,
+      cancelVisible: true,
+      message: "Diagnostic recording for chatgpt.com auto-expired. Stop and preview captured hosts, or cancel it."
+    });
   });
 });
 

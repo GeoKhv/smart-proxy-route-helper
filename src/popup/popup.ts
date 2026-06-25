@@ -23,6 +23,12 @@ import {
   type CurrentPageResourceHostResultState,
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
+import {
+  isRelatedDomainRecordingResponse,
+  relatedDomainRecordingMessageType,
+  type RelatedDomainRecordingResponse,
+  type RelatedDomainRecordingSessionState
+} from "../diagnostics/relatedDomainRecording";
 import type {
   RelatedDomainCandidate,
   RelatedDomainCandidateReason,
@@ -138,6 +144,14 @@ export type RelatedDomainPopupView = {
   hiddenSaveableCount: number;
   hiddenAlreadyCoveredCount: number;
   hiddenIgnoredCount: number;
+};
+
+export type RelatedDomainRecordingControlView = {
+  startVisible: boolean;
+  stopVisible: boolean;
+  cancelVisible: boolean;
+  message?: string;
+  kind: MessageKind;
 };
 
 export type AddSelectedRelatedDomainRulesResult =
@@ -1000,6 +1014,12 @@ function setButtonVisible(button: HTMLButtonElement, visible: boolean): void {
   button.hidden = !visible;
 }
 
+function setRelatedDomainRecordingButtonVisibility(controlView: RelatedDomainRecordingControlView): void {
+  setButtonVisible(getElement<HTMLButtonElement>("#start-related-domain-recording"), controlView.startVisible);
+  setButtonVisible(getElement<HTMLButtonElement>("#stop-related-domain-recording"), controlView.stopVisible);
+  setButtonVisible(getElement<HTMLButtonElement>("#cancel-related-domain-recording"), controlView.cancelVisible);
+}
+
 function resetDiagnosticOffer(): void {
   checkedReachableDomain = null;
   setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), false);
@@ -1013,6 +1033,43 @@ function resetRelatedDomainPreview(): void {
   setButtonVisible(getElement<HTMLButtonElement>("#add-selected-related-domains"), false);
   preview.hidden = true;
   preview.textContent = "";
+}
+
+export function buildRelatedDomainRecordingControlView(
+  state: RelatedDomainRecordingSessionState,
+  activeTabId?: number
+): RelatedDomainRecordingControlView {
+  if (state.status === "idle") {
+    return {
+      startVisible: true,
+      stopVisible: false,
+      cancelVisible: false,
+      kind: "neutral"
+    };
+  }
+
+  const sameTab = activeTabId === state.tabId;
+
+  if (sameTab) {
+    return {
+      startVisible: false,
+      stopVisible: true,
+      cancelVisible: true,
+      message:
+        state.status === "expired"
+          ? `Diagnostic recording for ${state.currentDomain} auto-expired. Stop and preview captured hosts, or cancel it.`
+          : `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you add selected domains.`,
+      kind: "neutral"
+    };
+  }
+
+  return {
+    startVisible: false,
+    stopVisible: false,
+    cancelVisible: true,
+    message: `Diagnostic recording belongs to ${state.currentDomain} in another tab. Return to that tab to stop and preview, or cancel it.`,
+    kind: "neutral"
+  };
 }
 
 function candidateGroupTitle(group: RelatedDomainCandidateGroupKey): string {
@@ -1196,6 +1253,12 @@ async function getActiveTabUrl(): Promise<string | undefined> {
 function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }>): void {
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
+  setRelatedDomainRecordingButtonVisibility({
+    startVisible: false,
+    stopVisible: false,
+    cancelVisible: false,
+    kind: "neutral"
+  });
   getElement<HTMLElement>("#current-domain").textContent = "Not available";
   setStatus(getElement<HTMLElement>("#route-status"), result.message, "error");
   setStatus(getElement<HTMLElement>("#action-status"), "Open a regular website tab to add a proxy route.", "neutral");
@@ -1221,7 +1284,8 @@ function renderSupported(domain: string, settings: SyncSettings): void {
 }
 
 async function refreshPopup(): Promise<CurrentTabDomainResult> {
-  const result = getCurrentTabDomain(await getActiveTabUrl());
+  const activeTab = await getActiveTab();
+  const result = getCurrentTabDomain(activeTab.url);
 
   if (!result.ok) {
     renderUnsupported(result);
@@ -1230,6 +1294,7 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
 
   const settings = await getSyncSettings();
   renderSupported(result.domain, settings);
+  await refreshRelatedDomainRecordingControls(activeTab);
   return result;
 }
 
@@ -1345,6 +1410,38 @@ async function requestRelatedDomainPreview(tabId: number, url: string): Promise<
   }
 
   return response;
+}
+
+async function requestRelatedDomainRecording(input: {
+  action: "get-state" | "start" | "stop" | "cancel";
+  tabId?: number;
+  url?: string;
+}): Promise<RelatedDomainRecordingResponse> {
+  const response = (await chrome.runtime.sendMessage({
+    type: relatedDomainRecordingMessageType,
+    ...input
+  })) as unknown;
+
+  if (!isRelatedDomainRecordingResponse(response)) {
+    return {
+      status: "error",
+      message: "Could not handle diagnostic recording.",
+      state: { status: "idle" }
+    };
+  }
+
+  return response;
+}
+
+async function refreshRelatedDomainRecordingControls(activeTab: ActiveTabSnapshot): Promise<void> {
+  const response = await requestRelatedDomainRecording({ action: "get-state" });
+  const controlView = buildRelatedDomainRecordingControlView(response.state, activeTab.id);
+
+  setRelatedDomainRecordingButtonVisibility(controlView);
+
+  if (controlView.message) {
+    setStatus(getElement<HTMLElement>("#action-status"), controlView.message, controlView.kind);
+  }
 }
 
 function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?: string): void {
@@ -1505,6 +1602,120 @@ async function loadRelatedDomainPreview(options: {
 
 async function handlePreviewRelatedDomains(): Promise<void> {
   await loadRelatedDomainPreview();
+}
+
+async function handleStartRelatedDomainRecording(): Promise<void> {
+  resetDiagnosticOffer();
+  resetRelatedDomainPreview();
+
+  const activeTab = await getActiveTab();
+  const result = getCurrentTabDomain(activeTab.url);
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const startButton = getElement<HTMLButtonElement>("#start-related-domain-recording");
+
+  if (!result.ok) {
+    renderUnsupported(result);
+    return;
+  }
+
+  if (typeof activeTab.id !== "number" || !activeTab.url) {
+    setStatus(actionStatus, "Open a supported site before starting diagnostic recording.", "error");
+    return;
+  }
+
+  startButton.disabled = true;
+  setStatus(actionStatus, "Starting diagnostic recording for this tab...", "neutral");
+
+  try {
+    const recording = await requestRelatedDomainRecording({
+      action: "start",
+      tabId: activeTab.id,
+      url: activeTab.url
+    });
+    const controlView = buildRelatedDomainRecordingControlView(recording.state, activeTab.id);
+
+    setRelatedDomainRecordingButtonVisibility(controlView);
+    setStatus(actionStatus, recording.message, recording.status === "unsupported_url" ? "error" : "neutral");
+  } finally {
+    startButton.disabled = false;
+  }
+}
+
+async function handleStopRelatedDomainRecording(): Promise<void> {
+  resetDiagnosticOffer();
+  resetRelatedDomainPreview();
+
+  const activeTab = await getActiveTab();
+  const result = getCurrentTabDomain(activeTab.url);
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const stopButton = getElement<HTMLButtonElement>("#stop-related-domain-recording");
+
+  if (!result.ok) {
+    renderUnsupported(result);
+    return;
+  }
+
+  if (typeof activeTab.id !== "number" || !activeTab.url) {
+    setStatus(actionStatus, "Open the recorded site before stopping diagnostic recording.", "error");
+    return;
+  }
+
+  stopButton.disabled = true;
+  setStatus(actionStatus, "Stopping diagnostic recording and preparing preview...", "neutral");
+
+  try {
+    const recording = await requestRelatedDomainRecording({
+      action: "stop",
+      tabId: activeTab.id,
+      url: activeTab.url
+    });
+    const controlView = buildRelatedDomainRecordingControlView(recording.state, activeTab.id);
+
+    setRelatedDomainRecordingButtonVisibility(controlView);
+
+    if (recording.preview) {
+      const current = await getSyncSettings();
+      const previewView = buildRelatedDomainPopupView(recording.preview, current);
+
+      renderRelatedDomainPreview(previewView, recording.preview.currentDomain);
+      setStatus(actionStatus, `Recorded during this session. ${previewView.message}`, previewView.kind);
+      return;
+    }
+
+    setStatus(
+      actionStatus,
+      recording.message,
+      recording.status === "not_found" || recording.status === "collection_unavailable" ? "error" : "neutral"
+    );
+  } finally {
+    stopButton.disabled = false;
+  }
+}
+
+async function handleCancelRelatedDomainRecording(): Promise<void> {
+  resetDiagnosticOffer();
+  resetRelatedDomainPreview();
+
+  const activeTab = await getActiveTab();
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const cancelButton = getElement<HTMLButtonElement>("#cancel-related-domain-recording");
+
+  cancelButton.disabled = true;
+  setStatus(actionStatus, "Cancelling diagnostic recording...", "neutral");
+
+  try {
+    const recording = await requestRelatedDomainRecording({
+      action: "cancel",
+      tabId: activeTab.id,
+      url: activeTab.url
+    });
+    const controlView = buildRelatedDomainRecordingControlView(recording.state, activeTab.id);
+
+    setRelatedDomainRecordingButtonVisibility(controlView);
+    setStatus(actionStatus, recording.message, recording.status === "success" ? "neutral" : "error");
+  } finally {
+    cancelButton.disabled = false;
+  }
 }
 
 async function handleRelatedDomainClassificationOverride(button: HTMLButtonElement): Promise<void> {
@@ -1710,6 +1921,36 @@ function initPopupPage(): void {
       setStatus(
         getElement<HTMLElement>("#action-status"),
         error instanceof Error ? error.message : "Could not preview related domains.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#start-related-domain-recording").addEventListener("click", () => {
+    void handleStartRelatedDomainRecording().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not start diagnostic recording.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#stop-related-domain-recording").addEventListener("click", () => {
+    void handleStopRelatedDomainRecording().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not stop diagnostic recording.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#cancel-related-domain-recording").addEventListener("click", () => {
+    void handleCancelRelatedDomainRecording().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not cancel diagnostic recording.",
         "error"
       );
     });

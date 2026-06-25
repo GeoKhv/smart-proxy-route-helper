@@ -17,8 +17,8 @@ Required extension permissions:
 | --- | --- | --- |
 | `storage` | Store synced domain rules and classification overrides, plus local proxy configuration. | Required |
 | `proxy` | Apply the locally generated PAC configuration in Chrome. | Required |
-| `activeTab` | Read the current tab URL after the user invokes the popup and allow a manual current-origin diagnostic check. | Required |
-| `scripting` | Run a one-time, user-invoked current-page resource host collector for related-domain preview using the temporary `activeTab` grant. | Required |
+| `activeTab` | Read the current tab URL after the user invokes the popup and allow manual current-origin diagnostics, related-domain preview, and diagnostic recording for the active tab. | Required |
+| `scripting` | Run one-time, user-invoked current-page resource host collection for related-domain preview and temporary diagnostic recording using the temporary `activeTab` grant. | Required |
 
 Required host permissions:
 
@@ -38,7 +38,7 @@ The MVP must not request:
 - Persistent content scripts or content script matches.
 - Remote code exemptions or debugger capabilities.
 
-The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect bounded current-page resource references only after the user clicks "Preview related domains". The extension must not observe navigation, collect page resources automatically, or request broad host access.
+The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect bounded current-page resource references only after the user clicks "Preview related domains". Diagnostic recording may inject a temporary recorder only after the user clicks "Start recording", and it may return candidates only after the user clicks "Stop and preview". The extension must not observe navigation, collect page resources automatically, or request broad host access.
 
 ## Why No Broad Host Access in MVP
 
@@ -70,19 +70,23 @@ Current-site diagnostics are part of the MVP and must follow these rules:
 - Store no raw URLs in synced or local storage.
 - Never add a domain rule without explicit confirmation.
 
-## Related-Domain Preview Permission Rules
+## Related-Domain Preview and Recording Permission Rules
 
 The current-page related-domain preview is allowed to use `scripting` only for a one-time `chrome.scripting.executeScript` call after the user clicks "Preview related domains" in the popup.
 
-This flow must:
+Diagnostic recording is allowed to use `scripting` only after explicit popup clicks for "Start recording", "Stop and preview", or "Cancel recording". The recorder must be temporary and must not be declared as a persistent content script.
+
+These flows must:
 
 - Rely on `activeTab` for temporary access to the active tab.
 - Avoid `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, notifications, backend calls, telemetry, and remote executable code.
 - Collect only resource hostnames where possible from bounded current-page resource references, not raw resource URLs or page text.
 - Sanitize hostnames immediately by dropping URL paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal hosts, deduplicating, and capping results.
+- Avoid collecting form values, uploaded file contents, screenshots, cookies, auth/session data, or page text.
 - Treat obvious analytics/adtech/shared-infrastructure/local-helper hosts as ignored, non-saveable candidates through local logic only.
 - Show a neutral warning instead of normal candidates when the active tab appears to be an error page, protection page, or interstitial.
 - Store no collected hosts or transient diagnostic summary counts in `chrome.storage.sync` or `chrome.storage.local`.
+- Store only short-lived diagnostic recording metadata in `chrome.storage.session` when a recording is active.
 - Never create or save related-domain rules automatically.
 - Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
 - Store classification overrides as normalized domain-level preferences only.
@@ -118,8 +122,9 @@ The `scripting` permission can raise review questions if it appears to support b
 Mitigations:
 
 - Use it only for the explicit related-domain preview action.
+- Use it only for explicit diagnostic recording start/stop/cancel actions.
 - Pair it with `activeTab`, not required host permissions.
-- Keep the injected function bundled in the extension package and narrowly limited to current-page resource host collection.
+- Keep injected functions bundled in the extension package and narrowly limited to current-page resource host collection.
 - Do not persist the collected hosts or turn suggestions into rules without a separate explicit confirmation.
 
 ### Remote Executable Code

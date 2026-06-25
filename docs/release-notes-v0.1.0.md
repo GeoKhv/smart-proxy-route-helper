@@ -14,6 +14,7 @@ This release is not yet published on Chrome Web Store unless a separate publishi
 - Fail-closed matched proxy routing: matched proxy-route domains do not use a direct fallback when the configured local proxy is unavailable.
 - Manual "Check via proxy" diagnostics after an explicit user click.
 - User-invoked related-domain preview using current loaded page resource hostnames.
+- User-invoked diagnostic recording for action-specific resource hostnames.
 - Selectable related-domain suggestions with separate explicit save action.
 - Personal classification overrides for related-domain preview.
 - Bundled local built-in domain classification foundation.
@@ -25,8 +26,8 @@ Required permissions:
 
 - `proxy`: applies the locally generated PAC configuration.
 - `storage`: stores synced route rules and classification overrides, plus local proxy settings.
-- `activeTab`: supports explicit current-tab popup actions and manual diagnostics after user invocation.
-- `scripting`: runs a one-time current-page resource hostname collector for related-domain preview after user invocation.
+- `activeTab`: supports explicit current-tab popup actions, manual diagnostics, related-domain preview, and diagnostic recording after user invocation.
+- `scripting`: runs user-invoked current-page resource hostname collection for related-domain preview and diagnostic recording after user invocation.
 
 The MVP does not request host permissions, `<all_urls>`, `webRequest`, `webNavigation`, notifications, debugger capabilities, or persistent content scripts.
 
@@ -42,6 +43,7 @@ The MVP does not request host permissions, `<all_urls>`, `webRequest`, `webNavig
 - Route rules and classification overrides are stored as domain-level data in `chrome.storage.sync`.
 - Local proxy scheme, host, port, and enabled state stay in `chrome.storage.local`.
 - Related-domain preview is transient and user-invoked.
+- Diagnostic recording is transient, bounded, and user-invoked.
 - Collected resource hosts, raw URLs, paths, query strings, fragments, credentials, browsing history, diagnostic history, and temporary probe state are not stored or synced.
 
 ## Known Limitations

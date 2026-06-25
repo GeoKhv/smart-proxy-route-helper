@@ -22,9 +22,11 @@ Record:
 4. Confirm the extension has no telemetry or backend requests.
 5. Confirm diagnostics are manual only and start only after the user clicks "Check via proxy".
 6. Confirm related-domain preview starts only after the user clicks "Preview related domains".
-7. Confirm related-domain preview does not store, sync, send, or automatically save collected hosts or diagnostic summary counts.
-8. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
-9. Confirm classification overrides are saved only after explicit candidate-row actions and do not create proxy routing rules.
+7. Confirm diagnostic recording starts only after the user clicks "Start recording".
+8. Confirm recording can be stopped with "Stop and preview" or cancelled with "Cancel recording".
+9. Confirm related-domain preview and recording do not store, sync, send, or automatically save collected hosts or diagnostic summary counts.
+10. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
+11. Confirm classification overrides are saved only after explicit candidate-row actions and do not create proxy routing rules.
 
 ## Current Runtime Checks
 
@@ -38,7 +40,7 @@ Record:
 8. Confirm no automatic diagnostics, backend calls, telemetry, persistent content scripts, or host permissions are present.
 9. Confirm manifest permissions are `proxy`, `storage`, `activeTab`, and `scripting`.
 10. Confirm `host_permissions` remains absent.
-11. Confirm current-page resource host collection runs only from the explicit related-domain preview action.
+11. Confirm current-page resource host collection runs only from explicit related-domain preview or diagnostic recording actions.
 
 ## Runtime PAC Apply Checks
 
@@ -118,7 +120,10 @@ await chrome.storage.sync.get(["rules"]);
 12. Confirm the popup can open Options through the "Open Options" button.
 13. Confirm the popup shows a "Check via proxy" button on supported sites.
 14. Confirm the popup shows a "Preview related domains" button on supported sites.
-15. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
+15. Confirm the popup shows "Start recording" on supported sites when no recording is active.
+16. Confirm the popup shows "Stop and preview" and "Cancel recording" when a recording is active for the current tab.
+17. Confirm the popup explains when a recording belongs to another tab and does not offer stop-and-preview from the wrong tab.
+18. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
 
 ## Manual Current-Site Diagnostics Checks
 
@@ -218,6 +223,62 @@ await chrome.proxy.settings.get({ incognito: false });
 33. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
 34. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
 35. Confirm the preview, override, and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
+
+## Related-Domain Recording Checks
+
+1. Open a supported `http` or `https` page.
+2. Confirm no diagnostic recording starts when the popup opens.
+3. Click "Start recording".
+4. Confirm the popup says the recording is active for the current domain and that no data is saved until selected domains are added.
+5. Close the popup, perform a page action that may load extra resources, then reopen the popup on the same tab.
+6. Confirm the popup shows "Stop and preview" and "Cancel recording".
+7. Click "Stop and preview".
+8. Confirm recorded candidates render in the existing related-domain preview UI and the status says they were recorded during this session.
+9. Confirm stopping the recording alone does not add or change entries in `chrome.storage.sync.rules`.
+10. Confirm selected candidates are saved only after the user clicks "Add selected domains".
+11. Start another recording, reopen the popup on a different tab, and confirm the popup says the recording belongs to another tab.
+12. From the different tab, click "Cancel recording" and confirm no candidates are returned and no rules are saved.
+13. Start another recording and wait past the duration cap. Reopen the popup on the recorded tab and confirm the recording can be stopped and previewed or cancelled.
+14. Reload or navigate the recorded tab during recording, then try to stop. Confirm the popup shows a friendly page-changed or recording-not-found message and does not save rules.
+15. Confirm recorded host output contains hostnames only, not full URLs with paths, query strings, fragments, credentials, page text, form values, uploaded file contents, screenshots, cookies, or auth/session data.
+16. Confirm recorded hosts are not written to `chrome.storage.sync`:
+
+```js
+await chrome.storage.sync.get(null);
+```
+
+17. Confirm recorded hosts are not written to `chrome.storage.local`:
+
+```js
+await chrome.storage.local.get(null);
+```
+
+18. Confirm only transient metadata appears in `chrome.storage.session` while recording is active:
+
+```js
+await chrome.storage.session.get(null);
+```
+
+19. Confirm metadata is cleared from `chrome.storage.session` after stop, cancel, or tab close.
+20. Confirm recording uses no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no persistent content scripts, no backend calls, no telemetry, no remote PAC URLs, no remote executable code, and no remote list fetching.
+
+## ChatGPT/OpenAI Diagnostic Recording Upload Check
+
+1. Configure a working local proxy in Options.
+2. Confirm `chatgpt.com` has a synced proxy route with subdomains included, or add it only if needed and safe.
+3. Do not remove an existing `oaiusercontent.com` rule.
+4. Open `https://chatgpt.com/`.
+5. If ChatGPT is not logged in, blocked by captcha, or inaccessible, stop this ChatGPT-specific smoke and record the blocker.
+6. Create a temporary harmless text file such as `sprh-recording-smoke.txt`.
+7. Open the popup and click "Start recording".
+8. Upload the temporary text file in ChatGPT.
+9. Do not send the chat message.
+10. Reopen the popup and click "Stop and preview".
+11. Confirm recorded candidates or already-covered hosts include action-specific hosts when observed, such as generated `*.oaiusercontent.com` hosts or `files.openai.com`.
+12. If a generated `*.oaiusercontent.com` host is observed, confirm the suggested route target is `oaiusercontent.com` with subdomains included, not an exact generated-host rule.
+13. Confirm no route rule was saved automatically before "Add selected domains".
+14. If saving is safe and needed, save only explicitly selected non-duplicate candidates.
+15. Delete the temporary text file.
 
 ## ChatGPT/OpenAI Related-Domain Save Check
 

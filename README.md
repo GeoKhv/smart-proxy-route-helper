@@ -14,6 +14,7 @@ Version `0.1.0` is the first MVP release candidate. The runtime includes:
 - Fail-closed matched proxy routing.
 - Manual "Check via proxy" diagnostics.
 - User-invoked related-domain preview through `activeTab` plus `scripting`.
+- User-invoked diagnostic recording for action-specific resource hosts.
 - Selectable related-domain suggestions.
 - User classification overrides stored as domain-level preferences.
 - Built-in local domain classification foundation.
@@ -49,7 +50,7 @@ Configure and use the MVP:
 3. Open a supported `http` or `https` site.
 4. Open the extension popup.
 5. Add the current site as a synced proxy route, or run "Check via proxy" first.
-6. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions.
+6. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions, or click "Start recording" before a page action and "Stop and preview" afterward.
 7. Select only the related domains you want and click the separate add action.
 
 ## Development Commands
@@ -96,6 +97,7 @@ The MVP runtime provides a small manual PAC manager:
 - Provide simple popup/options HTML and TypeScript UI.
 - Provide manual current-site diagnostics only after explicit user action.
 - Provide current-page related-domain preview only after explicit user action.
+- Provide diagnostic recording only after explicit start/stop/cancel actions.
 - Classify related-domain candidates through bundled local data and conservative pure heuristics.
 - Use public-suffix-aware registrable-domain parsing so route planning does not rely on unsafe "last two labels" assumptions.
 - Save related-domain candidates only after explicit user selection and confirmation.
@@ -128,11 +130,11 @@ Required permissions:
 - `storage` for extension settings.
 - `proxy` to apply the locally generated PAC configuration.
 - `activeTab` for explicit user-initiated current-site popup actions and diagnostics.
-- `scripting` for the explicit user-initiated current-page related-domain preview.
+- `scripting` for explicit user-initiated current-page related-domain preview and diagnostic recording.
 
 Host permissions: none.
 
-The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab. Related-domain preview uses the temporary `activeTab` grant plus `scripting` after an explicit popup click, collects only sanitized resource hostnames, and does not store, sync, or send those collected hosts. Related-domain candidates become synced rules only after explicit user selection and a separate add click.
+The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab. Related-domain preview and diagnostic recording use the temporary `activeTab` grant plus `scripting` after explicit popup clicks, collect only sanitized resource hostnames, and do not store, sync, or send those collected hosts. Related-domain candidates become synced rules only after explicit user selection and a separate add click.
 
 See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 
@@ -166,6 +168,7 @@ The project is designed around a simple privacy promise:
 - No developer access to user domain rules or local proxy settings.
 - Chrome Sync may sync domain rules if the user has sync enabled in Chrome.
 - Related-domain preview is user-invoked and transient.
+- Diagnostic recording is user-invoked, bounded, and transient.
 - Local proxy configuration stays on the local device.
 
 See [PRIVACY.md](PRIVACY.md).
@@ -175,7 +178,7 @@ See [PRIVACY.md](PRIVACY.md).
 - The extension is not yet published on Chrome Web Store.
 - Local proxy availability depends on software configured outside this extension.
 - Chrome proxy settings may be controlled by enterprise policy, another extension, or user settings.
-- Related-domain preview can be noisy because it is based on resources present on the currently loaded page.
+- Related-domain preview and recording can be noisy because they are based on resource references visible to the loaded page.
 - The built-in classification data is intentionally small and curated.
 - Proxy authentication management is not included in the MVP.
 

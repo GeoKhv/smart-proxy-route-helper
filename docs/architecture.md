@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the v0.1.0 MVP architecture. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the v0.1.0 MVP architecture. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -29,6 +29,7 @@ Popup:
 - Start a current-site diagnostic only after the user clicks "Check via proxy".
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
 - Preview related-domain candidates from current-page resource hosts only after the user clicks "Preview related domains".
+- Start, stop, preview, or cancel a diagnostic recording session only after explicit popup clicks.
 - Let the user explicitly select previewed related-domain candidates and save only those selected candidates as synced diagnostic-sourced rules.
 - Let the user explicitly save personal classification overrides for preview candidates without creating proxy routing rules.
 - Provide quick access to Options.
@@ -55,6 +56,8 @@ The service worker currently coordinates:
 - Reacting to relevant storage changes.
 - Handling current-site diagnostic messages from the popup.
 - Handling current-page related-domain preview messages from the popup.
+- Handling user-invoked diagnostic recording session messages from the popup.
+- Keeping only diagnostic recording metadata in `chrome.storage.session`: tab ID, current domain, start time, expiry time, duration cap, and status.
 - Reading synced classification overrides for explicit related-domain preview classification.
 
 It does not yet report current apply status to the UI.
@@ -72,6 +75,7 @@ Core logic is isolated from Chrome APIs where practical:
 - Related-domain candidate suggestions from caller-provided observed hosts or URLs.
 - Domain candidate classification from local built-in data, caller-provided user override inputs, and conservative heuristics.
 - Current-page resource host sanitization and preview planning.
+- Diagnostic recording target validation, transient recorder state handling, bounded page-local host collection, and recorded-host preview planning.
 
 These modules should be unit-tested without Chrome.
 
@@ -104,6 +108,21 @@ Current local data:
 - Local diagnostics preference.
 
 Do not store telemetry, browsing history, raw URLs, raw diagnostic history, secrets, synced proxy host/port values, collected page resource hosts, or temporary probe state.
+
+### Session Storage
+
+Use `chrome.storage.session` only for transient diagnostic recording metadata that needs to survive popup close/reopen during a short recording session.
+
+Current session data:
+
+- Recorded tab ID.
+- Recorded current domain.
+- Start time.
+- Expiry time.
+- Duration cap.
+- Recording status.
+
+Do not store raw URLs, page text, form values, uploaded file contents, screenshots, cookies, auth/session data, collected host lists, candidate lists, diagnostic history, local proxy credentials, synced route rules, or permanent user preferences in session storage.
 
 ## Planned Domain Rule Semantics
 
@@ -216,6 +235,28 @@ If the active tab appears to be a browser error page, server error page, protect
 
 The MVP includes the `scripting` permission because Chrome requires it for programmatic `chrome.scripting.executeScript`; it does not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, telemetry, backend services, remote PAC URLs, or remote executable code.
 
+### Diagnostic Recording Sessions
+
+Diagnostic recording is an explicit, user-invoked related-domain helper for action-specific resources that may appear only after a page interaction, such as file upload, media playback, opening a modal, clicking a feature, or loading a panel.
+
+The recording flow:
+
+- Requires the user to open the popup on a supported `http` or `https` page and click "Start recording".
+- Uses `activeTab` plus `chrome.scripting.executeScript` after that click to inject a temporary recorder into the current active tab.
+- Keeps the collected hostnames only inside the injected page/isolated-world recorder until the user stops the session, cancels it, the page unloads, or the duration cap expires.
+- Stores only transient session metadata in `chrome.storage.session`; collected hosts are not written to synced or local storage.
+- Observes bounded resource-like signals while active, including resource timing entries, new performance resource entries, selected resource URL attributes, `srcset` values, and style `url(...)` values.
+- Sanitizes immediately to hostnames by dropping paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal/IP hosts, deduplicating, and capping results.
+- Does not inspect page text, form values, uploaded file contents, screenshots, cookies, auth/session data, or browser history.
+- Auto-expires after a short duration cap and disconnects observers.
+- Allows "Stop and preview" only from the recorded tab; opening the popup on another tab shows that the recording belongs to another tab and allows cancellation.
+- On stop, feeds recorded sanitized hostnames into the same related-domain candidate engine used by current-page preview.
+- Shows the resulting candidates in the existing related-domain preview UI with "Recorded during this session" status copy.
+- Saves no rules automatically. The user must still select candidates and click "Add selected domains".
+- Cancel disconnects the recorder when possible, clears metadata, returns no candidates, and saves nothing.
+
+Recording does not use automatic/background traffic monitoring, `webRequest`, `webNavigation`, host permissions, `<all_urls>`, persistent content scripts, backend services, telemetry, remote PAC URLs, remote executable code, remote list fetching, or automatic rule creation.
+
 ### Related-Domain Candidate Engine
 
 The related-domain candidate engine is pure logic only. It accepts a current site domain plus caller-provided observed URLs or hostnames, normalizes public hosts through the existing domain helpers, rejects private/internal/localhost targets through the denylist guard, and returns categorized suggestions.
@@ -274,6 +315,7 @@ The runtime boundary remains narrow:
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
 - Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
+- Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`. Recorded hostnames stay in the injected page recorder until stop/cancel/expiry and are not written to sync or local storage.
 - Popup classification override actions write only the synced `classificationOverrides` data and then refresh preview; they do not create proxy routing rules.
 - Options classification override removal updates storage only and does not call `chrome.proxy.settings`.
 - No host permissions are required.
