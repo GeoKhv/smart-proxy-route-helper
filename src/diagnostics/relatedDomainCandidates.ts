@@ -4,6 +4,7 @@ import type {
   DomainCandidateClassificationResult,
   DomainCandidateUserOverride
 } from "../domainClassification/domainClassificationTypes";
+import { getBaseDomain } from "../rules/baseDomain";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 
@@ -22,12 +23,24 @@ export type RelatedDomainCandidateReason =
   | "local-or-adblock-helper"
   | "system-or-schema-helper";
 
+export type RelatedDomainRouteTargetReason =
+  | "same-site-resources"
+  | "known-related-domain"
+  | "multiple-sibling-hosts"
+  | "exact-observed-host"
+  | "unsafe-shared-infrastructure";
+
+export type RelatedDomainRouteTargetConfidence = "high" | "medium" | "low";
+
 export type RelatedDomainCandidate = {
   domain: string;
   reason: RelatedDomainCandidateReason;
   sourceHosts: string[];
   sourceHostCount: number;
+  suggestedRuleDomain?: string;
   suggestedIncludeSubdomains: boolean;
+  routeTargetReason?: RelatedDomainRouteTargetReason;
+  routeTargetConfidence?: RelatedDomainRouteTargetConfidence;
   defaultSelected: boolean;
 };
 
@@ -43,6 +56,30 @@ type CandidateCategory = "strongCandidates" | "mediumCandidates" | "ignoredCandi
 type MutableCandidate = Omit<RelatedDomainCandidate, "sourceHosts" | "sourceHostCount"> & {
   sourceHosts: Set<string>;
 };
+
+type ClassifiedObservation = {
+  observedHost: string;
+  observedBaseDomain: string;
+  classification: DomainCandidateClassificationResult;
+};
+
+type RouteTargetPlan = {
+  domain: string;
+  suggestedIncludeSubdomains: boolean;
+  routeTargetReason: RelatedDomainRouteTargetReason;
+  routeTargetConfidence: RelatedDomainRouteTargetConfidence;
+};
+
+const unsafeBroadeningBaseDomains = new Set([
+  "akamaihd.net",
+  "appspot.com",
+  "auth0.com",
+  "cloudfront.net",
+  "github.io",
+  "googleapis.com",
+  "googleusercontent.com",
+  "gstatic.com"
+]);
 
 function emptyResult(currentDomain: string | null): RelatedDomainCandidatesResult {
   return {
@@ -68,17 +105,19 @@ function normalizePublicHost(input: string): string | null {
 }
 
 function createCandidate(
-  domain: string,
   reason: RelatedDomainCandidateReason,
+  routeTarget: RouteTargetPlan,
   sourceHost: string,
-  suggestedIncludeSubdomains: boolean,
   defaultSelected: boolean
 ): MutableCandidate {
   return {
-    domain,
+    domain: routeTarget.domain,
     reason,
     sourceHosts: new Set([sourceHost]),
-    suggestedIncludeSubdomains,
+    suggestedRuleDomain: routeTarget.domain,
+    suggestedIncludeSubdomains: routeTarget.suggestedIncludeSubdomains,
+    routeTargetReason: routeTarget.routeTargetReason,
+    routeTargetConfidence: routeTarget.routeTargetConfidence,
     defaultSelected
   };
 }
@@ -148,6 +187,12 @@ function ignoredReasonFromCategory(category: DomainCandidateClassificationCatego
   return "third-party-resource";
 }
 
+function routeTargetConfidenceFromClassification(
+  classification: DomainCandidateClassificationResult
+): RelatedDomainRouteTargetConfidence {
+  return classification.confidence;
+}
+
 function reasonFromClassification(classification: DomainCandidateClassificationResult): RelatedDomainCandidateReason {
   if (classification.classification === "related") {
     return classification.domain === classification.siteDomain ? "same-site-subdomain" : "explicit-related-domain";
@@ -160,6 +205,94 @@ function reasonFromClassification(classification: DomainCandidateClassificationR
   return "third-party-resource";
 }
 
+function isUnsafeBroadeningBaseDomain(domain: string): boolean {
+  return unsafeBroadeningBaseDomains.has(domain);
+}
+
+function siblingWideningBaseDomain(observation: ClassifiedObservation, currentBaseDomain: string): string | null {
+  if (observation.classification.classification !== "review") {
+    return null;
+  }
+
+  if (observation.observedBaseDomain === currentBaseDomain || observation.observedBaseDomain === observation.observedHost) {
+    return null;
+  }
+
+  if (isUnsafeBroadeningBaseDomain(observation.observedBaseDomain)) {
+    return null;
+  }
+
+  return observation.observedBaseDomain;
+}
+
+function collectSiblingWideningGroups(
+  observations: readonly ClassifiedObservation[],
+  currentBaseDomain: string
+): Map<string, Set<string>> {
+  const groups = new Map<string, Set<string>>();
+
+  for (const observation of observations) {
+    const baseDomain = siblingWideningBaseDomain(observation, currentBaseDomain);
+
+    if (!baseDomain) {
+      continue;
+    }
+
+    groups.set(baseDomain, (groups.get(baseDomain) ?? new Set()).add(observation.observedHost));
+  }
+
+  return groups;
+}
+
+function routeTargetPlanForObservation(
+  observation: ClassifiedObservation,
+  currentBaseDomain: string,
+  siblingWideningGroups: ReadonlyMap<string, ReadonlySet<string>>
+): RouteTargetPlan {
+  const classification = observation.classification;
+
+  if (classification.classification === "related") {
+    const sameSite = classification.domain === currentBaseDomain;
+
+    return {
+      domain: classification.domain,
+      suggestedIncludeSubdomains: true,
+      routeTargetReason: sameSite ? "same-site-resources" : "known-related-domain",
+      routeTargetConfidence: routeTargetConfidenceFromClassification(classification)
+    };
+  }
+
+  if (classification.category === "system-helper") {
+    return {
+      domain: observation.observedHost,
+      suggestedIncludeSubdomains: false,
+      routeTargetReason: "unsafe-shared-infrastructure",
+      routeTargetConfidence: "low"
+    };
+  }
+
+  const siblingBaseDomain = siblingWideningBaseDomain(observation, currentBaseDomain);
+
+  if (siblingBaseDomain && (siblingWideningGroups.get(siblingBaseDomain)?.size ?? 0) > 1) {
+    return {
+      domain: siblingBaseDomain,
+      suggestedIncludeSubdomains: true,
+      routeTargetReason: "multiple-sibling-hosts",
+      routeTargetConfidence: "medium"
+    };
+  }
+
+  return {
+    domain:
+      classification.classification === "ignored" || classification.source === "user-override"
+        ? classification.domain
+        : observation.observedHost,
+    suggestedIncludeSubdomains: false,
+    routeTargetReason: "exact-observed-host",
+    routeTargetConfidence: classification.classification === "ignored" ? "low" : routeTargetConfidenceFromClassification(classification)
+  };
+}
+
 export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput): RelatedDomainCandidatesResult {
   const currentHost = normalizePublicHost(input.currentDomain);
 
@@ -167,11 +300,8 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
     return emptyResult(null);
   }
 
-  const candidatesByCategory: Record<CandidateCategory, Map<string, MutableCandidate>> = {
-    strongCandidates: new Map(),
-    mediumCandidates: new Map(),
-    ignoredCandidates: new Map()
-  };
+  const currentBaseDomain = getBaseDomain(currentHost);
+  const observations: ClassifiedObservation[] = [];
 
   for (const observedInput of input.observedUrlsOrHosts) {
     const observedHost = normalizePublicHost(observedInput);
@@ -190,14 +320,31 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
       continue;
     }
 
+    observations.push({
+      observedHost,
+      observedBaseDomain: getBaseDomain(observedHost),
+      classification
+    });
+  }
+
+  const siblingWideningGroups = collectSiblingWideningGroups(observations, currentBaseDomain);
+  const candidatesByCategory: Record<CandidateCategory, Map<string, MutableCandidate>> = {
+    strongCandidates: new Map(),
+    mediumCandidates: new Map(),
+    ignoredCandidates: new Map()
+  };
+
+  for (const observation of observations) {
+    const classification = observation.classification;
+    const routeTarget = routeTargetPlanForObservation(observation, currentBaseDomain, siblingWideningGroups);
+
     addCandidate(
       candidatesByCategory,
       candidateCategoryFromClassification(classification),
       createCandidate(
-        classification.domain,
         reasonFromClassification(classification),
-        observedHost,
-        classification.classification === "related",
+        routeTarget,
+        observation.observedHost,
         classification.classification === "related"
       )
     );

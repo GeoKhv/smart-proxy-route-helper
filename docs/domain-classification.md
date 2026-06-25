@@ -21,6 +21,15 @@ The related-domain preview maps those decisions conservatively:
 - `ignored` candidates are non-saveable from preview.
 - `review` candidates stay visible for manual review and are not selected by default.
 
+The candidate engine then plans a route target separately from the observed host:
+
+- `sourceHosts` are the sanitized hostnames observed on the current page.
+- `suggestedRuleDomain` is the domain that would be saved if the user selects the candidate.
+- `suggestedIncludeSubdomains` records whether sibling subdomains should be covered.
+- `routeTargetReason` and `routeTargetConfidence` explain why the route target was kept exact or widened.
+
+This separation matters for generated asset hosts. A page may load `sdmntpritalynorth.oaiusercontent.com`, while the useful explicit rule is `oaiusercontent.com` with subdomains included.
+
 ## Precedence
 
 Classification uses this order:
@@ -33,12 +42,24 @@ Classification uses this order:
 
 This means uncertain domains are not hidden aggressively. High-confidence analytics, adtech, schema, local-helper, and broad shared-infrastructure hosts can be ignored, but unknown or suspicious hosts remain visible as review candidates.
 
+## Route Target Planning
+
+Route target planning is conservative and local-only:
+
+- Known site-scoped related hints can suggest the related base domain with subdomains included. For example, `chatgpt.com` resources on `*.oaiusercontent.com` are suggested as `oaiusercontent.com` with subdomains included.
+- Same-site resource subdomains can suggest the current site's base domain with subdomains included.
+- Multiple observed sibling hosts on a safe unknown base can suggest that base domain with subdomains included, while remaining manual-review candidates.
+- A single unknown third-party host stays exact by default and is not selected automatically.
+- Shared infrastructure and public-hosting-style domains such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, and `auth0.com` are not widened automatically. When shown, they stay exact or ignored according to classification.
+
+Coverage and duplicate checks use the suggested route target and its subdomain scope. An exact rule for `sdmntpritalynorth.oaiusercontent.com` does not cover sibling hosts such as `files.oaiusercontent.com`; a rule for `oaiusercontent.com` with subdomains included does.
+
 ## Built-In Data
 
 Built-in data is bundled in the extension source under `src/domainClassification`. It is intentionally small and curated. Examples include:
 
-- Global ignored hosts such as `doubleclick.net`, `google-analytics.com`, `googletagmanager.com`, `demdex.net`, `facebook.net`, `hotjar.com`, `local.adguard.org`, `w3.org`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, and `rubiconproject.com`.
-- Site-scoped related pairs such as `linkedin.com` to `licdn.com` and `letterboxd.com` to `ltrbxd.com`.
+- Global ignored hosts such as `doubleclick.net`, `google-analytics.com`, `googletagmanager.com`, `demdex.net`, `facebook.net`, `hotjar.com`, `local.adguard.org`, `w3.org`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, and broad shared-infrastructure bases such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, and `auth0.com`.
+- Site-scoped related pairs such as `chatgpt.com` to `oaiusercontent.com`, `chatgpt.com` to `oaistatic.com`, `openai.com` to OpenAI asset domains, `linkedin.com` to `licdn.com`, and `letterboxd.com` to `ltrbxd.com`.
 
 The extension does not fetch GitHub raw files, managed blocklists, remote PAC files, or remotely controlled classification logic at runtime. This keeps the extension functionality discernible from the submitted package and avoids remote executable-code risk.
 

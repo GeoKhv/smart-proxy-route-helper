@@ -44,7 +44,8 @@ Use this checklist before publishing or tagging an MVP release candidate.
 - Add and remove the current site from the popup.
 - Configure local proxy settings in Options and confirm they remain local to the device.
 - Add, disable, and remove synced route rules from Options.
-- Preview related domains on a loaded LinkedIn-like page and confirm useful candidates such as related asset domains can be selected.
+- Preview related domains on a loaded ChatGPT/OpenAI or LinkedIn-like page and confirm useful related asset candidates show the suggested rule domain, observed hostnames, and the intended include-subdomains setting before saving.
+- Confirm selected related-domain candidates save the suggested rule domain, not necessarily the exact observed generated host.
 - Confirm ignored candidates remain separated and are not saved automatically.
 - Add and remove a classification override and confirm it does not create proxy routing rules.
 - Open browser, local, private/internal, error, and protection pages and confirm the popup shows friendly unsupported/protected-page behavior.

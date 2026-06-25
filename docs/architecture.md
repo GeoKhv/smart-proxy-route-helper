@@ -197,9 +197,10 @@ The preview flow:
 - Immediately normalizes collected values to hostnames, drops paths, query strings, fragments, and credentials, rejects unsupported schemes, rejects localhost/private/internal/IP hosts, deduplicates, and caps the host list.
 - Feeds sanitized hostnames into the pure related-domain candidate engine.
 - Shows categorized strong, medium, and ignored candidates in the popup.
+- Shows the suggested rule domain that would be saved, whether subdomains would be included, and the sanitized observed hostnames that led to the suggestion.
 - Shows a compact transient diagnostic summary when no saveable candidates remain. The summary contains counts and a small sample of sanitized hostnames only; it is not stored, synced, or sent.
 - Uses neutral preview status for discovered candidates because preview is not a save action.
-- Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers them.
+- Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers the suggested route target.
 - Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.
 - Saves only selected, saveable candidates after the user clicks "Add selected domains".
 - Offers explicit classification override actions on candidate rows where appropriate. Overrides are saved as personal domain-level preferences in `chrome.storage.sync`, not as proxy routing rules.
@@ -208,6 +209,8 @@ The preview flow:
 The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. Classification overrides are separate synced preferences and do not trigger PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
 
 Because the preview inspects resources from the currently loaded page, results can be noisy. The engine uses a small, local-only classification layer for obvious analytics, adtech, shared-infrastructure, schema-helper, local-helper, and site-scoped related hosts so high-confidence noise is not offered as a normal saveable related domain. Unknown and suspicious hosts stay visible for manual review instead of being hidden aggressively. The classifier does not fetch remote blocklists or use remotely controlled candidate logic.
+
+The route target planner separates the observed host from the saved rule. Known related generated-host families such as ChatGPT/OpenAI `*.oaiusercontent.com` can be suggested as a base route target with subdomains included. Unknown single third-party hosts remain exact by default. Multiple sibling hosts can be widened only on safe bases, while broad shared-infrastructure bases such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, and `auth0.com` are not widened automatically.
 
 If the active tab appears to be a browser error page, server error page, protection page, or interstitial, the popup shows a neutral warning and does not present collected helper hosts as normal related-domain candidates. The user should route or check the target site through proxy, reload the real target page, and preview related domains again.
 
@@ -227,7 +230,9 @@ The engine now delegates candidate governance to the domain classification layer
 
 The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown or suspicious third-party resource hosts as medium candidates for manual review, and known tracking/analytics, local/adblock helper, schema-helper, or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
 
-Built-in classification data is bundled locally in the extension source. It includes a small set of high-confidence ignored domains and site-scoped related hints such as `linkedin.com` to `licdn.com` and `letterboxd.com` to `ltrbxd.com`. It does not fetch GitHub raw files, remote lists, remote PAC data, or remotely controlled classification logic at runtime.
+The engine returns both the sanitized observed hosts and the suggested route target. Route target planning can suggest a known related base domain with subdomains included, keep a single unknown host exact, or widen multiple safe sibling hosts to their base domain for manual review. Coverage and duplicate checks use that suggested route target and its subdomain scope, so an exact generated-host rule does not incorrectly cover sibling generated hosts.
+
+Built-in classification data is bundled locally in the extension source. It includes a small set of high-confidence ignored domains and site-scoped related hints such as `chatgpt.com` to `oaiusercontent.com`, `chatgpt.com` to `oaistatic.com`, `openai.com` to OpenAI asset domains, `linkedin.com` to `licdn.com`, and `letterboxd.com` to `ltrbxd.com`. It does not fetch GitHub raw files, remote lists, remote PAC data, or remotely controlled classification logic at runtime.
 
 The user override model supports personal choices such as always ignoring a domain globally, always reviewing a domain globally, always suggesting a domain for a site, or always ignoring a domain for a site. Overrides are stored in `chrome.storage.sync` as normalized domain-level data. Malformed, internal, local, private, or unsupported override domains are dropped during sanitization, and missing override data defaults to an empty model for migration safety.
 

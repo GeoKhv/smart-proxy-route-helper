@@ -64,6 +64,36 @@ describe("domain candidate classification", () => {
   it("classifies site-scoped related asset domains", () => {
     expect(
       classifyDomainCandidate({
+        currentDomain: "chatgpt.com",
+        candidateDomain: "sdmntpritalynorth.oaiusercontent.com"
+      })
+    ).toMatchObject({
+      domain: "oaiusercontent.com",
+      classification: "related",
+      category: "site-assets",
+      scope: "site",
+      siteDomain: "chatgpt.com",
+      confidence: "high",
+      source: "built-in"
+    });
+
+    expect(
+      classifyDomainCandidate({
+        currentDomain: "https://chat.openai.com/",
+        candidateDomain: "static.oaistatic.com"
+      })
+    ).toMatchObject({
+      domain: "oaistatic.com",
+      classification: "related",
+      category: "site-assets",
+      scope: "site",
+      siteDomain: "openai.com",
+      confidence: "high",
+      source: "built-in"
+    });
+
+    expect(
+      classifyDomainCandidate({
         currentDomain: "https://www.linkedin.com/feed/",
         candidateDomain: "media.licdn.com"
       })

@@ -23,7 +23,12 @@ import {
   type CurrentPageResourceHostResultState,
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
-import type { RelatedDomainCandidate, RelatedDomainCandidateReason } from "../diagnostics/relatedDomainCandidates";
+import type {
+  RelatedDomainCandidate,
+  RelatedDomainCandidateReason,
+  RelatedDomainRouteTargetConfidence,
+  RelatedDomainRouteTargetReason
+} from "../diagnostics/relatedDomainCandidates";
 import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
 import type { SyncSettings } from "../storage/storageTypes";
 
@@ -101,8 +106,13 @@ export type RelatedDomainCandidateGroupKey = "strong" | "medium" | "alreadyCover
 export type RelatedDomainCandidateView = {
   category: RelatedDomainCandidateCategory;
   domain: string;
+  suggestedRuleDomain: string;
   reasonCode: RelatedDomainCandidateReason;
   reason: string;
+  routeTargetReason?: RelatedDomainRouteTargetReason;
+  routeTargetConfidence?: RelatedDomainRouteTargetConfidence;
+  routeTargetReasonLabel: string;
+  sourceHosts: string[];
   sourceHostCount: number;
   includeSubdomains: boolean;
   defaultSelected: boolean;
@@ -168,6 +178,14 @@ const relatedDomainReasonLabels: Record<RelatedDomainCandidateReason, string> = 
   "shared-infrastructure": "shared infrastructure",
   "local-or-adblock-helper": "local or adblock helper",
   "system-or-schema-helper": "system or schema helper"
+};
+
+const relatedDomainRouteTargetReasonLabels: Record<RelatedDomainRouteTargetReason, string> = {
+  "same-site-resources": "same site resources",
+  "known-related-domain": "known related domain",
+  "multiple-sibling-hosts": "multiple sibling hosts",
+  "exact-observed-host": "resource on current page",
+  "unsafe-shared-infrastructure": "shared infrastructure"
 };
 
 type ActiveTabSnapshot = {
@@ -243,6 +261,30 @@ function findCoveringRule(domain: string, rules: readonly DomainRule[]): DomainR
   return exactRuleForDomain(domain, rules) ?? parentRuleForDomain(domain, rules);
 }
 
+function routeTargetCoveredByRule(
+  domain: string,
+  includeSubdomains: boolean,
+  rule: DomainRule
+): boolean {
+  if (!includeSubdomains) {
+    return domainMatchesRule(domain, rule);
+  }
+
+  return rule.includeSubdomains && domainMatchesRule(domain, rule);
+}
+
+function findCoveringRouteTargetRule(
+  domain: string,
+  includeSubdomains: boolean,
+  rules: readonly DomainRule[]
+): DomainRule | undefined {
+  return rules.find((rule) => routeTargetCoveredByRule(domain, includeSubdomains, rule));
+}
+
+function exactRuleIndexForDomain(domain: string, rules: readonly DomainRule[]): number {
+  return rules.findIndex((rule) => normalizeKnownDomain(rule.domain) === domain);
+}
+
 function relatedDomainOverrideActions(
   category: RelatedDomainCandidateCategory,
   alreadyCovered: boolean
@@ -267,22 +309,31 @@ function candidateViewFromCandidate(
   category: RelatedDomainCandidateCategory,
   settings: Pick<SyncSettings, "rules" | "denylist">
 ): RelatedDomainCandidateView | null {
-  const domain = normalizeSafeRelatedDomain(candidate.domain, settings.denylist);
+  const suggestedRuleDomain = candidate.suggestedRuleDomain ?? candidate.domain;
+  const domain = normalizeSafeRelatedDomain(suggestedRuleDomain, settings.denylist);
 
   if (!domain) {
     return null;
   }
 
-  const coveringRule = findCoveringRule(domain, settings.rules);
+  const coveringRule = findCoveringRouteTargetRule(domain, candidate.suggestedIncludeSubdomains, settings.rules);
   const alreadyCovered = coveringRule !== undefined;
   const saveable = category !== "ignored" && !alreadyCovered;
   const defaultSelected = category === "strong" && candidate.defaultSelected && saveable;
+  const routeTargetReasonLabel = candidate.routeTargetReason
+    ? relatedDomainRouteTargetReasonLabels[candidate.routeTargetReason]
+    : relatedDomainReasonLabels[candidate.reason];
 
   return {
     category,
     domain,
+    suggestedRuleDomain: domain,
     reasonCode: candidate.reason,
     reason: relatedDomainReasonLabels[candidate.reason],
+    ...(candidate.routeTargetReason ? { routeTargetReason: candidate.routeTargetReason } : {}),
+    ...(candidate.routeTargetConfidence ? { routeTargetConfidence: candidate.routeTargetConfidence } : {}),
+    routeTargetReasonLabel,
+    sourceHosts: candidate.sourceHosts,
     sourceHostCount: candidate.sourceHostCount,
     includeSubdomains: candidate.suggestedIncludeSubdomains,
     defaultSelected,
@@ -561,7 +612,7 @@ export function getDiagnosticActionStatus(
 }
 
 function formatCandidateDomains(candidates: readonly RelatedDomainCandidate[], limit = 4): string {
-  const domains = candidates.slice(0, limit).map((candidate) => candidate.domain);
+  const domains = candidates.slice(0, limit).map((candidate) => candidate.suggestedRuleDomain ?? candidate.domain);
   const extraCount = candidates.length - domains.length;
 
   return extraCount > 0 ? `${domains.join(", ")} and ${extraCount} more` : domains.join(", ");
@@ -868,8 +919,21 @@ export function addSelectedRelatedDomainRules(
       continue;
     }
 
-    if (findCoveringRule(domain, rules)) {
+    if (findCoveringRouteTargetRule(domain, candidate.includeSubdomains, rules)) {
       skippedDomains.push(domain);
+      continue;
+    }
+
+    const exactRuleIndex = exactRuleIndexForDomain(domain, rules);
+
+    if (candidate.includeSubdomains && exactRuleIndex >= 0 && !rules[exactRuleIndex].includeSubdomains) {
+      const updatedRule: DomainRule = {
+        ...rules[exactRuleIndex],
+        includeSubdomains: true
+      };
+
+      rules[exactRuleIndex] = updatedRule;
+      addedRules.push(updatedRule);
       continue;
     }
 
@@ -974,6 +1038,13 @@ function candidateIncludeSubdomainsLabel(candidate: RelatedDomainCandidateView):
   return candidate.includeSubdomains ? "include subdomains" : "exact domain";
 }
 
+function formatObservedHosts(hosts: readonly string[], limit = 3): string {
+  const visibleHosts = hosts.slice(0, limit);
+  const extraCount = hosts.length - visibleHosts.length;
+
+  return extraCount > 0 ? `${visibleHosts.join(", ")} and ${extraCount} more` : visibleHosts.join(", ");
+}
+
 function relatedDomainOverrideActionLabel(action: DomainCandidateUserOverrideAction): string {
   const labels: Record<DomainCandidateUserOverrideAction, string> = {
     "ignore-globally": "Ignore globally",
@@ -1047,9 +1118,9 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
 
   domain.textContent = candidate.domain;
   meta.textContent = [
-    candidate.reason,
+    candidate.routeTargetReasonLabel,
     candidateIncludeSubdomainsLabel(candidate),
-    `${candidate.sourceHostCount} source host${candidate.sourceHostCount === 1 ? "" : "s"}`,
+    `observed hosts: ${formatObservedHosts(candidate.sourceHosts)}`,
     candidateCoverageLabel(candidate)
   ].join(" · ");
 

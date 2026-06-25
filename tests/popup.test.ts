@@ -424,8 +424,11 @@ describe("popup related-domain candidate view model", () => {
       {
         category: "strong",
         domain: "ltrbxd.com",
+        suggestedRuleDomain: "ltrbxd.com",
         reasonCode: "explicit-related-domain",
         reason: "known related domain",
+        routeTargetReasonLabel: "known related domain",
+        sourceHosts: ["a.ltrbxd.com"],
         sourceHostCount: 1,
         includeSubdomains: true,
         defaultSelected: true,
@@ -437,8 +440,11 @@ describe("popup related-domain candidate view model", () => {
       {
         category: "medium",
         domain: "image.tmdb.org",
+        suggestedRuleDomain: "image.tmdb.org",
         reasonCode: "third-party-resource",
         reason: "resource on current page",
+        routeTargetReasonLabel: "resource on current page",
+        sourceHosts: ["image.tmdb.org"],
         sourceHostCount: 1,
         includeSubdomains: false,
         defaultSelected: false,
@@ -450,8 +456,11 @@ describe("popup related-domain candidate view model", () => {
       {
         category: "ignored",
         domain: "doubleclick.net",
+        suggestedRuleDomain: "doubleclick.net",
         reasonCode: "known-tracking-or-analytics",
         reason: "analytics or tracking host",
+        routeTargetReasonLabel: "analytics or tracking host",
+        sourceHosts: ["doubleclick.net"],
         sourceHostCount: 1,
         includeSubdomains: false,
         defaultSelected: false,
@@ -1010,6 +1019,125 @@ describe("popup related-domain selected save helper", () => {
         }
       ],
       skippedDomains: []
+    });
+  });
+
+  it("saves the suggested ChatGPT related base instead of the observed generated host", () => {
+    const existingGeneratedHostRule = manualRule("sdmntpritalynorth.oaiusercontent.com", false);
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "1 public resource host checked for related-domain preview. No rules were saved.",
+        currentDomain: "chatgpt.com",
+        collectedHosts: ["sdmntpritalynorth.oaiusercontent.com"],
+        candidates: {
+          currentDomain: "chatgpt.com",
+          strongCandidates: [
+            {
+              domain: "oaiusercontent.com",
+              suggestedRuleDomain: "oaiusercontent.com",
+              reason: "explicit-related-domain",
+              sourceHosts: ["sdmntpritalynorth.oaiusercontent.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              routeTargetReason: "known-related-domain",
+              routeTargetConfidence: "high",
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      {
+        rules: [existingGeneratedHostRule],
+        denylist: []
+      }
+    );
+
+    expect(view.candidates[0]).toMatchObject({
+      domain: "oaiusercontent.com",
+      sourceHosts: ["sdmntpritalynorth.oaiusercontent.com"],
+      includeSubdomains: true,
+      saveable: true,
+      alreadyCovered: false,
+      selected: true
+    });
+
+    expect(
+      addSelectedRelatedDomainRules(
+        {
+          rules: [existingGeneratedHostRule],
+          denylist: []
+        },
+        view.candidates,
+        new Set(["oaiusercontent.com"]),
+        createdAt
+      )
+    ).toEqual({
+      ok: true,
+      status: "added",
+      rules: [
+        existingGeneratedHostRule,
+        {
+          domain: "oaiusercontent.com",
+          includeSubdomains: true,
+          mode: "proxy",
+          source: "diagnostic",
+          createdAt
+        }
+      ],
+      addedRules: [
+        {
+          domain: "oaiusercontent.com",
+          includeSubdomains: true,
+          mode: "proxy",
+          source: "diagnostic",
+          createdAt
+        }
+      ],
+      skippedDomains: []
+    });
+  });
+
+  it("treats the suggested includeSubdomains route target as already covered when the base rule exists", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "1 public resource host checked for related-domain preview. No rules were saved.",
+        currentDomain: "chatgpt.com",
+        collectedHosts: ["files.oaiusercontent.com"],
+        candidates: {
+          currentDomain: "chatgpt.com",
+          strongCandidates: [
+            {
+              domain: "oaiusercontent.com",
+              suggestedRuleDomain: "oaiusercontent.com",
+              reason: "explicit-related-domain",
+              sourceHosts: ["files.oaiusercontent.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              routeTargetReason: "known-related-domain",
+              routeTargetConfidence: "high",
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      {
+        rules: [manualRule("oaiusercontent.com", true)],
+        denylist: []
+      }
+    );
+
+    expect(view.candidates[0]).toMatchObject({
+      domain: "oaiusercontent.com",
+      saveable: false,
+      alreadyCovered: true,
+      coveredBy: "oaiusercontent.com",
+      selected: false
     });
   });
 

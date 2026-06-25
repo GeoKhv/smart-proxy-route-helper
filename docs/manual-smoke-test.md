@@ -161,7 +161,7 @@ await chrome.proxy.settings.get({ incognito: false });
 2. Confirm no related-domain preview runs when the popup opens.
 3. Click "Preview related domains".
 4. Confirm the popup separates saveable strong candidates, saveable manually reviewable candidates, already-covered candidates, and ignored candidates when those groups are present.
-5. Confirm saveable candidates show a checkbox, domain, short reason, and include-subdomains default.
+5. Confirm saveable candidates show a checkbox, the suggested rule domain that will be saved, short reason, include-subdomains default, and sanitized observed hostnames.
 6. Confirm already-covered candidates are read-only, show whether an exact or parent rule covers them, and do not show active checkboxes.
 7. Confirm strong candidates are selected only when the engine marks them default-selected.
 8. Confirm medium candidates are not selected by default.
@@ -198,6 +198,7 @@ await chrome.storage.local.get(null);
 24. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
 25. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
 
+- `domain` matching the candidate's suggested rule domain, not necessarily the exact observed host.
 - `includeSubdomains` matching the candidate suggestion.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
@@ -218,22 +219,36 @@ await chrome.proxy.settings.get({ incognito: false });
 34. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
 35. Confirm the preview, override, and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
 
+## ChatGPT/OpenAI Related-Domain Save Check
+
+1. Configure a working local proxy in Options.
+2. Open `https://chatgpt.com/` and use a feature that loads generated or file-related resource hosts if practical.
+3. Open the popup and click "Preview related domains".
+4. If a generated host such as `sdmntpritalynorth.oaiusercontent.com` or `files.oaiusercontent.com` is observed, confirm the saveable candidate is `oaiusercontent.com`, not only the exact generated host.
+5. Confirm the candidate says subdomains will be included and lists the observed hostnames.
+6. Click "Add selected domains".
+7. Confirm `chrome.storage.sync.rules` contains one diagnostic-sourced rule for `oaiusercontent.com` with `includeSubdomains: true`.
+8. Confirm an exact rule for a generated host such as `sdmntpritalynorth.oaiusercontent.com` does not cause the popup to treat `files.oaiusercontent.com` as covered.
+9. Confirm a rule for `oaiusercontent.com` with subdomains included covers sibling hosts such as `files.oaiusercontent.com`.
+10. Confirm the preview action alone does not save rules and no remote list or backend request is made.
+
 ## LinkedIn-Like Related-Domain Save Check
 
 1. Configure a working local proxy in Options.
 2. Add or keep synced proxy rules for `linkedin.com` or `www.linkedin.com`, then route or check the site through proxy.
 3. Open `https://www.linkedin.com/feed/` or another loaded LinkedIn feed page that includes `licdn.com` media/static resources, then reload the loaded feed page so DOM resource attributes and performance entries are available.
 4. Open the popup and click "Preview related domains".
-5. Confirm `media.licdn.com` and `static.licdn.com`, when observed, appear as manually reviewable medium candidates and are not selected by default.
-6. If an exact synced rule for `dms.licdn.com` exists, confirm `dms.licdn.com` is marked already covered and is not saveable.
-7. Confirm `linkedin.com` with subdomains included covers `www.linkedin.com`, but does not cover `media.licdn.com` or `static.licdn.com`.
-8. Confirm the popup does not show "No page resource hosts were found" when `media.licdn.com`, `static.licdn.com`, or other valid `licdn.com` resource hosts are present in resource timing, `img`/`source` `srcset`, lazy-loading `data-*` attributes, inline or computed style `url(...)`, link preload/preconnect, script resources, or accessible open shadow roots.
-9. If every collected reviewable host is already covered, confirm the popup says resource hosts were found but are already covered.
-10. If every collected host is filtered noise, confirm the popup says resource hosts were found but look like analytics/adtech/local or schema helper domains.
-11. Confirm adtech/tracking/local/schema helper hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, `local.adguard.org`, and `www.w3.org`, when observed, do not crowd the normal saveable list.
-12. If no saveable candidates appear, confirm the preview details show counts and only sanitized hostnames, never full URLs with paths, query strings, fragments, or credentials.
-13. Select `media.licdn.com` and `static.licdn.com`, then click "Add selected domains".
-14. Confirm the two selected domains are added as synced proxy rules and that no ignored, already-covered, or unselected candidates are saved.
+5. Confirm observed hosts such as `media.licdn.com`, `static.licdn.com`, and `dms.licdn.com` are grouped under a `licdn.com` known related-domain candidate with subdomains included.
+6. Confirm `linkedin.com` with subdomains included covers `www.linkedin.com`, but does not cover `media.licdn.com`, `static.licdn.com`, or the suggested `licdn.com` route target.
+7. If a synced rule for `licdn.com` with subdomains included exists, confirm the `licdn.com` candidate is marked already covered and is not saveable.
+8. Confirm `licdn.com` with subdomains included covers `media.licdn.com`, `static.licdn.com`, and `dms.licdn.com`.
+9. Confirm the popup does not show "No page resource hosts were found" when valid `licdn.com` resource hosts are present in resource timing, `img`/`source` `srcset`, lazy-loading `data-*` attributes, inline or computed style `url(...)`, link preload/preconnect, script resources, or accessible open shadow roots.
+10. If every collected reviewable host is already covered, confirm the popup says resource hosts were found but are already covered.
+11. If every collected host is filtered noise, confirm the popup says resource hosts were found but look like analytics/adtech/local or schema helper domains.
+12. Confirm adtech/tracking/local/schema helper hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, `local.adguard.org`, and `www.w3.org`, when observed, do not crowd the normal saveable list.
+13. If no saveable candidates appear, confirm the preview details show counts and only sanitized hostnames, never full URLs with paths, query strings, fragments, or credentials.
+14. Select `licdn.com`, then click "Add selected domains".
+15. Confirm one synced proxy rule is added for `licdn.com` with `includeSubdomains: true` and that no ignored, already-covered, or unselected candidates are saved.
 
 ## Real-World Visible Route Checks
 

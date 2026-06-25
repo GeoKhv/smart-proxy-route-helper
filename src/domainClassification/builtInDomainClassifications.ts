@@ -34,6 +34,10 @@ function globalIgnored(
 }
 
 export const builtInDomainClassifications: readonly DomainCandidateClassificationResult[] = [
+  siteRelated("chatgpt.com", "oaiusercontent.com", "ChatGPT uses oaiusercontent.com for generated and file-related resources."),
+  siteRelated("chatgpt.com", "oaistatic.com", "ChatGPT uses oaistatic.com for related static resources."),
+  siteRelated("openai.com", "oaiusercontent.com", "OpenAI pages may use oaiusercontent.com for related generated or file resources."),
+  siteRelated("openai.com", "oaistatic.com", "OpenAI pages may use oaistatic.com for related static resources."),
   siteRelated("linkedin.com", "licdn.com", "LinkedIn serves media, static, and DMS resources from licdn.com."),
   siteRelated("letterboxd.com", "ltrbxd.com", "Letterboxd serves related media and static assets from ltrbxd.com."),
   siteRelated("ltrbxd.com", "letterboxd.com", "Letterboxd and ltrbxd.com are treated as a known related pair."),
@@ -56,7 +60,11 @@ export const builtInDomainClassifications: readonly DomainCandidateClassificatio
   globalIgnored("w3.org", "schema-helper", "Schema, namespace, or SVG helper host, including www.w3.org."),
 
   globalIgnored("akamaihd.net", "system-helper", "Large shared infrastructure host that is too broad to save from preview."),
+  globalIgnored("appspot.com", "system-helper", "Shared application-hosting infrastructure that is too broad to save from preview."),
+  globalIgnored("auth0.com", "system-helper", "Shared identity infrastructure that is too broad to save from preview."),
   globalIgnored("cloudfront.net", "system-helper", "Large shared infrastructure host that is too broad to save from preview."),
+  globalIgnored("github.io", "system-helper", "Shared pages-hosting infrastructure that is too broad to save from preview."),
   globalIgnored("googleapis.com", "system-helper", "Large shared infrastructure host that is too broad to save from preview."),
+  globalIgnored("googleusercontent.com", "system-helper", "Shared Google-hosted content infrastructure that is too broad to save from preview."),
   globalIgnored("gstatic.com", "system-helper", "Large shared infrastructure host that is too broad to save from preview.")
 ];

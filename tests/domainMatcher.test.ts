@@ -38,6 +38,19 @@ describe("domainMatchesRule", () => {
     expect(domainMatchesRule("video.dms.licdn.com", { domain: "dms.licdn.com", includeSubdomains: false })).toBe(false);
   });
 
+  it("covers related asset siblings only when the related base includes subdomains", () => {
+    expect(domainMatchesRule("files.oaiusercontent.com", { domain: "oaiusercontent.com", includeSubdomains: true })).toBe(true);
+    expect(
+      domainMatchesRule("files.oaiusercontent.com", {
+        domain: "sdmntpritalynorth.oaiusercontent.com",
+        includeSubdomains: false
+      })
+    ).toBe(false);
+    expect(domainMatchesRule("media.licdn.com", { domain: "licdn.com", includeSubdomains: true })).toBe(true);
+    expect(domainMatchesRule("static.licdn.com", { domain: "licdn.com", includeSubdomains: true })).toBe(true);
+    expect(domainMatchesRule("dms.licdn.com", { domain: "licdn.com", includeSubdomains: true })).toBe(true);
+  });
+
   it("finds the first matching rule", () => {
     const rules = [
       { domain: "example.com", includeSubdomains: true },
