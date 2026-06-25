@@ -10,7 +10,7 @@
         "config": {
           "scheme": "socks5",
           "host": "127.0.0.1",
-          "port": 8080
+          "port": 1080
         }
       },
       "diagnostics": {

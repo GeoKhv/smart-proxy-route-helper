@@ -45,7 +45,7 @@ Safe local proxy example:
 
 - Scheme: `socks5`
 - Host: `127.0.0.1`
-- Port: `8080`
+- Port: `1080`
 
 Safe demo route rules:
 
@@ -92,7 +92,7 @@ For the first Store-ready pass, capture all five screenshots at `1280x800` so th
 Use the same set as the screenshot plan:
 
 1. Options: Local Proxy Configuration.
-   Show device-specific local proxy settings with `socks5`, `127.0.0.1`, and `8080`. Do not show a real proxy provider, real IP, or credentials.
+   Show device-specific local proxy settings with `socks5`, `127.0.0.1`, and `1080`. Do not show a real proxy provider, real IP, or credentials.
 2. Options: Synced Domain Rules.
    Show the sanitized demo route rules from this workflow. Keep the list short enough to read.
 3. Popup: Current-Site Routing Controls.
@@ -109,7 +109,8 @@ Do not use personal ChatGPT or LinkedIn pages for Store screenshots. If those do
 - [ ] Clean Chrome profile used.
 - [ ] No Chrome Sync sign-in in the screenshot profile.
 - [ ] Extension loaded from the current `dist/` build.
-- [ ] Demo data uses only sanitized domains and `127.0.0.1:8080`.
+- [ ] Popup screenshots are opened from the visible extension toolbar action so `activeTab` uses a real user gesture.
+- [ ] Demo data uses only sanitized domains and `127.0.0.1:1080`.
 - [ ] No personal accounts, private tabs, bookmarks, profile avatars, notifications, or downloads visible.
 - [ ] No real proxy provider, real IP address, credentials, or private infrastructure visible.
 - [ ] No private route rules or classification overrides visible.
