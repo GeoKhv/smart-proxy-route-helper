@@ -87,6 +87,27 @@ Use the Store asset plan from [docs/chrome-web-store-screenshots.md](chrome-web-
 
 For the first Store-ready pass, capture all five screenshots at `1280x800` so the set is consistent. Crop to the extension UI or use a clean browser window with only relevant UI visible. Cropped popup-only drafts are acceptable as source material, but convert or recapture them on a `1280x800` Store-ready canvas before upload.
 
+## Final Canvas Composition
+
+The current final draft canvases are generated under [../store-assets/screenshots/final/](../store-assets/screenshots/final/) from the safe source drafts in [../store-assets/screenshots/](../store-assets/screenshots/).
+
+From the repository root:
+
+```sh
+mkdir -p /private/tmp/sprh-clang-cache
+CLANG_MODULE_CACHE_PATH=/private/tmp/sprh-clang-cache swift scripts/compose-store-screenshots.swift
+```
+
+The script uses local macOS system rendering only. It does not use external assets, CDN fonts, runtime extension code, Chrome Web Store Developer Dashboard data, private user data, or network access.
+
+After generation, confirm every final PNG is `1280x800`:
+
+```sh
+for f in store-assets/screenshots/final/*.png; do sips -g pixelWidth -g pixelHeight "$f"; done
+```
+
+Popup screenshots `03` through `05` are composed from existing toolbar-opened popup crops. If a visible cursor highlight remains in a popup source crop, do not paint over it. Either recapture the popup safely from the visible extension toolbar icon in a clean Chrome profile, or keep the canvas documented as a draft candidate requiring final clean recapture before Store submission.
+
 ## Recommended Five-Screenshot Set
 
 Use the same set as the screenshot plan:

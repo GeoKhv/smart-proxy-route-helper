@@ -1,8 +1,33 @@
 # Chrome Web Store Screenshot Plan
 
-This plan defines screenshot candidates for a future Chrome Web Store submission. Do not include private user data, personal accounts, private messages, bank or work bookmarks, credentials, proxy secrets, or sensitive tabs.
+This plan defines screenshot candidates and the current draft canvas set for a future Chrome Web Store submission. Do not include private user data, personal accounts, private messages, bank or work bookmarks, credentials, proxy secrets, or sensitive tabs.
 
 Chrome Web Store listing documentation requires at least one `1280x800` screenshot and allows up to five screenshots. Prepare a focused five-image set first, then keep the additional ideas as optional support images for documentation or future listing updates.
+
+## Current Final Draft Canvases
+
+Prepared on 2026-06-26 under [../store-assets/screenshots/final/](../store-assets/screenshots/final/):
+
+| Final canvas | Source draft | Status |
+| --- | --- | --- |
+| `01-options-local-proxy.png` | `../store-assets/screenshots/01-options-local-proxy.png` | `1280x800` final draft canvas |
+| `02-options-route-rules.png` | `../store-assets/screenshots/02-options-route-rules.png` | `1280x800` final draft canvas |
+| `03-popup-current-site.png` | `../store-assets/screenshots/03-popup-current-site.png` | `1280x800` final draft canvas from existing popup crop |
+| `04-popup-related-domains.png` | `../store-assets/screenshots/04-popup-related-domains.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains |
+| `05-popup-recording.png` | `../store-assets/screenshots/05-popup-recording.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains |
+| `06-options-classification-overrides.png` | `../store-assets/screenshots/06-options-classification-overrides.png` | `1280x800` final draft canvas |
+
+The current set contains six draft canvases so the submission owner can choose the strongest five during the actual listing pass. The Chrome Web Store Developer Dashboard was not opened or modified during this preparation work.
+
+The final draft canvases use only sanitized demo data:
+
+- Local proxy: `socks5 127.0.0.1:1080`.
+- Demo route rules: `example.com`, `chatgpt.com`, `oaiusercontent.com`, `linkedin.com`, `licdn.com`, and `2ip.io`.
+- Demo classification overrides: `trkn.us` ignored globally and `licdn.com` suggested for `linkedin.com`.
+
+No private proxy/provider/account information, private pages, credentials, personal profile data, backend data, telemetry data, or Chrome Web Store Developer Dashboard data is included.
+
+The popup canvases are draft candidates because they were composed from existing toolbar-opened popup crops. Before actual Store submission, recapture the popup screenshots from the visible extension toolbar icon in a clean Chrome profile if a cursor-free set is required.
 
 ## Capture Environment
 
@@ -29,6 +54,8 @@ Prepare before submission:
 - Optional marquee promo tile: `1400x560` px PNG or JPEG.
 
 ## Recommended Five-Screenshot Set
+
+Use five of the current final draft canvases for the first submission set. `06-options-classification-overrides.png` can remain optional if the Developer Dashboard still allows only five screenshots.
 
 ### 1. Options: Local Proxy Configuration
 
