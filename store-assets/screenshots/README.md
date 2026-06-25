@@ -14,8 +14,17 @@ Captured drafts:
 
 - `01-options-local-proxy.png`
 - `02-options-route-rules.png`
+- `03-popup-current-site.png`
+- `04-popup-related-domains.png`
+- `05-popup-recording.png`
 - `06-options-classification-overrides.png`
 
-Popup screenshots were not captured in this automated pass. The extension intentionally relies on the `activeTab` permission without broad host access; opening the popup programmatically did not provide a real toolbar-click user gesture, so the popup could not safely read the current tab URL for Store-quality screenshots. Capture the popup states manually from a clean Chrome profile using `docs/chrome-web-store-screenshot-workflow.md`.
+Popup screenshots `03` through `05` were captured from a separate temporary Chrome profile under `/private/tmp` using the visible extension toolbar icon after loading the current `dist/` build through the Chrome Extensions UI. They are cropped popup drafts, not full `1280x800` Store-ready canvases.
+
+Popup capture states:
+
+- `03-popup-current-site.png`: toolbar-opened popup on `https://example.com/`.
+- `04-popup-related-domains.png`: toolbar-opened popup on `https://example.com/` after a user-invoked related-domain preview. The clean page included sanitized demo resource references for `oaiusercontent.com`, `licdn.com`, and `demdex.net`; no rules were saved.
+- `05-popup-recording.png`: toolbar-opened popup on `https://example.com/` after starting diagnostic recording. No files were uploaded and no messages were sent.
 
 No Chrome Web Store Developer Dashboard changes were made.

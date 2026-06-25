@@ -85,7 +85,7 @@ Use the Store asset plan from [docs/chrome-web-store-screenshots.md](chrome-web-
 - Small promo tile: `440x280` px.
 - Optional marquee promo tile: `1400x560` px.
 
-For the first Store-ready pass, capture all five screenshots at `1280x800` so the set is consistent. Crop to the extension UI or a clean browser window with only relevant UI visible.
+For the first Store-ready pass, capture all five screenshots at `1280x800` so the set is consistent. Crop to the extension UI or use a clean browser window with only relevant UI visible. Cropped popup-only drafts are acceptable as source material, but convert or recapture them on a `1280x800` Store-ready canvas before upload.
 
 ## Recommended Five-Screenshot Set
 
