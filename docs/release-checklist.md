@@ -29,6 +29,7 @@ Use this checklist before publishing or tagging an MVP release candidate.
 
 - Confirm README, `PRIVACY.md`, `docs/permissions.md`, `docs/domain-classification.md`, and `docs/architecture.md` still match runtime behavior.
 - Confirm no telemetry, analytics, ads, backend calls, remote PAC URLs, runtime remote list fetching, or remote executable code are present.
+- Confirm public suffix / registrable-domain data is bundled locally and no runtime suffix-list fetching is present.
 - Confirm route rules and classification overrides are domain-level data.
 - Confirm local proxy configuration stays in `chrome.storage.local`.
 - Confirm route rules and classification overrides sync through `chrome.storage.sync`.
@@ -45,6 +46,7 @@ Use this checklist before publishing or tagging an MVP release candidate.
 - Configure local proxy settings in Options and confirm they remain local to the device.
 - Add, disable, and remove synced route rules from Options.
 - Preview related domains on a loaded ChatGPT/OpenAI or LinkedIn-like page and confirm useful related asset candidates show the suggested rule domain, observed hostnames, and the intended include-subdomains setting before saving.
+- Confirm shared-infrastructure examples such as `github.io`, `appspot.com`, `pages.dev`, `vercel.app`, `netlify.app`, `cloudfront.net`, `googleusercontent.com`, and `auth0.com` are not suggested as broad include-subdomains route targets unless an explicit site-scoped hint allows the narrower target.
 - Confirm selected related-domain candidates save the suggested rule domain, not necessarily the exact observed generated host.
 - Confirm ignored candidates remain separated and are not saved automatically.
 - Add and remove a classification override and confirm it does not create proxy routing rules.
@@ -59,6 +61,7 @@ Current v0.1.0 RC audit result:
 - Affected dependency: `esbuild` 0.27.3 - 0.28.0.
 - Advisory: arbitrary file read when running the development server on Windows.
 - Runtime impact assessment: dev-server-only tooling issue; the packaged extension does not run the Vite dev server, does not include `node_modules`, and does not include `esbuild`.
+- Dependency note: `tldts` is used for bundled public-suffix-aware domain parsing and did not introduce runtime remote fetching.
 - `npm audit fix`: available, but not applied in this release-polish change to avoid dependency churn during RC closeout. Reassess separately before publication if the release branch can absorb a lockfile update and a fresh full verification pass.
 
 Do not apply broad dependency upgrades during release closeout unless the change is trivial, safe, and tested.

@@ -1,4 +1,4 @@
-import { domainEqualsOrIsSubdomain, getBaseDomain } from "../rules/baseDomain";
+import { domainEqualsOrIsSubdomain } from "../rules/baseDomain";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { builtInDomainClassifications } from "./builtInDomainClassifications";
 import type {
@@ -6,6 +6,7 @@ import type {
   DomainCandidateClassificationResult,
   DomainCandidateUserOverride
 } from "./domainClassificationTypes";
+import { getRegistrableDomain } from "./registrableDomain";
 
 function normalizeDomainOrNull(input: string | undefined): string | null {
   if (!input) {
@@ -199,8 +200,8 @@ export function classifyDomainCandidate(
     return null;
   }
 
-  const currentBaseDomain = getBaseDomain(currentDomain);
-  const candidateBaseDomain = getBaseDomain(candidateDomain);
+  const currentBaseDomain = getRegistrableDomain(currentDomain) ?? currentDomain;
+  const candidateBaseDomain = getRegistrableDomain(candidateDomain) ?? candidateDomain;
   const normalizedInput: Required<ClassifyDomainCandidateInput> = {
     currentDomain,
     candidateDomain,

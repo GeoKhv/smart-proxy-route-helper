@@ -53,6 +53,28 @@ describe("related-domain candidate engine", () => {
     expect(result.ignoredCandidates).toEqual([]);
   });
 
+  it("uses public-suffix-aware same-site route targets", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "https://www.example.co.uk/",
+      observedUrlsOrHosts: ["https://a.b.example.co.uk/app.js", "media.example.co.uk"]
+    });
+
+    expect(result.currentDomain).toBe("www.example.co.uk");
+    expect(result.strongCandidates).toEqual([
+      candidate({
+        domain: "example.co.uk",
+        reason: "same-site-subdomain",
+        sourceHosts: ["a.b.example.co.uk", "media.example.co.uk"],
+        suggestedIncludeSubdomains: true,
+        routeTargetReason: "same-site-resources",
+        routeTargetConfidence: "high",
+        defaultSelected: true
+      })
+    ]);
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([]);
+  });
+
   it("omits exact current-domain resources when no related domain is discovered", () => {
     const result = buildRelatedDomainCandidates({
       currentDomain: "letterboxd.com",
@@ -88,6 +110,39 @@ describe("related-domain candidate engine", () => {
       })
     ]);
     expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates).toEqual([]);
+  });
+
+  it("keeps generated oaiusercontent hosts exact without the ChatGPT or OpenAI site hint", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: [
+        "https://sdmntpritalynorth.oaiusercontent.com/file.png",
+        "https://files.oaiusercontent.com/upload"
+      ]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([
+      candidate({
+        domain: "files.oaiusercontent.com",
+        reason: "third-party-resource",
+        sourceHosts: ["files.oaiusercontent.com"],
+        suggestedIncludeSubdomains: false,
+        routeTargetReason: "exact-observed-host",
+        routeTargetConfidence: "low",
+        defaultSelected: false
+      }),
+      candidate({
+        domain: "sdmntpritalynorth.oaiusercontent.com",
+        reason: "third-party-resource",
+        sourceHosts: ["sdmntpritalynorth.oaiusercontent.com"],
+        suggestedIncludeSubdomains: false,
+        routeTargetReason: "exact-observed-host",
+        routeTargetConfidence: "low",
+        defaultSelected: false
+      })
+    ]);
     expect(result.ignoredCandidates).toEqual([]);
   });
 
@@ -201,6 +256,9 @@ describe("related-domain candidate engine", () => {
         "https://cdn.auth0.com/login.js",
         "https://user.github.io/app.js",
         "https://project.appspot.com/app.js",
+        "https://project.pages.dev/app.js",
+        "https://site.vercel.app/app.js",
+        "https://site.netlify.app/app.js",
         "https://lh3.googleusercontent.com/image.png"
       ]
     });
@@ -213,6 +271,9 @@ describe("related-domain candidate engine", () => {
       "fonts.gstatic.com",
       "lh3.googleusercontent.com",
       "project.appspot.com",
+      "project.pages.dev",
+      "site.netlify.app",
+      "site.vercel.app",
       "user.github.io"
     ]);
     expect(result.ignoredCandidates.every((item) => item.suggestedIncludeSubdomains === false)).toBe(true);
@@ -377,6 +438,43 @@ describe("related-domain candidate engine", () => {
         defaultSelected: false
       })
     ]);
+  });
+
+  it("widens multiple sibling hosts to a public-suffix-aware safe registrable domain", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: ["static.example.co.uk", "media.example.co.uk"]
+    });
+
+    expect(result.mediumCandidates).toEqual([
+      candidate({
+        domain: "example.co.uk",
+        reason: "third-party-resource",
+        sourceHosts: ["media.example.co.uk", "static.example.co.uk"],
+        suggestedIncludeSubdomains: true,
+        routeTargetReason: "multiple-sibling-hosts",
+        routeTargetConfidence: "medium",
+        defaultSelected: false
+      })
+    ]);
+  });
+
+  it("does not widen shared-infrastructure siblings to their public hosting base", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "example.com",
+      observedUrlsOrHosts: ["assets.project.pages.dev", "media.project.pages.dev", "a.cloudfront.net", "b.cloudfront.net"]
+    });
+
+    expect(result.strongCandidates).toEqual([]);
+    expect(result.mediumCandidates).toEqual([]);
+    expect(result.ignoredCandidates.map((item) => item.domain)).toEqual([
+      "a.cloudfront.net",
+      "assets.project.pages.dev",
+      "b.cloudfront.net",
+      "media.project.pages.dev"
+    ]);
+    expect(result.ignoredCandidates.every((item) => item.suggestedIncludeSubdomains === false)).toBe(true);
+    expect(result.ignoredCandidates.every((item) => item.routeTargetReason === "unsafe-shared-infrastructure")).toBe(true);
   });
 
   it("keeps suspicious unknown domains reviewable instead of ignored", () => {

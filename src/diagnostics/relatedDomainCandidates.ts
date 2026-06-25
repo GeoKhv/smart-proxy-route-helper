@@ -4,7 +4,11 @@ import type {
   DomainCandidateClassificationResult,
   DomainCandidateUserOverride
 } from "../domainClassification/domainClassificationTypes";
-import { getBaseDomain } from "../rules/baseDomain";
+import {
+  canBroadenToRegistrableDomain,
+  getDomainParts,
+  isSharedInfrastructureRegistrableDomain
+} from "../domainClassification/registrableDomain";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 
@@ -69,17 +73,6 @@ type RouteTargetPlan = {
   routeTargetReason: RelatedDomainRouteTargetReason;
   routeTargetConfidence: RelatedDomainRouteTargetConfidence;
 };
-
-const unsafeBroadeningBaseDomains = new Set([
-  "akamaihd.net",
-  "appspot.com",
-  "auth0.com",
-  "cloudfront.net",
-  "github.io",
-  "googleapis.com",
-  "googleusercontent.com",
-  "gstatic.com"
-]);
 
 function emptyResult(currentDomain: string | null): RelatedDomainCandidatesResult {
   return {
@@ -205,10 +198,6 @@ function reasonFromClassification(classification: DomainCandidateClassificationR
   return "third-party-resource";
 }
 
-function isUnsafeBroadeningBaseDomain(domain: string): boolean {
-  return unsafeBroadeningBaseDomains.has(domain);
-}
-
 function siblingWideningBaseDomain(observation: ClassifiedObservation, currentBaseDomain: string): string | null {
   if (observation.classification.classification !== "review") {
     return null;
@@ -218,7 +207,15 @@ function siblingWideningBaseDomain(observation: ClassifiedObservation, currentBa
     return null;
   }
 
-  if (isUnsafeBroadeningBaseDomain(observation.observedBaseDomain)) {
+  if (isSharedInfrastructureRegistrableDomain(observation.observedBaseDomain)) {
+    return null;
+  }
+
+  if (
+    !canBroadenToRegistrableDomain(observation.observedHost, {
+      targetDomain: observation.observedBaseDomain
+    })
+  ) {
     return null;
   }
 
@@ -253,13 +250,21 @@ function routeTargetPlanForObservation(
 
   if (classification.classification === "related") {
     const sameSite = classification.domain === currentBaseDomain;
+    const canUseRelatedRouteTarget =
+      observation.observedHost === classification.domain ||
+      canBroadenToRegistrableDomain(observation.observedHost, {
+        targetDomain: classification.domain,
+        explicitRelatedBaseDomain: classification.domain
+      });
 
-    return {
-      domain: classification.domain,
-      suggestedIncludeSubdomains: true,
-      routeTargetReason: sameSite ? "same-site-resources" : "known-related-domain",
-      routeTargetConfidence: routeTargetConfidenceFromClassification(classification)
-    };
+    if (canUseRelatedRouteTarget) {
+      return {
+        domain: classification.domain,
+        suggestedIncludeSubdomains: true,
+        routeTargetReason: sameSite ? "same-site-resources" : "known-related-domain",
+        routeTargetConfidence: routeTargetConfidenceFromClassification(classification)
+      };
+    }
   }
 
   if (classification.category === "system-helper") {
@@ -300,7 +305,7 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
     return emptyResult(null);
   }
 
-  const currentBaseDomain = getBaseDomain(currentHost);
+  const currentBaseDomain = getDomainParts(currentHost)?.registrableDomain ?? currentHost;
   const observations: ClassifiedObservation[] = [];
 
   for (const observedInput of input.observedUrlsOrHosts) {
@@ -320,9 +325,15 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
       continue;
     }
 
+    const observedDomainParts = getDomainParts(observedHost);
+
+    if (!observedDomainParts) {
+      continue;
+    }
+
     observations.push({
       observedHost,
-      observedBaseDomain: getBaseDomain(observedHost),
+      observedBaseDomain: observedDomainParts.registrableDomain ?? observedHost,
       classification
     });
   }

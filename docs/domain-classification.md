@@ -46,11 +46,13 @@ This means uncertain domains are not hidden aggressively. High-confidence analyt
 
 Route target planning is conservative and local-only:
 
-- Known site-scoped related hints can suggest the related base domain with subdomains included. For example, `chatgpt.com` resources on `*.oaiusercontent.com` are suggested as `oaiusercontent.com` with subdomains included.
-- Same-site resource subdomains can suggest the current site's base domain with subdomains included.
-- Multiple observed sibling hosts on a safe unknown base can suggest that base domain with subdomains included, while remaining manual-review candidates.
+- Registrable-domain parsing is public-suffix-aware. The extension uses the bundled `tldts` package locally, with no runtime network access, telemetry, or remote list fetching.
+- Naive "last two labels" broadening is unsafe. For example, `a.b.example.co.uk` belongs under `example.co.uk`, while `myproject.github.io`, `app.appspot.com`, `project.pages.dev`, `site.vercel.app`, and `site.netlify.app` must not be widened to their shared hosting roots.
+- Known site-scoped related hints can suggest the configured related base domain with subdomains included. For example, `chatgpt.com` resources on generated `*.oaiusercontent.com` hosts are suggested as `oaiusercontent.com` with subdomains included only because the bundled site-scoped hint explicitly allows that route target.
+- Same-site resource subdomains can suggest the current site's registrable domain with subdomains included.
+- Multiple observed sibling hosts on a safe unknown registrable domain can suggest that registrable domain with subdomains included, while remaining manual-review candidates.
 - A single unknown third-party host stays exact by default and is not selected automatically.
-- Shared infrastructure and public-hosting-style domains such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, and `auth0.com` are not widened automatically. When shown, they stay exact or ignored according to classification.
+- Shared infrastructure and public-hosting-style domains such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, `auth0.com`, `pages.dev`, `vercel.app`, and `netlify.app` are not widened automatically. When shown, they stay exact or ignored according to classification unless a site-scoped related hint explicitly allows a narrower route target.
 
 Coverage and duplicate checks use the suggested route target and its subdomain scope. An exact rule for `sdmntpritalynorth.oaiusercontent.com` does not cover sibling hosts such as `files.oaiusercontent.com`; a rule for `oaiusercontent.com` with subdomains included does.
 
@@ -58,7 +60,7 @@ Coverage and duplicate checks use the suggested route target and its subdomain s
 
 Built-in data is bundled in the extension source under `src/domainClassification`. It is intentionally small and curated. Examples include:
 
-- Global ignored hosts such as `doubleclick.net`, `google-analytics.com`, `googletagmanager.com`, `demdex.net`, `facebook.net`, `hotjar.com`, `local.adguard.org`, `w3.org`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, and broad shared-infrastructure bases such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, and `auth0.com`.
+- Global ignored hosts such as `doubleclick.net`, `google-analytics.com`, `googletagmanager.com`, `demdex.net`, `facebook.net`, `hotjar.com`, `local.adguard.org`, `w3.org`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, and broad shared-infrastructure bases such as `cloudfront.net`, `googleusercontent.com`, `github.io`, `appspot.com`, `auth0.com`, `pages.dev`, `vercel.app`, and `netlify.app`.
 - Site-scoped related pairs such as `chatgpt.com` to `oaiusercontent.com`, `chatgpt.com` to `oaistatic.com`, `openai.com` to OpenAI asset domains, `linkedin.com` to `licdn.com`, and `letterboxd.com` to `ltrbxd.com`.
 
 The extension does not fetch GitHub raw files, managed blocklists, remote PAC files, or remotely controlled classification logic at runtime. This keeps the extension functionality discernible from the submitted package and avoids remote executable-code risk.

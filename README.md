@@ -17,6 +17,7 @@ Version `0.1.0` is the first MVP release candidate. The runtime includes:
 - Selectable related-domain suggestions.
 - User classification overrides stored as domain-level preferences.
 - Built-in local domain classification foundation.
+- Public-suffix-aware registrable-domain planning for related-domain route targets.
 
 It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
 
@@ -79,6 +80,10 @@ npm run package
 
 The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.1.0.zip`. Run `npm run build` first.
 
+## Dependency Notes
+
+Runtime domain parsing uses `tldts` for public-suffix-aware registrable-domain decisions. The package is bundled into the extension build, has no runtime network access, does not fetch remote suffix lists, and is used only by pure route-planning/classification logic.
+
 ## What It Does
 
 The MVP runtime provides a small manual PAC manager:
@@ -92,6 +97,7 @@ The MVP runtime provides a small manual PAC manager:
 - Provide manual current-site diagnostics only after explicit user action.
 - Provide current-page related-domain preview only after explicit user action.
 - Classify related-domain candidates through bundled local data and conservative pure heuristics.
+- Use public-suffix-aware registrable-domain parsing so route planning does not rely on unsafe "last two labels" assumptions.
 - Save related-domain candidates only after explicit user selection and confirmation.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 

@@ -66,5 +66,8 @@ export const builtInDomainClassifications: readonly DomainCandidateClassificatio
   globalIgnored("github.io", "system-helper", "Shared pages-hosting infrastructure that is too broad to save from preview."),
   globalIgnored("googleapis.com", "system-helper", "Large shared infrastructure host that is too broad to save from preview."),
   globalIgnored("googleusercontent.com", "system-helper", "Shared Google-hosted content infrastructure that is too broad to save from preview."),
-  globalIgnored("gstatic.com", "system-helper", "Large shared infrastructure host that is too broad to save from preview.")
+  globalIgnored("gstatic.com", "system-helper", "Large shared infrastructure host that is too broad to save from preview."),
+  globalIgnored("netlify.app", "system-helper", "Shared application-hosting infrastructure that is too broad to save from preview."),
+  globalIgnored("pages.dev", "system-helper", "Shared pages-hosting infrastructure that is too broad to save from preview."),
+  globalIgnored("vercel.app", "system-helper", "Shared application-hosting infrastructure that is too broad to save from preview.")
 ];

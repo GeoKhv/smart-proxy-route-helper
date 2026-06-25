@@ -1,19 +1,4 @@
-const multiLabelPublicSuffixes = new Set([
-  "ac.uk",
-  "co.jp",
-  "co.nz",
-  "co.uk",
-  "com.au",
-  "com.br",
-  "com.cn",
-  "com.mx",
-  "com.sg",
-  "com.tr",
-  "gov.uk",
-  "net.au",
-  "org.au",
-  "org.uk"
-]);
+import { getRegistrableDomain } from "../domainClassification/registrableDomain";
 
 function normalizeHostForRelationship(host: string): string {
   return host.trim().toLowerCase().replace(/\.+$/, "");
@@ -21,19 +6,8 @@ function normalizeHostForRelationship(host: string): string {
 
 export function getBaseDomain(host: string): string {
   const normalizedHost = normalizeHostForRelationship(host);
-  const labels = normalizedHost.split(".");
 
-  if (labels.length <= 2) {
-    return normalizedHost;
-  }
-
-  const lastTwoLabels = labels.slice(-2).join(".");
-
-  if (multiLabelPublicSuffixes.has(lastTwoLabels) && labels.length >= 3) {
-    return labels.slice(-3).join(".");
-  }
-
-  return lastTwoLabels;
+  return getRegistrableDomain(normalizedHost) ?? normalizedHost;
 }
 
 export function isSubdomainOf(host: string, parentDomain: string): boolean {
