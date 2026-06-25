@@ -64,6 +64,8 @@ Options includes a small management section for current classification overrides
 
 User overrides are personal preferences, not community votes. They are not uploaded, submitted, or synced to GitHub by the extension.
 
+Related-domain preview itself is user-invoked and transient. The preview may inspect current-page resource references after an explicit popup click, but it passes only sanitized hostnames into the classifier. Full resource URLs, paths, query strings, fragments, credentials, page text, screenshots, browsing history, and diagnostic history are not stored as classification data.
+
 ## Community Proposals
 
 A future community workflow can accept sanitized domain-level proposals through GitHub issues or pull requests. The runtime extension must not download community proposals directly. Maintainers can review proposals, add small safe entries to the bundled built-in data, and ship them in normal extension releases.

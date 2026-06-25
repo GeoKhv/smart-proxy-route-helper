@@ -1,12 +1,12 @@
 # Privacy Policy
 
-This document describes the privacy posture for Smart Proxy Route Helper.
+This document describes the privacy posture for Smart Proxy Route Helper v0.1.0.
 
-The repository currently contains the initial Manifest V3 extension runtime. The statements below must be kept aligned with the actual extension behavior before any public release.
+The repository contains a Manifest V3 extension runtime. The statements below must be kept aligned with the actual extension behavior before any public release.
 
 ## Summary
 
-Smart Proxy Route Helper is designed to be local-first:
+Smart Proxy Route Helper is local-first:
 
 - No telemetry.
 - No analytics.
@@ -15,10 +15,12 @@ Smart Proxy Route Helper is designed to be local-first:
 - No user accounts.
 - No developer-operated data collection.
 - No sale or transfer of user data.
+- No remote executable code.
+- No runtime remote list fetching.
 
 ## Data the Extension Is Expected to Store
 
-The MVP stores only user-provided settings needed for proxy routing.
+The MVP stores only user-provided settings needed for proxy routing and personal domain classification preferences.
 
 Synced with `chrome.storage.sync`:
 
@@ -35,9 +37,9 @@ Stored only on the local device with `chrome.storage.local`:
 - Device enabled/disabled state.
 - Local diagnostics preference.
 
-The project does not store secrets, local proxy configuration, browsing history, raw diagnostic history, or temporary probe state in synced storage.
+The project does not store secrets, local proxy configuration, browsing history, raw URLs, raw diagnostic history, page resource lists, or temporary probe state in synced storage.
 
-User-invoked related-domain preview may collect sanitized resource hostnames from bounded resource references on the current page in memory. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
+User-invoked related-domain preview may collect sanitized resource hostnames from bounded resource references on the current page in memory. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Paths, query strings, fragments, and credentials are dropped before preview output. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
 
 ## Chrome Sync
 

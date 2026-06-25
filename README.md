@@ -2,26 +2,30 @@
 
 Smart Proxy Route Helper is an open-source Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
 
-The extension lets a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is intended to be local-first, permission-minimal, and publishable to Chrome Web Store.
+The extension lets a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is local-first, permission-minimal, and designed to be publishable to Chrome Web Store.
 
-## Repository Status
+## MVP Release Candidate Status
 
-This repository currently contains initial documentation, project guidance, and an initial Manifest V3 TypeScript runtime.
+Version `0.1.0` is the first MVP release candidate. The runtime includes:
 
-The runtime includes popup/options pages, domain rule helpers, PAC generation, typed storage helpers, background proxy application, manual current-site diagnostics, a local domain-classification layer, and a user-invoked related-domain preview with explicit selected-candidate saving. It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
+- Options UI for device-specific local proxy configuration and synced route rules.
+- Popup UI for current-site route management.
+- Background PAC runtime application through `chrome.proxy`.
+- Fail-closed matched proxy routing.
+- Manual "Check via proxy" diagnostics.
+- User-invoked related-domain preview through `activeTab` plus `scripting`.
+- Selectable related-domain suggestions.
+- User classification overrides stored as domain-level preferences.
+- Built-in local domain classification foundation.
 
-## Local Development
+It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
+
+## Quick Start
 
 Install dependencies:
 
 ```sh
 npm install
-```
-
-Run unit tests:
-
-```sh
-npm test
 ```
 
 Build the unpacked extension:
@@ -30,11 +34,54 @@ Build the unpacked extension:
 npm run build
 ```
 
-The build output is written to `dist/`. Load that directory from `chrome://extensions` with Developer mode enabled.
+Load the extension:
 
-## MVP Scope
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click "Load unpacked".
+4. Select the generated `dist/` directory.
 
-The current MVP runtime provides a small manual PAC manager:
+Configure and use the MVP:
+
+1. Open Options.
+2. Configure the local proxy scheme, host, and port for this device.
+3. Open a supported `http` or `https` site.
+4. Open the extension popup.
+5. Add the current site as a synced proxy route, or run "Check via proxy" first.
+6. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions.
+7. Select only the related domains you want and click the separate add action.
+
+## Development Commands
+
+Run tests:
+
+```sh
+npm test
+```
+
+Run type checking:
+
+```sh
+npm run typecheck --if-present
+```
+
+Build:
+
+```sh
+npm run build
+```
+
+Package the current build for local release testing:
+
+```sh
+npm run package
+```
+
+The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.1.0.zip`. Run `npm run build` first.
+
+## What It Does
+
+The MVP runtime provides a small manual PAC manager:
 
 - Add, edit, disable, and remove domain rules manually.
 - Sync domain rules with `chrome.storage.sync`.
@@ -48,9 +95,9 @@ The current MVP runtime provides a small manual PAC manager:
 - Save related-domain candidates only after explicit user selection and confirmation.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
-## Out of Scope for MVP
+## What It Does Not Do
 
-The MVP will not include:
+The MVP does not include:
 
 - Telemetry, analytics, ads, or usage reporting.
 - Backend services or user accounts.
@@ -66,19 +113,18 @@ The MVP will not include:
 - Runtime fetching of GitHub/raw classification lists.
 - Automatic upload or reporting of collected domains.
 - Proxy authentication management.
+- Chrome Web Store submission automation.
 
-## Permission Strategy
+## Permissions Summary
 
-MVP permissions:
+Required permissions:
 
 - `storage` for extension settings.
 - `proxy` to apply the locally generated PAC configuration.
 - `activeTab` for explicit user-initiated current-site popup actions and diagnostics.
 - `scripting` for the explicit user-initiated current-page related-domain preview.
 
-Planned MVP host permissions:
-
-- None.
+Host permissions: none.
 
 The MVP avoids broad page access. Current-site actions rely on the user invoking the extension on the active tab. Related-domain preview uses the temporary `activeTab` grant plus `scripting` after an explicit popup click, collects only sanitized resource hostnames, and does not store, sync, or send those collected hosts. Related-domain candidates become synced rules only after explicit user selection and a separate add click.
 
@@ -89,8 +135,9 @@ See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 Synced across the user's Chrome profile:
 
 - Domain routing rules.
-- Ignored domains and denylist entries.
-- Rule metadata that is safe to sync, such as source and creation timestamps.
+- Domain-level classification overrides for related-domain preview.
+- Domain-level ignored domains and denylist entries.
+- Rule metadata such as source and creation timestamps.
 
 Device-specific:
 
@@ -98,7 +145,7 @@ Device-specific:
 - Extension enabled state for the current device.
 - Local diagnostics preference.
 
-The project should not store secrets in synced storage.
+The project does not store raw URLs, page paths, query strings, fragments, credentials, browsing history, local proxy configuration, or diagnostics history in synced storage.
 
 See [docs/architecture.md](docs/architecture.md) for the planned data boundaries.
 
@@ -112,8 +159,19 @@ The project is designed around a simple privacy promise:
 - No sale or transfer of user data.
 - No developer access to user domain rules or local proxy settings.
 - Chrome Sync may sync domain rules if the user has sync enabled in Chrome.
+- Related-domain preview is user-invoked and transient.
+- Local proxy configuration stays on the local device.
 
 See [PRIVACY.md](PRIVACY.md).
+
+## Known Limitations
+
+- The extension is not yet published on Chrome Web Store.
+- Local proxy availability depends on software configured outside this extension.
+- Chrome proxy settings may be controlled by enterprise policy, another extension, or user settings.
+- Related-domain preview can be noisy because it is based on resources present on the currently loaded page.
+- The built-in classification data is intentionally small and curated.
+- Proxy authentication management is not included in the MVP.
 
 ## Chrome Web Store Review Risks
 
@@ -126,7 +184,7 @@ Known review-sensitive areas:
 - Diagnostics must not look like hidden browsing activity collection.
 - Store listing, UI, and privacy disclosures must match actual behavior.
 
-See [docs/release-plan.md](docs/release-plan.md) and [SECURITY.md](SECURITY.md).
+See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.md](docs/release-plan.md), and [SECURITY.md](SECURITY.md).
 
 ## Documentation Map
 
@@ -134,6 +192,8 @@ See [docs/release-plan.md](docs/release-plan.md) and [SECURITY.md](SECURITY.md).
 - [docs/architecture.md](docs/architecture.md): planned extension architecture and storage boundaries.
 - [docs/domain-classification.md](docs/domain-classification.md): local candidate classification model, precedence, and contribution workflow.
 - [docs/permissions.md](docs/permissions.md): MVP and future permission strategy.
+- [docs/release-checklist.md](docs/release-checklist.md): release candidate verification checklist.
+- [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): draft release notes for v0.1.0.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
 - [PRIVACY.md](PRIVACY.md): privacy posture and data handling.

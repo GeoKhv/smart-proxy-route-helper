@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the planned architecture. The repository currently contains startup documentation, an initial MV3 TypeScript scaffold, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the v0.1.0 MVP architecture. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -9,7 +9,9 @@ This document describes the planned architecture. The repository currently conta
 - Simple popup/options HTML and TypeScript for MVP.
 - Local-first behavior with no backend.
 - No telemetry.
+- No backend.
 - No remote executable code.
+- No runtime remote list fetching.
 - Permission-minimal design.
 - Pure business logic modules for validation, normalization, storage mapping, and PAC generation.
 
@@ -59,7 +61,7 @@ It does not yet report current apply status to the UI.
 
 ### Pure Modules
 
-Once implementation begins, core logic should be isolated from Chrome APIs:
+Core logic is isolated from Chrome APIs where practical:
 
 - Domain normalization and validation.
 - Proxy configuration validation.
@@ -87,7 +89,7 @@ Current synced data:
 - Personal classification overrides for related-domain preview, stored as normalized domain-level global and site-scoped preferences.
 - Safe rule metadata such as manual/import/diagnostic source and creation time.
 
-Do not store local proxy host, port, credentials, device state, raw URLs, page resource lists, browsing history, diagnostics history, or temporary preview/probe state in synced storage.
+Do not store local proxy host, port, credentials, device state, raw URLs, page resource lists, browsing history, diagnostics history, temporary preview/probe state, or local proxy availability results in synced storage.
 
 ### Local Storage
 
@@ -101,7 +103,7 @@ Current local data:
 - Device proxy enabled/disabled state.
 - Local diagnostics preference.
 
-Do not store telemetry, browsing history, raw diagnostic history, secrets, synced proxy host/port values, or temporary probe state.
+Do not store telemetry, browsing history, raw URLs, raw diagnostic history, secrets, synced proxy host/port values, collected page resource hosts, or temporary probe state.
 
 ## Planned Domain Rule Semantics
 
@@ -209,7 +211,7 @@ Because the preview inspects resources from the currently loaded page, results c
 
 If the active tab appears to be a browser error page, server error page, protection page, or interstitial, the popup shows a neutral warning and does not present collected helper hosts as normal related-domain candidates. The user should route or check the target site through proxy, reload the real target page, and preview related domains again.
 
-This spike adds the `scripting` permission because Chrome requires it for programmatic `chrome.scripting.executeScript`; it does not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, telemetry, backend services, remote PAC URLs, or remote executable code.
+The MVP includes the `scripting` permission because Chrome requires it for programmatic `chrome.scripting.executeScript`; it does not add host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, telemetry, backend services, remote PAC URLs, or remote executable code.
 
 ### Related-Domain Candidate Engine
 

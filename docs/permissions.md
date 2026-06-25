@@ -15,7 +15,7 @@ Required extension permissions:
 
 | Permission | Reason | MVP status |
 | --- | --- | --- |
-| `storage` | Store synced domain rules and local proxy configuration. | Required |
+| `storage` | Store synced domain rules and classification overrides, plus local proxy configuration. | Required |
 | `proxy` | Apply the locally generated PAC configuration in Chrome. | Required |
 | `activeTab` | Read the current tab URL after the user invokes the popup and allow a manual current-origin diagnostic check. | Required |
 | `scripting` | Run a one-time, user-invoked current-page resource host collector for related-domain preview using the temporary `activeTab` grant. | Required |
@@ -67,6 +67,7 @@ Current-site diagnostics are part of the MVP and must follow these rules:
 - Request the narrowest feasible access.
 - Avoid host permissions, `<all_urls>`, `webRequest`, `webNavigation`, and persistent content scripts unless a future design is explicitly approved.
 - Store no diagnostic history or temporary probe state.
+- Store no raw URLs in synced or local storage.
 - Never add a domain rule without explicit confirmation.
 
 ## Related-Domain Preview Permission Rules
@@ -84,6 +85,7 @@ This flow must:
 - Store no collected hosts or transient diagnostic summary counts in `chrome.storage.sync` or `chrome.storage.local`.
 - Never create or save related-domain rules automatically.
 - Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
+- Store classification overrides as normalized domain-level preferences only.
 
 Chrome documents `activeTab` as temporary access after the user invokes the extension, and documents `scripting` as required for programmatic script injection with either host permissions or `activeTab`. This project uses the `activeTab` path and does not add host permissions.
 
