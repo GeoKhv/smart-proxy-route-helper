@@ -1,12 +1,13 @@
 # Security Policy
 
-This repository contains the initial Manifest V3 extension runtime. No public runtime release has been published yet.
+This repository contains the initial Manifest V3 extension runtime. GitHub pre-release `v0.1.0` is available for Store-preparation testing, but the extension is not yet published on Chrome Web Store.
 
 ## Supported Versions
 
-No released versions are currently supported because no runtime release exists yet.
-
-Once releases begin, this section should list supported release lines and security update expectations.
+| Version | Status |
+| --- | --- |
+| `v0.1.0` pre-release | Best-effort security fixes while this is the active MVP release candidate. |
+| Unreleased `main` | Security fixes may land here before the next release candidate. |
 
 ## Reporting a Vulnerability
 
