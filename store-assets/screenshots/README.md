@@ -43,7 +43,23 @@ Known final-canvas limitations:
 - `final/03-popup-current-site.png` was composed from the existing popup source crop and was not recaptured.
 - `final/04-popup-related-domains.png` was composed from the existing popup source crop and still includes a visible cursor highlight from the original Computer Use capture.
 - `final/05-popup-recording.png` was composed from the existing popup source crop and still includes a visible cursor highlight from the original Computer Use capture.
-- The popup canvases are draft candidates. Before actual Chrome Web Store submission, recapture popup screenshots from the visible extension toolbar icon in a clean Chrome profile if a cursor-free set is required.
-- The final canvas set contains six draft images. The Chrome Web Store listing currently accepts up to five screenshots, so choose the submission set during the actual listing pass.
+- The popup canvases are draft candidates. Before actual Chrome Web Store submission, recapture `04` and `05` from the visible extension toolbar icon in a clean Chrome profile; do not paint over or crop around the cursor highlight.
+
+Recapture attempt on 2026-06-26:
+
+- A temporary local demo page was served under `/private/tmp` and opened as `http://example.com:18080/` in a separate Chrome profile with no Chrome Sync sign-in and no private profile data.
+- Installed Google Chrome did not load the unpacked extension through command-line flags. The local Chrome binary reported `--load-extension is not allowed in Google Chrome, ignoring.` and `--disable-extensions-except is not allowed in Google Chrome, ignoring.`
+- Chrome for Testing or Chromium was not available in the standard local application paths checked during this pass.
+- Because a real toolbar-opened popup could not be reproduced cleanly, `04` and `05` were not recaptured and remain draft candidates.
+
+Recommended five Store screenshot slots, after `04` and `05` are cleanly recaptured:
+
+1. `final/01-options-local-proxy.png`
+2. `final/03-popup-current-site.png`
+3. `final/04-popup-related-domains.png`
+4. `final/05-popup-recording.png`
+5. `final/06-options-classification-overrides.png`
+
+Keep `final/02-options-route-rules.png` in the repository as a useful fallback/supporting image. If Store submission must happen before clean recapture, do not upload the current `04` or `05` cursor-highlight drafts; use fewer screenshots or replace one slot with `02`.
 
 No Chrome Web Store Developer Dashboard changes were made.

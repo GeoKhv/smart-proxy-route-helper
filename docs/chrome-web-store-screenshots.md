@@ -11,13 +11,13 @@ Prepared on 2026-06-26 under [../store-assets/screenshots/final/](../store-asset
 | Final canvas | Source draft | Status |
 | --- | --- | --- |
 | `01-options-local-proxy.png` | `../store-assets/screenshots/01-options-local-proxy.png` | `1280x800` final draft canvas |
-| `02-options-route-rules.png` | `../store-assets/screenshots/02-options-route-rules.png` | `1280x800` final draft canvas |
+| `02-options-route-rules.png` | `../store-assets/screenshots/02-options-route-rules.png` | `1280x800` final draft canvas; fallback/supporting image |
 | `03-popup-current-site.png` | `../store-assets/screenshots/03-popup-current-site.png` | `1280x800` final draft canvas from existing popup crop |
-| `04-popup-related-domains.png` | `../store-assets/screenshots/04-popup-related-domains.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains |
-| `05-popup-recording.png` | `../store-assets/screenshots/05-popup-recording.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains |
+| `04-popup-related-domains.png` | `../store-assets/screenshots/04-popup-related-domains.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains; recapture required before upload |
+| `05-popup-recording.png` | `../store-assets/screenshots/05-popup-recording.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains; recapture required before upload |
 | `06-options-classification-overrides.png` | `../store-assets/screenshots/06-options-classification-overrides.png` | `1280x800` final draft canvas |
 
-The current set contains six draft canvases so the submission owner can choose the strongest five during the actual listing pass. The Chrome Web Store Developer Dashboard was not opened or modified during this preparation work.
+The current set contains six draft canvases so the repository can keep one fallback/supporting image while the Store listing uses a focused five-image set. The Chrome Web Store Developer Dashboard was not opened or modified during this preparation work.
 
 The final draft canvases use only sanitized demo data:
 
@@ -27,7 +27,20 @@ The final draft canvases use only sanitized demo data:
 
 No private proxy/provider/account information, private pages, credentials, personal profile data, backend data, telemetry data, or Chrome Web Store Developer Dashboard data is included.
 
-The popup canvases are draft candidates because they were composed from existing toolbar-opened popup crops. Before actual Store submission, recapture the popup screenshots from the visible extension toolbar icon in a clean Chrome profile if a cursor-free set is required.
+The popup canvases are draft candidates because they were composed from existing toolbar-opened popup crops. Before actual Store submission, recapture `04` and `05` from the visible extension toolbar icon in a clean Chrome profile. Do not upload the current `04` or `05` files while the cursor highlight remains.
+
+## 2026-06-26 Recapture Attempt
+
+The 2026-06-26 cleanup pass attempted a safe recapture without using the user's main Chrome profile:
+
+- Built the current `dist/` output.
+- Served a temporary sanitized local demo page and opened it as `http://example.com:18080/` in a separate Chrome profile under `/private/tmp`.
+- Confirmed the temporary window contained only the clean demo page and no private profile data.
+- Tried loading the current unpacked extension from both the repository `dist/` path and a `/private/tmp` copy.
+
+The installed Google Chrome build did not allow command-line unpacked extension loading. It reported `--load-extension is not allowed in Google Chrome, ignoring.` and `--disable-extensions-except is not allowed in Google Chrome, ignoring.` Chrome for Testing or Chromium was not available in the standard local application paths checked during the pass.
+
+Because a clean, real toolbar-opened popup could not be reproduced in this environment, the existing `04` and `05` canvases were kept as draft candidates rather than edited or faked.
 
 ## Capture Environment
 
@@ -55,7 +68,7 @@ Prepare before submission:
 
 ## Recommended Five-Screenshot Set
 
-Use five of the current final draft canvases for the first submission set. `06-options-classification-overrides.png` can remain optional if the Developer Dashboard still allows only five screenshots.
+Use these five content slots for the first Store submission set after `04` and `05` have been cleanly recaptured without cursor highlight:
 
 ### 1. Options: Local Proxy Configuration
 
@@ -69,20 +82,7 @@ Recommended visible state:
 
 Message to convey: local proxy settings stay device-specific and user-controlled.
 
-### 2. Options: Synced Domain Rules
-
-Show the Options page domain rules section.
-
-Recommended visible state:
-
-- A short list of sample domains.
-- Suggested demo domains: `example.com`, `chatgpt.com`, `oaiusercontent.com`, `linkedin.com`, `licdn.com`, and `2ip.io`.
-- Include-subdomains setting where available.
-- Clear rule enable/edit/remove controls.
-
-Message to convey: users manually manage domain-level proxy routes.
-
-### 3. Popup: Current-Site Routing Controls
+### 2. Popup: Current-Site Routing Controls
 
 Show the popup on a neutral sample site.
 
@@ -94,19 +94,7 @@ Recommended visible state:
 
 Message to convey: current-site routing is explicit and controlled from the popup.
 
-### 4. Popup: Check via Proxy
-
-Show the manual current-site diagnostic action.
-
-Recommended visible state:
-
-- "Check via proxy" action.
-- A neutral success or warning result.
-- No detailed network logs or private request data.
-
-Message to convey: diagnostics run only after user action and do not save history.
-
-### 5. Popup: Related-Domain Preview
+### 3. Popup: Related-Domain Preview
 
 Show the related-domain preview with selected sample candidates.
 
@@ -119,11 +107,7 @@ Recommended visible state:
 
 Message to convey: related-domain suggestions are previewed first and require explicit selection before saving.
 
-## Additional Screenshot Candidates
-
-Use these only if the Store listing needs a different emphasis or if future Store assets allow more visuals.
-
-### Popup: Diagnostic Recording
+### 4. Popup: Diagnostic Recording
 
 Show the explicit start/stop/cancel recording flow using a neutral test page.
 
@@ -135,7 +119,7 @@ Recommended visible state:
 
 Message to convey: recording is temporary, action-specific, and user-invoked.
 
-### Options: Classification Overrides
+### 5. Options: Classification Overrides
 
 Show domain-level classification override controls.
 
@@ -145,6 +129,35 @@ Recommended visible state:
 - Clear reset/remove controls.
 
 Message to convey: overrides are domain-level preferences, not browsing history.
+
+## Additional Screenshot Candidates
+
+Use these only if the Store listing needs a different emphasis or if clean recapture for one of the recommended popup states is not available.
+
+### Options: Synced Domain Rules
+
+Show the Options page domain rules section.
+
+Recommended visible state:
+
+- A short list of sample domains.
+- Suggested demo domains: `example.com`, `chatgpt.com`, `oaiusercontent.com`, `linkedin.com`, `licdn.com`, and `2ip.io`.
+- Include-subdomains setting where available.
+- Clear rule enable/edit/remove controls.
+
+Message to convey: users manually manage domain-level proxy routes.
+
+### Popup: Check via Proxy
+
+Show the manual current-site diagnostic action if a clean popup state is captured later.
+
+Recommended visible state:
+
+- "Check via proxy" action.
+- A neutral success or warning result.
+- No detailed network logs or private request data.
+
+Message to convey: diagnostics run only after user action and do not save history.
 
 ## Screenshot Copy Guardrails
 

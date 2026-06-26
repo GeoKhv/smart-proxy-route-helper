@@ -37,6 +37,8 @@ In the clean Chrome profile:
 
 Do not load unpacked from a private or modified build directory. Screenshots should match the extension version intended for Store review.
 
+Do not rely on command-line unpacked extension loading in installed Google Chrome. During the 2026-06-26 cleanup pass, installed Google Chrome reported `--load-extension is not allowed in Google Chrome, ignoring.` and `--disable-extensions-except is not allowed in Google Chrome, ignoring.` Use Chrome for Testing, Chromium, or the `chrome://extensions` Load unpacked flow in a clean profile instead.
+
 ## Demo Data
 
 Use only sanitized demo values. The fixture at [docs/demo-storage-fixture.json](demo-storage-fixture.json) is for manual clean-profile setup only and is not loaded by production runtime.
@@ -110,18 +112,20 @@ Popup screenshots `03` through `05` are composed from existing toolbar-opened po
 
 ## Recommended Five-Screenshot Set
 
-Use the same set as the screenshot plan:
+Use the same content set as the screenshot plan after popup screenshots `04` and `05` have been cleanly recaptured without cursor highlight:
 
 1. Options: Local Proxy Configuration.
    Show device-specific local proxy settings with `socks5`, `127.0.0.1`, and `1080`. Do not show a real proxy provider, real IP, or credentials.
-2. Options: Synced Domain Rules.
-   Show the sanitized demo route rules from this workflow. Keep the list short enough to read.
-3. Popup: Current-Site Routing Controls.
+2. Popup: Current-Site Routing Controls.
    Open the popup on `https://example.com` or another neutral public page. Show hostname-level routing controls only.
-4. Popup: Check via Proxy.
-   Show the manual "Check via proxy" action and a neutral result. Do not show network logs, real proxy diagnostics, or private page content.
-5. Popup: Related-Domain Preview.
+3. Popup: Related-Domain Preview.
    Show sanitized related-domain candidates for `chatgpt.com` or `linkedin.com` only in the clean profile. Use demo candidates such as `oaiusercontent.com` and `licdn.com`; keep ignored `trkn.us` visible only if it helps show the ignored state without policy-sensitive framing.
+4. Popup: Diagnostic Recording.
+   Show the explicit start/stop/cancel recording state using a neutral test page. Do not show user-generated content, uploaded files, credentials, or private page text.
+5. Options: Classification Overrides.
+   Show domain-level classification override controls with placeholder domains. Keep clear reset/remove controls visible.
+
+Keep Options: Synced Domain Rules as a fallback/supporting screenshot if one of the popup states cannot be cleanly recaptured. Do not upload current popup draft canvases that still show cursor highlight.
 
 Do not use personal ChatGPT or LinkedIn pages for Store screenshots. If those domains are shown, use a clean signed-out page or a cropped extension UI state that does not reveal account content.
 
