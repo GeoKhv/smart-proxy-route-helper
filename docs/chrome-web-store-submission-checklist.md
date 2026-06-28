@@ -170,7 +170,6 @@ If findings appear, do not upgrade dependencies inside a Store-preparation slice
 
 Current known blockers for direct submission:
 
-- Popup screenshots `04` and `05` still need clean final recapture or replacement before upload.
 - The small promotional image exists as a repository draft asset, but final Dashboard upload and review have not been performed.
 - Chrome Web Store Developer Dashboard fields have not been filled out.
 - Privacy policy URL must be reviewed immediately before submission.

@@ -32,7 +32,7 @@ Current preparation state:
 - Release asset exists at `release/smart-proxy-route-helper-v0.1.0.zip`.
 - Store-readiness docs exist in `docs/`.
 - Store listing assets are draft-ready.
-- Popup screenshots `04` and `05` still need clean manual recapture before final public submission because the current draft canvases contain a cursor highlight.
+- Popup screenshots `04` and `05` were replaced on 2026-06-28 from clean manually captured Chrome sources and no longer show cursor highlights.
 
 Do not submit until the final screenshot set is reviewed from a clean profile and the Dashboard fields are checked against the exact uploaded package.
 
@@ -309,15 +309,15 @@ The extension does not collect page text, form values, uploaded file contents, l
 Recommended strongest five-screenshot set for the first Store listing:
 
 1. `store-assets/screenshots/final/01-options-local-proxy.png`
-2. `store-assets/screenshots/final/02-options-route-rules.png`
-3. `store-assets/screenshots/final/03-popup-current-site.png`
-4. `store-assets/screenshots/final/04-popup-related-domains.png`
+2. `store-assets/screenshots/final/03-popup-current-site.png`
+3. `store-assets/screenshots/final/04-popup-related-domains.png`
+4. `store-assets/screenshots/final/05-popup-recording.png`
 5. `store-assets/screenshots/final/06-options-classification-overrides.png`
 
 Important notes:
 
-- `04-popup-related-domains.png` currently has a cursor highlight and should ideally be recaptured manually before final submission.
-- `05-popup-recording.png` is available as a fallback draft candidate, but it also has a cursor highlight.
+- `04-popup-related-domains.png` and `05-popup-recording.png` were regenerated from clean full-window popup sources saved under `store-assets/screenshots/source/`.
+- `02-options-route-rules.png` remains available as a fallback/supporting screenshot if the final Dashboard upload review needs a different set.
 - Do not retouch or fake screenshots.
 - Do not recapture from the user's main Chrome profile.
 - Before final public submission, use a clean Chrome profile and verify that screenshots contain no private account state, private domains, proxy secrets, credentials, browser notifications, or unrelated tabs.

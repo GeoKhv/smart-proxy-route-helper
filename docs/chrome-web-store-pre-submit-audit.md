@@ -2,7 +2,7 @@
 
 Audit date: 2026-06-26
 
-Asset update: 2026-06-28. This update addresses only the mandatory small promotional image draft asset. It does not publish the extension, modify Chrome Web Store Developer Dashboard fields, change runtime code, change manifest permissions, or bump the version.
+Asset updates: 2026-06-28 added the mandatory small promotional image draft asset and replaced popup screenshots `04` and `05` from clean manually captured Chrome sources. These updates do not publish the extension, modify Chrome Web Store Developer Dashboard fields, change runtime code, change manifest permissions, or bump the version.
 
 This report reviews Smart Proxy Route Helper for future Chrome Web Store submission readiness. It is a review artifact only. It does not publish the extension, modify Chrome Web Store Developer Dashboard fields, create a release, create a tag, change runtime code, change manifest permissions, or bump the version.
 
@@ -15,6 +15,7 @@ This report reviews Smart Proxy Route Helper for future Chrome Web Store submiss
 | Pull result | `git pull --ff-only origin main` was already up to date |
 | Current commit | `cc50b5a6a5b1805bebb9e878d56c69c578600ec9` (`cc50b5a Add Chrome Web Store submission dry run`) |
 | 2026-06-28 asset-update starting commit | `acf199ffa740fedb912218bea0660240ef508694` (`acf199f Finalize Chrome Web Store pre-submit audit`) |
+| 2026-06-28 screenshot-update starting commit | `c7822971f490a7652ceead5d874817229e462631` (`c782297 Add Chrome Web Store small promo asset`) |
 | `manifest.json` version | `0.1.0` |
 | `package.json` version | `0.1.0` |
 | GitHub release | `v0.1.0`, pre-release, not draft, published 2026-06-25 |
@@ -57,7 +58,7 @@ Key official constraints applied in this audit:
 | GitHub release lookup | Passed through `gh release view v0.1.0` |
 | Release asset content comparison | Passed, downloaded GitHub asset and locally rebuilt zip extract to identical file contents |
 | Screenshot dimension check | Passed, all final screenshot PNGs are `1280x800` |
-| Screenshot visual review | Passed for private-data safety; cursor highlights remain in `04` and `05` |
+| Screenshot visual review | Passed for private-data safety; clean replacements for `04` and `05` show no visible cursor highlight |
 
 `npm audit` exits non-zero because of the low severity advisory. This audit treats it as a warning, not a Store-submission blocker, because the affected package is a development build tool advisory and dependency maintenance was explicitly out of scope for this Store-preparation pass.
 
@@ -142,7 +143,7 @@ Manual Dashboard fields were not opened or modified during this audit.
 
 ## Screenshot And Image Audit
 
-Screenshot status: warning for `04` and `05`; small promotional image draft prepared, with final Dashboard upload and review still required.
+Screenshot status: pass for repository screenshot assets; small promotional image draft prepared, with final Dashboard upload and review still required.
 
 Final screenshot files exist:
 
@@ -153,15 +154,15 @@ Final screenshot files exist:
 - `store-assets/screenshots/final/05-popup-recording.png`
 - `store-assets/screenshots/final/06-options-classification-overrides.png`
 
-All six final screenshot PNGs are `1280x800`. Visual review found sanitized demo data only. No private profile data, credentials, account pages, proxy secrets, raw private URLs, Chrome Web Store Dashboard data, or unrelated private tabs were visible.
+All six final screenshot PNGs are `1280x800`. Visual review found sanitized demo data only. No private profile data, credentials, account pages, proxy secrets, raw private URLs, Chrome Web Store Dashboard data, unrelated private tabs, or cursor highlights were visible in the recommended set.
 
-Important screenshot limitation:
+Clean popup replacement:
 
-- `04-popup-related-domains.png` still contains a visible cursor highlight.
-- `05-popup-recording.png` still contains a visible cursor highlight.
-- `docs/chrome-web-store-screenshots.md`, `docs/chrome-web-store-submission-dry-run.md`, and `store-assets/screenshots/README.md` correctly warn that these popup canvases should be cleanly recaptured before final public submission.
+- `store-assets/screenshots/source/04-popup-related-domains-clean.png` was saved from the clean manually captured related-domain preview popup source.
+- `store-assets/screenshots/source/05-popup-recording-clean.png` was saved from the clean manually captured diagnostic recording popup source.
+- `store-assets/screenshots/final/04-popup-related-domains.png` and `store-assets/screenshots/final/05-popup-recording.png` were regenerated from those clean sources without painting over, faking, or retouching the UI.
 
-Recommended strongest five after clean recapture:
+Recommended strongest five:
 
 1. `01-options-local-proxy.png`
 2. `03-popup-current-site.png`
@@ -169,7 +170,7 @@ Recommended strongest five after clean recapture:
 4. `05-popup-recording.png`
 5. `06-options-classification-overrides.png`
 
-If submission must happen before clean recapture, do not upload the current cursor-highlight versions of `04` or `05`. Use fewer clean screenshots or replace one slot with `02-options-route-rules.png`.
+Keep `02-options-route-rules.png` as a fallback/supporting image in the repository. Before submission, still perform the normal final Dashboard upload review against the exact package.
 
 Image asset update:
 
@@ -271,9 +272,9 @@ This audit did not rerun live browser smoke tests. The manual smoke coverage is 
 | --- | --- | --- |
 | Resolved in repository | Mandatory `440x280` small promotional image was missing under `store-assets/`. | Draft asset now exists at `store-assets/promotional/small-promo-440x280.png`; upload and final-review it manually in the Dashboard before submission. |
 | Blocker | Chrome Web Store Developer Dashboard fields were not filled or final-reviewed in this audit. | Complete Dashboard fields manually and compare them against the exact uploaded package before pressing Submit. |
-| Warning | `04` and `05` popup screenshot canvases contain cursor highlights. | Recapture clean popup screenshots from a clean Chrome profile, or submit with only clean screenshots and the `02` fallback. |
+| Resolved in repository | `04` and `05` popup screenshot canvases previously contained cursor highlights. | Clean manually captured popup sources now replace them; final-review the uploaded images in the Dashboard before submission. |
 | Warning | `npm audit` reports low severity `esbuild` advisory `GHSA-g7r4-m6w7-qqqr`. | Track separately as dependency maintenance; do not fold into this Store audit unless policy or risk changes. |
-| Warning | GitHub release target commit differs from current `origin/main`. | Treat `cc50b5a` as the current docs-ready pre-submit baseline; if a new runtime build is required later, cut a fresh release intentionally. |
+| Warning | GitHub release target commit differs from current `origin/main`. | Treat `c782297` plus the later screenshot replacement commit as the current docs/assets-ready pre-submit baseline; if a new runtime build is required later, cut a fresh release intentionally. |
 | Warning | Privacy policy URL is drafted but final public signed-out check was not performed in the Dashboard submission flow. | Verify immediately before submission. |
 | Nice-to-have | Add a concise provenance note or checksum note to final submission records. | Helpful for future review, not required for Store upload. |
 | Nice-to-have | Add optional marquee promotional image if final positioning benefits from it. | Optional Store polish after mandatory image assets are complete. |
@@ -284,10 +285,9 @@ Do not submit yet.
 
 Submit after these specific fixes and manual gates:
 
-1. Recapture `04` and `05` popup screenshots without cursor highlights, or choose a clean screenshot set that excludes them.
-2. Open the Chrome Web Store Developer Dashboard manually and fill the listing/privacy/distribution fields from the checked docs.
-3. Upload and final-review `store-assets/promotional/small-promo-440x280.png` in the Dashboard.
-4. Verify the privacy policy URL from a signed-out browser immediately before upload.
-5. Upload `release/smart-proxy-route-helper-v0.1.0.zip` only after confirming the chosen zip is the intended build.
+1. Open the Chrome Web Store Developer Dashboard manually and fill the listing/privacy/distribution fields from the checked docs.
+2. Upload and final-review the recommended screenshot set and `store-assets/promotional/small-promo-440x280.png` in the Dashboard.
+3. Verify the privacy policy URL from a signed-out browser immediately before upload.
+4. Upload `release/smart-proxy-route-helper-v0.1.0.zip` only after confirming the chosen zip is the intended build.
 
 No runtime blockers, manifest blockers, permission blockers, telemetry/backend blockers, remote-code blockers, or package-content blockers were found.

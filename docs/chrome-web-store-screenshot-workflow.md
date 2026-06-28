@@ -91,7 +91,7 @@ For the first Store-ready pass, capture all five screenshots at `1280x800` so th
 
 ## Final Canvas Composition
 
-The current final draft canvases are generated under [../store-assets/screenshots/final/](../store-assets/screenshots/final/) from the safe source drafts in [../store-assets/screenshots/](../store-assets/screenshots/).
+The current final draft canvases are generated under [../store-assets/screenshots/final/](../store-assets/screenshots/final/) from the safe source drafts in [../store-assets/screenshots/](../store-assets/screenshots/). Clean full-window source screenshots for popup replacements are stored under [../store-assets/screenshots/source/](../store-assets/screenshots/source/) and are cropped into popup source drafts before composition.
 
 From the repository root:
 
@@ -108,11 +108,11 @@ After generation, confirm every final PNG is `1280x800`:
 for f in store-assets/screenshots/final/*.png; do sips -g pixelWidth -g pixelHeight "$f"; done
 ```
 
-Popup screenshots `03` through `05` are composed from existing toolbar-opened popup crops. If a visible cursor highlight remains in a popup source crop, do not paint over it. Either recapture the popup safely from the visible extension toolbar icon in a clean Chrome profile, or keep the canvas documented as a draft candidate requiring final clean recapture before Store submission.
+Popup screenshot `03` is composed from an existing toolbar-opened popup crop. Popup screenshots `04` and `05` were regenerated on 2026-06-28 from clean full-window toolbar popup captures saved under `store-assets/screenshots/source/`. If a visible cursor highlight remains in any future popup source crop, do not paint over it. Either recapture the popup safely from the visible extension toolbar icon in a clean Chrome profile, or keep the canvas documented as a draft candidate requiring final clean recapture before Store submission.
 
 ## Recommended Five-Screenshot Set
 
-Use the same content set as the screenshot plan after popup screenshots `04` and `05` have been cleanly recaptured without cursor highlight:
+Use the same content set as the screenshot plan:
 
 1. Options: Local Proxy Configuration.
    Show device-specific local proxy settings with `socks5`, `127.0.0.1`, and `1080`. Do not show a real proxy provider, real IP, or credentials.
@@ -125,7 +125,7 @@ Use the same content set as the screenshot plan after popup screenshots `04` and
 5. Options: Classification Overrides.
    Show domain-level classification override controls with placeholder domains. Keep clear reset/remove controls visible.
 
-Keep Options: Synced Domain Rules as a fallback/supporting screenshot if one of the popup states cannot be cleanly recaptured. Do not upload current popup draft canvases that still show cursor highlight.
+Keep Options: Synced Domain Rules as a fallback/supporting screenshot if one of the popup states cannot be cleanly reviewed or recaptured.
 
 Do not use personal ChatGPT or LinkedIn pages for Store screenshots. If those domains are shown, use a clean signed-out page or a cropped extension UI state that does not reveal account content.
 

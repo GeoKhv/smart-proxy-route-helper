@@ -13,8 +13,8 @@ Prepared on 2026-06-26 under [../store-assets/screenshots/final/](../store-asset
 | `01-options-local-proxy.png` | `../store-assets/screenshots/01-options-local-proxy.png` | `1280x800` final draft canvas |
 | `02-options-route-rules.png` | `../store-assets/screenshots/02-options-route-rules.png` | `1280x800` final draft canvas; fallback/supporting image |
 | `03-popup-current-site.png` | `../store-assets/screenshots/03-popup-current-site.png` | `1280x800` final draft canvas from existing popup crop |
-| `04-popup-related-domains.png` | `../store-assets/screenshots/04-popup-related-domains.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains; recapture required before upload |
-| `05-popup-recording.png` | `../store-assets/screenshots/05-popup-recording.png` | `1280x800` final draft canvas from existing popup crop; visible cursor highlight remains; recapture required before upload |
+| `04-popup-related-domains.png` | `../store-assets/screenshots/04-popup-related-domains.png` | `1280x800` final draft canvas regenerated 2026-06-28 from clean full-window popup source; no visible cursor highlight |
+| `05-popup-recording.png` | `../store-assets/screenshots/05-popup-recording.png` | `1280x800` final draft canvas regenerated 2026-06-28 from clean full-window popup source; no visible cursor highlight |
 | `06-options-classification-overrides.png` | `../store-assets/screenshots/06-options-classification-overrides.png` | `1280x800` final draft canvas |
 
 The current set contains six draft canvases so the repository can keep one fallback/supporting image while the Store listing uses a focused five-image set. The Chrome Web Store Developer Dashboard was not opened or modified during this preparation work.
@@ -27,7 +27,7 @@ The final draft canvases use only sanitized demo data:
 
 No private proxy/provider/account information, private pages, credentials, personal profile data, backend data, telemetry data, or Chrome Web Store Developer Dashboard data is included.
 
-The popup canvases are draft candidates because they were composed from existing toolbar-opened popup crops. Before actual Store submission, recapture `04` and `05` from the visible extension toolbar icon in a clean Chrome profile. Do not upload the current `04` or `05` files while the cursor highlight remains.
+Popup screenshots `04` and `05` were replaced on 2026-06-28 from clean full-window Chrome screenshots saved under `../store-assets/screenshots/source/`. Their final canvases should still be reviewed during the manual Dashboard upload flow, but the previous cursor-highlight blocker is resolved.
 
 ## Current Promotional Draft Assets
 
@@ -50,7 +50,16 @@ The 2026-06-26 cleanup pass attempted a safe recapture without using the user's 
 
 The installed Google Chrome build did not allow command-line unpacked extension loading. It reported `--load-extension is not allowed in Google Chrome, ignoring.` and `--disable-extensions-except is not allowed in Google Chrome, ignoring.` Chrome for Testing or Chromium was not available in the standard local application paths checked during the pass.
 
-Because a clean, real toolbar-opened popup could not be reproduced in this environment, the existing `04` and `05` canvases were kept as draft candidates rather than edited or faked.
+At that time, because a clean, real toolbar-opened popup could not be reproduced in this environment, the existing `04` and `05` canvases were kept as draft candidates rather than edited or faked.
+
+## 2026-06-28 Clean Popup Replacement
+
+The clean manually captured popup screenshots were saved as:
+
+- `../store-assets/screenshots/source/04-popup-related-domains-clean.png`
+- `../store-assets/screenshots/source/05-popup-recording-clean.png`
+
+They were captured in a temporary clean Chrome profile from real toolbar popup states on `example.com`. The images were cropped to the visible popup panel without painting over, faking, or retouching the UI, then converted into the final `1280x800` canvases. Visual review found no private data and no cursor highlight in the regenerated `04` and `05` final canvases.
 
 ## Capture Environment
 
@@ -78,7 +87,7 @@ Prepare before submission:
 
 ## Recommended Five-Screenshot Set
 
-Use these five content slots for the first Store submission set after `04` and `05` have been cleanly recaptured without cursor highlight:
+Use these five content slots for the first Store submission set:
 
 ### 1. Options: Local Proxy Configuration
 
