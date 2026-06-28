@@ -29,6 +29,16 @@ No private proxy/provider/account information, private pages, credentials, perso
 
 The popup canvases are draft candidates because they were composed from existing toolbar-opened popup crops. Before actual Store submission, recapture `04` and `05` from the visible extension toolbar icon in a clean Chrome profile. Do not upload the current `04` or `05` files while the cursor highlight remains.
 
+## Current Promotional Draft Assets
+
+Prepared on 2026-06-28 under [../store-assets/promotional/](../store-assets/promotional/):
+
+| Asset | Source | Status |
+| --- | --- | --- |
+| `small-promo-440x280.png` | `small-promo-440x280.svg` | `440x280` small promotional image draft for Chrome Web Store; not uploaded to the Developer Dashboard |
+
+The small promotional image uses neutral copy: `Smart Proxy Route Helper` and `Route selected sites through your local proxy`. The visual uses sanitized example domains, a local proxy diagram, and privacy/user-control labels. It contains no private data, personal browser content, external CDN assets, external fonts, backend references, telemetry claims, or publication claims.
+
 ## 2026-06-26 Recapture Attempt
 
 The 2026-06-26 cleanup pass attempted a safe recapture without using the user's main Chrome profile:
@@ -63,7 +73,7 @@ Prepare before submission:
 
 - Store icon: `128x128` px.
 - Screenshots: at least one `1280x800` px screenshot, up to five total.
-- Small promo tile: `440x280` px PNG or JPEG.
+- Small promo tile: `store-assets/promotional/small-promo-440x280.png`, `440x280` px PNG draft prepared; upload and final-review manually in the Developer Dashboard before submission.
 - Optional marquee promo tile: `1400x560` px PNG or JPEG.
 
 ## Recommended Five-Screenshot Set

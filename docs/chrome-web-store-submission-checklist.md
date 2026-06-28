@@ -102,7 +102,8 @@ node -e "const m=require('./manifest.json'); console.log(JSON.stringify({version
 - [ ] At least one `1280x800` screenshot prepared.
 - [ ] No more than five Store screenshots selected.
 - [ ] Store icon is `128x128` px.
-- [ ] Small promo tile is `440x280` px PNG or JPEG.
+- [x] Small promo tile draft exists at `store-assets/promotional/small-promo-440x280.png` and is `440x280` px PNG.
+- [ ] Upload and final-review the small promo tile manually in the Chrome Web Store Developer Dashboard.
 - [ ] Optional marquee promo tile is `1400x560` px PNG or JPEG.
 - [ ] Screenshots use a clean test profile or equivalent private-data-safe setup.
 - [ ] Screenshots contain no private user data, credentials, proxy secrets, account pages, or sensitive tabs.
@@ -156,7 +157,7 @@ See `docs/chrome-web-store-listing.md`.
 
 ## npm Audit Note
 
-Latest preparation run on 2026-06-25:
+Latest preparation run on 2026-06-28:
 
 ```text
 npm audit reported 1 low severity vulnerability:
@@ -169,7 +170,8 @@ If findings appear, do not upgrade dependencies inside a Store-preparation slice
 
 Current known blockers for direct submission:
 
-- Store screenshots and promotional images still need clean final capture.
+- Popup screenshots `04` and `05` still need clean final recapture or replacement before upload.
+- The small promotional image exists as a repository draft asset, but final Dashboard upload and review have not been performed.
 - Chrome Web Store Developer Dashboard fields have not been filled out.
 - Privacy policy URL must be reviewed immediately before submission.
 - Release asset must be re-verified against the final submitted build.

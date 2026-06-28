@@ -1,0 +1,80 @@
+<svg width="440" height="280" viewBox="0 0 440 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>Smart Proxy Route Helper small promotional image</title>
+  <desc>Chrome Web Store small promotional image for Smart Proxy Route Helper, showing manual domain rules routed through a local proxy with no telemetry.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="440" y2="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F7FAFC"/>
+      <stop offset="0.56" stop-color="#EEF7F4"/>
+      <stop offset="1" stop-color="#F5F7FB"/>
+    </linearGradient>
+    <linearGradient id="route" x1="170" y1="150" x2="286" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2F80ED"/>
+      <stop offset="1" stop-color="#18A572"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#18A572"/>
+    </marker>
+    <style>
+      .font { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+      .title { fill: #102033; font-size: 23px; font-weight: 760; }
+      .subtitle { fill: #405268; font-size: 14px; font-weight: 500; }
+      .label { fill: #526071; font-size: 10px; font-weight: 700; }
+      .body { fill: #172B3A; font-size: 12px; font-weight: 650; }
+      .small { fill: #526071; font-size: 10px; font-weight: 560; }
+      .chip { fill: #203040; font-size: 10.5px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="440" height="280" fill="url(#background)"/>
+  <path d="M265 0H440V280H311C346 243 361 200 356 151C351 96 320 49 265 0Z" fill="#D9EFE9" opacity="0.72"/>
+  <path d="M0 208C66 198 104 211 140 247C154 261 169 272 188 280H0V208Z" fill="#E7EEF8" opacity="0.9"/>
+  <rect x="18" y="18" width="404" height="244" rx="22" fill="#FFFFFF" opacity="0.82"/>
+  <rect x="19" y="19" width="402" height="242" rx="21" stroke="#DCE6EF" stroke-width="2"/>
+
+  <rect x="28" y="27" width="58" height="58" rx="16" fill="#F7FAFC" stroke="#D8E4EF"/>
+  <path d="M57 39L74 46V58C74 69 66 75 57 78C48 75 40 69 40 58V46L57 39Z" fill="#E6F4EF" stroke="#18A572" stroke-width="2"/>
+  <path d="M50 58.5L55 63.5L65 51.5" stroke="#117A55" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text class="font title" x="96" y="52">Smart Proxy Route Helper</text>
+  <text class="font subtitle" x="96" y="76">Route selected sites through your local proxy</text>
+
+  <text class="font label" x="32" y="113">DOMAIN RULES</text>
+  <g>
+    <rect x="32" y="122" width="138" height="27" rx="8" fill="#F8FAFC" stroke="#D9E4EE"/>
+    <circle cx="47" cy="135.5" r="4" fill="#2F80ED"/>
+    <text class="font body" x="58" y="140">example.com</text>
+  </g>
+  <g>
+    <rect x="32" y="156" width="138" height="27" rx="8" fill="#F8FAFC" stroke="#D9E4EE"/>
+    <circle cx="47" cy="169.5" r="4" fill="#18A572"/>
+    <text class="font body" x="58" y="174">docs.example</text>
+  </g>
+  <g>
+    <rect x="32" y="190" width="138" height="27" rx="8" fill="#F8FAFC" stroke="#D9E4EE"/>
+    <circle cx="47" cy="203.5" r="4" fill="#F2B84B"/>
+    <text class="font body" x="58" y="208">assets.example</text>
+  </g>
+
+  <path d="M170 135C205 135 214 141 241 160C257 171 266 177 286 177" stroke="url(#route)" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M170 170C210 170 225 170 286 177" stroke="url(#route)" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.86"/>
+  <path d="M170 204C208 204 221 198 245 188C260 182 270 178 286 177" stroke="url(#route)" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.62"/>
+  <rect x="188" y="125" width="76" height="24" rx="12" fill="#FFFFFF" stroke="#CFE0EA"/>
+  <text class="font small" x="202" y="141">Manual</text>
+
+  <rect x="286" y="122" width="122" height="96" rx="14" fill="#F8FCFA" stroke="#CFE2DA"/>
+  <text class="font label" x="304" y="146">LOCAL PROXY</text>
+  <text class="font body" x="304" y="168">127.0.0.1</text>
+  <text class="font small" x="304" y="187">PAC route</text>
+  <rect x="371" y="151" width="27" height="24" rx="7" fill="#E7F5EF" stroke="#18A572"/>
+  <path d="M378 151V145C378 141 381 138 385 138C389 138 392 141 392 145V151" stroke="#117A55" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="384.5" cy="163" r="2.5" fill="#117A55"/>
+
+  <rect x="28" y="231" width="88" height="24" rx="12" fill="#EEF5FA" stroke="#D8E4EF"/>
+  <text class="font chip" x="44" y="247">No telemetry</text>
+  <rect x="124" y="231" width="100" height="24" rx="12" fill="#EFF8F4" stroke="#CFE2DA"/>
+  <text class="font chip" x="138" y="247">User controlled</text>
+  <rect x="232" y="231" width="82" height="24" rx="12" fill="#F9F3E6" stroke="#EBD8A9"/>
+  <text class="font chip" x="250" y="247">Sync rules</text>
+  <rect x="322" y="231" width="90" height="24" rx="12" fill="#F2F5FA" stroke="#D9E4EE"/>
+  <text class="font chip" x="337" y="247">Local settings</text>
+</svg>

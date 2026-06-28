@@ -2,6 +2,8 @@
 
 Audit date: 2026-06-26
 
+Asset update: 2026-06-28. This update addresses only the mandatory small promotional image draft asset. It does not publish the extension, modify Chrome Web Store Developer Dashboard fields, change runtime code, change manifest permissions, or bump the version.
+
 This report reviews Smart Proxy Route Helper for future Chrome Web Store submission readiness. It is a review artifact only. It does not publish the extension, modify Chrome Web Store Developer Dashboard fields, create a release, create a tag, change runtime code, change manifest permissions, or bump the version.
 
 ## Baseline
@@ -12,6 +14,7 @@ This report reviews Smart Proxy Route Helper for future Chrome Web Store submiss
 | Remote | `origin git@github.com:GeoKhv/smart-proxy-route-helper.git` |
 | Pull result | `git pull --ff-only origin main` was already up to date |
 | Current commit | `cc50b5a6a5b1805bebb9e878d56c69c578600ec9` (`cc50b5a Add Chrome Web Store submission dry run`) |
+| 2026-06-28 asset-update starting commit | `acf199ffa740fedb912218bea0660240ef508694` (`acf199f Finalize Chrome Web Store pre-submit audit`) |
 | `manifest.json` version | `0.1.0` |
 | `package.json` version | `0.1.0` |
 | GitHub release | `v0.1.0`, pre-release, not draft, published 2026-06-25 |
@@ -139,7 +142,7 @@ Manual Dashboard fields were not opened or modified during this audit.
 
 ## Screenshot And Image Audit
 
-Screenshot status: warning for `04` and `05`; image-asset blocker for direct Store submission.
+Screenshot status: warning for `04` and `05`; small promotional image draft prepared, with final Dashboard upload and review still required.
 
 Final screenshot files exist:
 
@@ -168,13 +171,14 @@ Recommended strongest five after clean recapture:
 
 If submission must happen before clean recapture, do not upload the current cursor-highlight versions of `04` or `05`. Use fewer clean screenshots or replace one slot with `02-options-route-rules.png`.
 
-Image asset blocker:
+Image asset update:
 
 - The packaged extension includes the required `128x128` icon.
 - At least one valid screenshot exists.
-- No `440x280` small promotional image was found under `store-assets/`.
-
-The official image requirements identify the small promotional image as mandatory for the Chrome Web Store listing, so a Store-ready `440x280` PNG or JPEG still needs to be created before direct submission.
+- `store-assets/promotional/small-promo-440x280.png` exists and is a `440x280` PNG draft.
+- `store-assets/promotional/small-promo-440x280.svg` exists as the editable local source.
+- The small promotional image uses neutral copy, sanitized example domains, local vector artwork, and no private data, external CDN assets, external fonts, backend references, telemetry claims, or publication claims.
+- The small promotional image was not uploaded to the Chrome Web Store Developer Dashboard during this asset update.
 
 ## Package Audit
 
@@ -265,7 +269,7 @@ This audit did not rerun live browser smoke tests. The manual smoke coverage is 
 
 | Level | Item | Recommendation |
 | --- | --- | --- |
-| Blocker | Missing `440x280` small promotional image under `store-assets/`. | Create a Store-ready PNG or JPEG before direct Chrome Web Store submission. |
+| Resolved in repository | Mandatory `440x280` small promotional image was missing under `store-assets/`. | Draft asset now exists at `store-assets/promotional/small-promo-440x280.png`; upload and final-review it manually in the Dashboard before submission. |
 | Blocker | Chrome Web Store Developer Dashboard fields were not filled or final-reviewed in this audit. | Complete Dashboard fields manually and compare them against the exact uploaded package before pressing Submit. |
 | Warning | `04` and `05` popup screenshot canvases contain cursor highlights. | Recapture clean popup screenshots from a clean Chrome profile, or submit with only clean screenshots and the `02` fallback. |
 | Warning | `npm audit` reports low severity `esbuild` advisory `GHSA-g7r4-m6w7-qqqr`. | Track separately as dependency maintenance; do not fold into this Store audit unless policy or risk changes. |
@@ -280,9 +284,9 @@ Do not submit yet.
 
 Submit after these specific fixes and manual gates:
 
-1. Create and review the required `440x280` small promotional image.
-2. Recapture `04` and `05` popup screenshots without cursor highlights, or choose a clean screenshot set that excludes them.
-3. Open the Chrome Web Store Developer Dashboard manually and fill the listing/privacy/distribution fields from the checked docs.
+1. Recapture `04` and `05` popup screenshots without cursor highlights, or choose a clean screenshot set that excludes them.
+2. Open the Chrome Web Store Developer Dashboard manually and fill the listing/privacy/distribution fields from the checked docs.
+3. Upload and final-review `store-assets/promotional/small-promo-440x280.png` in the Dashboard.
 4. Verify the privacy policy URL from a signed-out browser immediately before upload.
 5. Upload `release/smart-proxy-route-helper-v0.1.0.zip` only after confirming the chosen zip is the intended build.
 
