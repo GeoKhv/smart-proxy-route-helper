@@ -21,7 +21,7 @@ Captured drafts:
 - `05-popup-recording.png`
 - `06-options-classification-overrides.png`
 
-Final draft canvases generated on 2026-06-26:
+Final draft canvases are available under `final/` (initial set generated on 2026-06-26; `04` and `05` refreshed on 2026-06-28):
 
 - `final/01-options-local-proxy.png`
 - `final/02-options-route-rules.png`
@@ -45,7 +45,7 @@ Popup capture states:
 - `04-popup-related-domains.png`: toolbar-opened popup on `https://example.com/` after a user-invoked related-domain preview. The visible popup state shows the sanitized `example.com` route and a found-candidates notice; no rules were saved.
 - `05-popup-recording.png`: toolbar-opened popup on `https://example.com/` after starting diagnostic recording. No files were uploaded and no messages were sent.
 
-Known final-canvas limitations:
+Final-canvas review notes:
 
 - `final/03-popup-current-site.png` was composed from the existing popup source crop and was not recaptured.
 - `final/04-popup-related-domains.png` and `final/05-popup-recording.png` were regenerated on 2026-06-28 from clean full-window Chrome screenshots. Visual review found no private data and no cursor highlight in those replacements.

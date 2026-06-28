@@ -2,13 +2,13 @@
 
 This document is a manual dry-run pack for a future Chrome Web Store submission. It is not a submission record, does not publish the extension, and does not modify the Chrome Web Store Developer Dashboard.
 
-Dry-run date: 2026-06-26
+Dry-run date: 2026-06-26; refreshed 2026-06-28 after clean screenshot and promotional image updates.
 
 Repository baseline checked:
 
 - Current branch: `main`
 - `origin/main`: already up to date during dry-run preflight
-- Current commit: `405b216f3d009ad26f49e61dbcdf11c568cbf7d4`
+- Refresh starting commit: `b43d40fc586a26edd623cc9dac1f98ab293c50c9`
 - `manifest.json` version: `0.1.0`
 - `package.json` version: `0.1.0`
 - Manifest permissions: `proxy`, `storage`, `activeTab`, `scripting`
@@ -21,6 +21,8 @@ Preflight checks run:
 - `npm run typecheck --if-present`: passed
 - `git diff --check`: passed
 - `npm audit`: reported 1 low severity advisory in `esbuild` (`GHSA-g7r4-m6w7-qqqr`); dependency maintenance is intentionally out of scope for this Store dry-run
+- Store screenshot size check: passed, all final screenshot PNGs are `1280x800`
+- Promotional image size check: passed, `store-assets/promotional/small-promo-440x280.png` is `440x280`
 
 ## 1. Submission Status
 
@@ -32,9 +34,10 @@ Current preparation state:
 - Release asset exists at `release/smart-proxy-route-helper-v0.1.0.zip`.
 - Store-readiness docs exist in `docs/`.
 - Store listing assets are draft-ready.
+- Small promotional image exists at `store-assets/promotional/small-promo-440x280.png`.
 - Popup screenshots `04` and `05` were replaced on 2026-06-28 from clean manually captured Chrome sources and no longer show cursor highlights.
 
-Do not submit until the final screenshot set is reviewed from a clean profile and the Dashboard fields are checked against the exact uploaded package.
+Ready for manual Chrome Web Store Dashboard dry-run / final human review before submission. Do not press Submit until the final screenshot set, small promotional image, privacy policy URL, and Dashboard fields are reviewed against the exact uploaded package.
 
 ## 2. Package To Upload
 

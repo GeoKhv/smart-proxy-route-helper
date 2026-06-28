@@ -1,6 +1,6 @@
 # Chrome Web Store Pre-Submit Audit
 
-Audit date: 2026-06-26
+Audit date: 2026-06-26; refreshed 2026-06-28 after the clean popup screenshot and small promotional image readiness pass.
 
 Asset updates: 2026-06-28 added the mandatory small promotional image draft asset and replaced popup screenshots `04` and `05` from clean manually captured Chrome sources. These updates do not publish the extension, modify Chrome Web Store Developer Dashboard fields, change runtime code, change manifest permissions, or bump the version.
 
@@ -13,9 +13,8 @@ This report reviews Smart Proxy Route Helper for future Chrome Web Store submiss
 | Branch | `main` |
 | Remote | `origin git@github.com:GeoKhv/smart-proxy-route-helper.git` |
 | Pull result | `git pull --ff-only origin main` was already up to date |
-| Current commit | `cc50b5a6a5b1805bebb9e878d56c69c578600ec9` (`cc50b5a Add Chrome Web Store submission dry run`) |
-| 2026-06-28 asset-update starting commit | `acf199ffa740fedb912218bea0660240ef508694` (`acf199f Finalize Chrome Web Store pre-submit audit`) |
-| 2026-06-28 screenshot-update starting commit | `c7822971f490a7652ceead5d874817229e462631` (`c782297 Add Chrome Web Store small promo asset`) |
+| Refresh starting commit | `b43d40fc586a26edd623cc9dac1f98ab293c50c9` (`b43d40f Replace popup Store screenshots with clean captures`) |
+| Current readiness baseline | Clean popup screenshot replacements and small promotional image draft are present in the repository |
 | `manifest.json` version | `0.1.0` |
 | `package.json` version | `0.1.0` |
 | GitHub release | `v0.1.0`, pre-release, not draft, published 2026-06-25 |
@@ -44,20 +43,21 @@ Key official constraints applied in this audit:
 
 | Check | Result |
 | --- | --- |
-| `git status --short --branch` | Clean before audit edits; `## main...origin/main` |
+| `git status --short --branch` | Clean before refresh edits; `## main...origin/main` |
 | `git pull --ff-only origin main` | Passed, already up to date |
 | Branch and remote check | Passed, branch `main`, remote `origin` points to `git@github.com:GeoKhv/smart-proxy-route-helper.git` |
 | Version check | Passed, manifest and package versions are both `0.1.0` |
 | `npm test` | Passed, 15 test files and 172 tests |
 | `npm run build` | Passed |
 | `npm run typecheck --if-present` | Passed |
-| `git diff --check` | Passed before audit edits |
+| `git diff --check` | Passed |
 | `npm audit` | Reported 1 low severity `esbuild` advisory, `GHSA-g7r4-m6w7-qqqr` |
-| `npm run package` | Passed, packaged 13 files into `release/smart-proxy-route-helper-v0.1.0.zip` |
-| Zip manifest inspection | Passed, submitted manifest inside zip matches expected permissions and version |
+| `npm run package` | Previous package audit passed, packaged 13 files into `release/smart-proxy-route-helper-v0.1.0.zip`; not rerun during this docs/assets refresh because runtime code, manifest permissions, and package version did not change |
+| Zip manifest inspection | Previous package audit passed, submitted manifest inside zip matches expected permissions and version |
 | GitHub release lookup | Passed through `gh release view v0.1.0` |
-| Release asset content comparison | Passed, downloaded GitHub asset and locally rebuilt zip extract to identical file contents |
+| Release asset content comparison | Previous package audit passed, downloaded GitHub asset and locally rebuilt zip extract to identical file contents |
 | Screenshot dimension check | Passed, all final screenshot PNGs are `1280x800` |
+| Promotional image dimension check | Passed, `store-assets/promotional/small-promo-440x280.png` is `440x280` |
 | Screenshot visual review | Passed for private-data safety; clean replacements for `04` and `05` show no visible cursor highlight |
 
 `npm audit` exits non-zero because of the low severity advisory. This audit treats it as a warning, not a Store-submission blocker, because the affected package is a development build tool advisory and dependency maintenance was explicitly out of scope for this Store-preparation pass.
@@ -143,7 +143,7 @@ Manual Dashboard fields were not opened or modified during this audit.
 
 ## Screenshot And Image Audit
 
-Screenshot status: pass for repository screenshot assets; small promotional image draft prepared, with final Dashboard upload and review still required.
+Screenshot status: pass for repository screenshot assets; small promotional image draft is present, with final Dashboard upload and review still required.
 
 Final screenshot files exist:
 
@@ -245,7 +245,7 @@ Release status: pass with provenance note.
 Provenance note:
 
 - GitHub release target is `696bf08f847cf0952a938c2d06456f38e4d25e9e`.
-- Current `origin/main` is `cc50b5a6a5b1805bebb9e878d56c69c578600ec9`.
+- Refresh started from `origin/main` at `b43d40fc586a26edd623cc9dac1f98ab293c50c9`.
 - The commits after the release target are Store-preparation docs/assets work, not runtime or manifest changes.
 - The remote release asset content matches the locally rebuilt package content after extraction.
 
@@ -270,20 +270,20 @@ This audit did not rerun live browser smoke tests. The manual smoke coverage is 
 
 | Level | Item | Recommendation |
 | --- | --- | --- |
-| Resolved in repository | Mandatory `440x280` small promotional image was missing under `store-assets/`. | Draft asset now exists at `store-assets/promotional/small-promo-440x280.png`; upload and final-review it manually in the Dashboard before submission. |
-| Blocker | Chrome Web Store Developer Dashboard fields were not filled or final-reviewed in this audit. | Complete Dashboard fields manually and compare them against the exact uploaded package before pressing Submit. |
-| Resolved in repository | `04` and `05` popup screenshot canvases previously contained cursor highlights. | Clean manually captured popup sources now replace them; final-review the uploaded images in the Dashboard before submission. |
+| Ready in repository | Mandatory `440x280` small promotional image draft exists at `store-assets/promotional/small-promo-440x280.png`. | Upload and final-review it manually in the Dashboard before submission. |
+| Manual gate | Chrome Web Store Developer Dashboard fields were not filled or final-reviewed in this audit. | Complete Dashboard fields manually and compare them against the exact uploaded package before pressing Submit. |
+| Ready in repository | `04` and `05` popup screenshot canvases use clean manually captured replacement sources and show no visible cursor highlights. | Final-review the uploaded images in the Dashboard before submission. |
 | Warning | `npm audit` reports low severity `esbuild` advisory `GHSA-g7r4-m6w7-qqqr`. | Track separately as dependency maintenance; do not fold into this Store audit unless policy or risk changes. |
-| Warning | GitHub release target commit differs from current `origin/main`. | Treat `c782297` plus the later screenshot replacement commit as the current docs/assets-ready pre-submit baseline; if a new runtime build is required later, cut a fresh release intentionally. |
+| Warning | GitHub release target commit differs from current `origin/main`. | Treat `b43d40f` as the current docs/assets-ready pre-submit baseline; if a new runtime build is required later, cut a fresh release intentionally. |
 | Warning | Privacy policy URL is drafted but final public signed-out check was not performed in the Dashboard submission flow. | Verify immediately before submission. |
 | Nice-to-have | Add a concise provenance note or checksum note to final submission records. | Helpful for future review, not required for Store upload. |
 | Nice-to-have | Add optional marquee promotional image if final positioning benefits from it. | Optional Store polish after mandatory image assets are complete. |
 
 ## Final Recommendation
 
-Do not submit yet.
+Ready for manual Chrome Web Store Dashboard dry-run / final human review before submission.
 
-Submit after these specific fixes and manual gates:
+Do not claim the extension is published or approved. Do not press Submit until these manual gates are complete:
 
 1. Open the Chrome Web Store Developer Dashboard manually and fill the listing/privacy/distribution fields from the checked docs.
 2. Upload and final-review the recommended screenshot set and `store-assets/promotional/small-promo-440x280.png` in the Dashboard.

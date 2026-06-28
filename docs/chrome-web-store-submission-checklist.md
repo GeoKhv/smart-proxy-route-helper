@@ -102,6 +102,7 @@ node -e "const m=require('./manifest.json'); console.log(JSON.stringify({version
 - [ ] At least one `1280x800` screenshot prepared.
 - [ ] No more than five Store screenshots selected.
 - [ ] Store icon is `128x128` px.
+- [x] Six repository final screenshot canvases exist under `store-assets/screenshots/final/` and are `1280x800` px.
 - [x] Small promo tile draft exists at `store-assets/promotional/small-promo-440x280.png` and is `440x280` px PNG.
 - [ ] Upload and final-review the small promo tile manually in the Chrome Web Store Developer Dashboard.
 - [ ] Optional marquee promo tile is `1400x560` px PNG or JPEG.
@@ -111,6 +112,16 @@ node -e "const m=require('./manifest.json'); console.log(JSON.stringify({version
 - [ ] Screenshot set covers local proxy configuration, synced rules, current-site popup controls, manual diagnostics, and related-domain preview.
 
 See `docs/chrome-web-store-screenshots.md`.
+
+Recommended first Store screenshot set:
+
+1. `store-assets/screenshots/final/01-options-local-proxy.png`
+2. `store-assets/screenshots/final/03-popup-current-site.png`
+3. `store-assets/screenshots/final/04-popup-related-domains.png`
+4. `store-assets/screenshots/final/05-popup-recording.png`
+5. `store-assets/screenshots/final/06-options-classification-overrides.png`
+
+Keep `store-assets/screenshots/final/02-options-route-rules.png` as a fallback/supporting screenshot.
 
 ## Manual Smoke Checklist
 
@@ -166,15 +177,22 @@ esbuild 0.27.3 - 0.28.0, GHSA-g7r4-m6w7-qqqr.
 
 If findings appear, do not upgrade dependencies inside a Store-preparation slice unless a separate dependency-maintenance task is approved.
 
-## Known Blocker List
+## Remaining Manual Gates
 
-Current known blockers for direct submission:
+Repository asset blockers are closed:
 
-- The small promotional image exists as a repository draft asset, but final Dashboard upload and review have not been performed.
+- Small promotional image exists as a repository draft asset at `store-assets/promotional/small-promo-440x280.png`.
+- Popup screenshots `04` and `05` were regenerated from clean manually captured source screenshots and no longer contain cursor highlights.
+
+Remaining manual gates before direct submission:
+
+- Final Dashboard upload and review for the recommended screenshot set and small promotional image have not been performed.
 - Chrome Web Store Developer Dashboard fields have not been filled out.
 - Privacy policy URL must be reviewed immediately before submission.
 - Release asset must be re-verified against the final submitted build.
 - `npm audit` must be reviewed from the final pre-submission run.
+
+Recommendation: ready for manual Chrome Web Store Dashboard dry-run / final human review before submission. The extension has not been submitted, published, or approved by Chrome Web Store.
 
 ## Official References
 

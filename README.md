@@ -27,6 +27,8 @@ It does not include telemetry, backend calls, host permissions, persistent conte
 
 Smart Proxy Route Helper is not yet published on Chrome Web Store.
 
+The repository Store asset set is ready for manual Chrome Web Store Dashboard dry-run / final human review: the small promotional image exists, the recommended final screenshots are prepared, and the remaining gates are Dashboard field review plus final privacy policy URL verification.
+
 The current public pre-release is `v0.1.0` on GitHub:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0

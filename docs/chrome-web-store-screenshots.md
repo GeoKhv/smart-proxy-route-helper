@@ -151,7 +151,7 @@ Message to convey: overrides are domain-level preferences, not browsing history.
 
 ## Additional Screenshot Candidates
 
-Use these only if the Store listing needs a different emphasis or if clean recapture for one of the recommended popup states is not available.
+Use these only if the Store listing needs a different emphasis or if final Dashboard review prefers a more options-focused set.
 
 ### Options: Synced Domain Rules
 

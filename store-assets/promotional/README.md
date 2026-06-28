@@ -9,4 +9,4 @@ Files:
 
 The small promotional image uses neutral project copy, sanitized example domains, and local vector artwork only. It does not include private data, personal browser content, Chrome Web Store Developer Dashboard data, external CDN assets, external fonts, telemetry, backend references, or publication claims.
 
-Status: repository draft asset only. Upload and final-review this image manually in the Chrome Web Store Developer Dashboard before submission.
+Status: repository draft asset ready for manual Chrome Web Store Dashboard upload and final review. The image has not been uploaded or published.
