@@ -23,8 +23,9 @@ Popup:
 
 - Detect the active tab URL after the user opens the popup.
 - Show the normalized current domain for supported `http` and `https` pages.
-- Show whether the current domain is routed by an exact rule, inherited from a parent `includeSubdomains` rule, blocked by internal protection or synced denylist, or currently direct.
-- Add a manual synced rule for the current domain only after an explicit user click.
+- Show whether the current domain uses proxy or direct routing by an exact rule, inherits proxy or direct routing from a parent `includeSubdomains` rule, is blocked by internal protection or synced denylist, or uses the default direct route.
+- Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
+- For `www.*` hosts, suggest the base registrable domain with subdomains included; for other subdomains, keep the current host exact by default.
 - Remove exact current-domain rules only; parent inherited rules must be edited from Options.
 - Start a current-site diagnostic only after the user clicks "Check via proxy".
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
@@ -39,7 +40,8 @@ The popup does not inspect page content on open, add rules automatically, reques
 Options page:
 
 - Configure local proxy settings.
-- Manage domain rules.
+- Manage proxy rules and direct exceptions.
+- Scan for redundant same-action child rules and show cleanup suggestions without deleting anything automatically.
 - Show and remove synced personal classification overrides.
 - Show which settings are local to this device and which domain rules are synced.
 - Show storage status for saves, additions, removals, exports, import previews, and import apply actions.
@@ -89,7 +91,7 @@ Use `chrome.storage.sync` for domain routing rules because users should be able 
 
 Current synced data:
 
-- Domain rules.
+- Domain rules with `action: "proxy" | "direct"`.
 - Ignored domains.
 - Denylist entries.
 - Personal classification overrides for related-domain preview, stored as normalized domain-level global and site-scoped preferences.
@@ -130,7 +132,7 @@ Import behavior:
 - Sanitizes imported domains with the same domain normalization and protected-host guards used elsewhere.
 - Rejects malformed rules, duplicate imported entries, invalid domains, localhost, private/internal IPs, browser/internal pages, and internal local suffixes.
 - Shows a preview summary before applying changes, including route rule counts, classification override counts, local proxy inclusion, warnings, and errors.
-- Merges imported synced settings with existing settings by default and avoids duplicate route rules.
+- Merges imported synced settings with existing settings by default and avoids duplicate route rules by domain, subdomain scope, and action.
 - Writes to `chrome.storage.sync` and, only when local proxy config is present in the import, `chrome.storage.local` after the user clicks "Apply import".
 - Does not call `chrome.proxy.settings` from Options; the background storage listener remains responsible for proxy re-application.
 - Ignores unknown extra JSON fields and never evaluates imported data as executable logic.
@@ -156,7 +158,13 @@ The MVP keeps rule semantics simple:
 
 - User enters a domain, not a full URL.
 - The extension normalizes hostnames before storage and PAC generation.
-- A domain rule stores whether subdomains are included. Exact matches always apply; subdomain matches apply only when `includeSubdomains` is true.
+- A domain rule stores `action: "proxy" | "direct"` and whether subdomains are included. Older stored rules without `action` migrate as `action: "proxy"`.
+- Proxy rules route matching hosts through the configured local proxy. Direct rules are explicit direct exceptions.
+- Exact host rules have the highest precedence.
+- If no exact host rule exists, the most specific matching parent `includeSubdomains` rule wins.
+- If multiple rules have the same specificity, the most recently created rule wins; if timestamps tie, the later stored entry wins.
+- No match means the default direct route.
+- Same-action child rules already covered by broader same-action parents can be suggested for cleanup. Different-action children are not redundant because they override broader parents.
 - Invalid input should be rejected before storage.
 
 Examples of invalid input:
@@ -172,7 +180,8 @@ PAC data must be generated locally from trusted extension code and user settings
 
 The generated PAC configuration should:
 
-- Route matching domain rules through the configured local proxy without a `DIRECT` fallback.
+- Route matching proxy rules through the configured local proxy without a `DIRECT` fallback.
+- Route matching direct rules directly.
 - Route everything else directly.
 - Avoid including unsanitized user input.
 - Match exact domains and dot-boundary subdomains only, without unsafe substring matching.
@@ -245,13 +254,13 @@ The preview flow:
 - Shows the suggested rule domain that would be saved, whether subdomains would be included, and the sanitized observed hostnames that led to the suggestion.
 - Shows a compact transient diagnostic summary when no saveable candidates remain. The summary contains counts and a small sample of sanitized hostnames only; it is not stored, synced, or sent.
 - Uses neutral preview status for discovered candidates because preview is not a save action.
-- Shows whether saveable candidates include subdomains by default and whether an existing exact or parent `includeSubdomains` rule already covers the suggested route target.
+- Shows whether saveable candidates include subdomains by default and whether an existing exact or parent proxy `includeSubdomains` rule already covers the suggested route target.
 - Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.
 - Saves only selected, saveable candidates after the user clicks "Add selected domains".
 - Offers explicit classification override actions on candidate rows where appropriate. Overrides are saved as personal domain-level preferences in `chrome.storage.sync`, not as proxy routing rules.
 - Refreshes the preview after an override is saved so the user sees the updated classification.
 
-The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, or apply proxy settings. Selected candidates are saved through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. Classification overrides are separate synced preferences and do not trigger PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
+The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, create direct rules, or apply proxy settings. Selected candidates are saved as proxy rules through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. Classification overrides are separate synced preferences and do not trigger PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
 
 Because the preview inspects resources from the currently loaded page, results can be noisy. The engine uses a small, local-only classification layer for obvious analytics, adtech, shared-infrastructure, schema-helper, local-helper, and site-scoped related hosts so high-confidence noise is not offered as a normal saveable related domain. Unknown and suspicious hosts stay visible for manual review instead of being hidden aggressively. The classifier does not fetch remote blocklists or use remotely controlled candidate logic.
 

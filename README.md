@@ -8,8 +8,8 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 Version `0.1.0` is the first MVP release candidate. The runtime includes:
 
-- Options UI for device-specific local proxy configuration and synced route rules.
-- Popup UI for current-site route management.
+- Options UI for device-specific local proxy configuration, synced proxy rules, direct exceptions, and redundant-rule cleanup suggestions.
+- Popup UI for current-site effective route status and explicit proxy/direct route management.
 - Background PAC runtime application through `chrome.proxy`.
 - Fail-closed matched proxy routing.
 - Manual "Check via proxy" diagnostics.
@@ -72,7 +72,7 @@ Configure and use the MVP:
 2. Configure the local proxy scheme, host, and port for this device.
 3. Open a supported `http` or `https` site.
 4. Open the extension popup.
-5. Add the current site as a synced proxy route, or run "Check via proxy" first.
+5. Add the current site as a synced proxy route or direct exception, or run "Check via proxy" first.
 6. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions, or click "Start recording" before a page action and "Stop and preview" afterward.
 7. Select only the related domains you want and click the separate add action.
 8. Use Options > Backup and restore to export or import a local settings backup when moving between unpacked/local installations.
@@ -127,7 +127,7 @@ Runtime domain parsing uses `tldts` for public-suffix-aware registrable-domain d
 
 The MVP runtime provides a small manual PAC manager:
 
-- Add, edit, disable, and remove domain rules manually.
+- Add, edit, disable, and remove proxy rules and direct exceptions manually.
 - Sync domain rules with `chrome.storage.sync`.
 - Store local proxy configuration with `chrome.storage.local`.
 - Generate a PAC script locally from the user's rules and local proxy settings.
@@ -140,7 +140,8 @@ The MVP runtime provides a small manual PAC manager:
 - Use public-suffix-aware registrable-domain parsing so route planning does not rely on unsafe "last two labels" assumptions.
 - Plan ChatGPT/OpenAI generated asset hosts as `oaiusercontent.com` with subdomains included only when bundled site-scoped hints apply.
 - Save related-domain candidates only after explicit user selection and confirmation.
-- Export and import versioned local backup JSON after explicit user actions.
+- Export and import versioned local backup JSON after explicit user actions, including optional per-rule route actions.
+- Find redundant same-action child rules and remove suggested entries only after explicit confirmation.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
 ## What It Does Not Do
@@ -183,7 +184,7 @@ See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 
 Synced across the user's Chrome profile:
 
-- Domain routing rules.
+- Domain routing rules, including whether each rule routes through proxy or directly.
 - Domain-level classification overrides for related-domain preview.
 - Domain-level ignored domains and denylist entries.
 - Rule metadata such as source and creation timestamps.
@@ -200,7 +201,7 @@ Transient while a recording is active:
 
 User-controlled backup files:
 
-- Exported settings JSON contains synced route rules, ignored domains, denylist entries, and classification overrides as normalized domain-level data.
+- Exported settings JSON contains synced route rules, route actions, ignored domains, denylist entries, and classification overrides as normalized domain-level data.
 - Local proxy configuration is excluded by default because it is device-specific.
 - If the user explicitly selects "Include local proxy config for this device", the export may include the sanitized local proxy scheme, host, port, and enabled state.
 - Import validates the export format/version, sanitizes domains, rejects protected/internal/private domains, shows a preview, and writes storage only after the user clicks "Apply import".

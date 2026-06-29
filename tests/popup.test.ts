@@ -24,9 +24,17 @@ function manualRule(domain: string, includeSubdomains = true): DomainRule {
   return {
     domain,
     includeSubdomains,
+    action: "proxy",
     mode: "proxy",
     source: "manual",
     createdAt
+  };
+}
+
+function directRule(domain: string, includeSubdomains = true): DomainRule {
+  return {
+    ...manualRule(domain, includeSubdomains),
+    action: "direct"
   };
 }
 
@@ -83,6 +91,30 @@ describe("popup rule status helpers", () => {
     });
   });
 
+  it("reports direct exact and parent route status", () => {
+    expect(
+      getPopupRuleStatus("www.linkedin.com", {
+        rules: [manualRule("linkedin.com", true), directRule("www.linkedin.com", false)],
+        denylist: []
+      })
+    ).toMatchObject({
+      state: "exact",
+      action: "direct",
+      exactRule: directRule("www.linkedin.com", false)
+    });
+
+    expect(
+      getPopupRuleStatus("img.media.linkedin.com", {
+        rules: [manualRule("linkedin.com", true), directRule("media.linkedin.com", true)],
+        denylist: []
+      })
+    ).toMatchObject({
+      state: "inherited",
+      action: "direct",
+      parentRule: directRule("media.linkedin.com", true)
+    });
+  });
+
   it("reports stored denylist matches as blocked", () => {
     expect(
       getPopupRuleStatus("sub.blocked.example", {
@@ -101,7 +133,31 @@ describe("popup add current site rule helper", () => {
       ok: true,
       status: "added",
       domain: "letterboxd.com",
-      rules: [manualRule("letterboxd.com", true)]
+      action: "proxy",
+      includeSubdomains: false,
+      rules: [manualRule("letterboxd.com", false)]
+    });
+  });
+
+  it("suggests base domain includeSubdomains for www hosts", () => {
+    expect(addCurrentSiteRule([], "https://www.linkedin.com/feed", createdAt)).toEqual({
+      ok: true,
+      status: "added",
+      domain: "linkedin.com",
+      action: "proxy",
+      includeSubdomains: true,
+      rules: [manualRule("linkedin.com", true)]
+    });
+  });
+
+  it("adds an explicit direct current-site rule", () => {
+    expect(addCurrentSiteRule([manualRule("linkedin.com", true)], "https://www.linkedin.com/feed", createdAt, "manual", "direct")).toEqual({
+      ok: true,
+      status: "added",
+      domain: "linkedin.com",
+      action: "direct",
+      includeSubdomains: true,
+      rules: [manualRule("linkedin.com", true), directRule("linkedin.com", true)]
     });
   });
 
@@ -110,9 +166,11 @@ describe("popup add current site rule helper", () => {
       ok: true,
       status: "added",
       domain: "letterboxd.com",
+      action: "proxy",
+      includeSubdomains: false,
       rules: [
         {
-          ...manualRule("letterboxd.com", true),
+          ...manualRule("letterboxd.com", false),
           source: "diagnostic"
         }
       ]
@@ -126,17 +184,21 @@ describe("popup add current site rule helper", () => {
       ok: true,
       status: "duplicate",
       domain: "letterboxd.com",
+      action: "proxy",
+      includeSubdomains: false,
       rules
     });
   });
 
-  it("does not add a redundant child rule when a parent includeSubdomains rule matches", () => {
+  it("does not add a redundant child rule when a same-action parent includeSubdomains rule matches", () => {
     const rules = [manualRule("example.com", true)];
 
     expect(addCurrentSiteRule(rules, "watch.example.com", createdAt)).toEqual({
       ok: true,
       status: "inherited",
       domain: "watch.example.com",
+      action: "proxy",
+      includeSubdomains: false,
       parentRule: manualRule("example.com", true),
       rules
     });
@@ -188,6 +250,7 @@ describe("popup diagnostic result messages", () => {
         {
           state: "exact",
           exactRule: manualRule("2ip.ru", true),
+          action: "proxy",
           message: "2ip.ru is routed through proxy by an exact synced rule."
         }
       )
@@ -1066,6 +1129,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "media.licdn.com",
           includeSubdomains: false,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1073,6 +1137,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "static.licdn.com",
           includeSubdomains: false,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1082,6 +1147,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "media.licdn.com",
           includeSubdomains: false,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1089,6 +1155,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "static.licdn.com",
           includeSubdomains: false,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1158,6 +1225,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "oaiusercontent.com",
           includeSubdomains: true,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1167,6 +1235,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "oaiusercontent.com",
           includeSubdomains: true,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1332,6 +1401,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "media.licdn.com",
           includeSubdomains: false,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1341,6 +1411,7 @@ describe("popup related-domain selected save helper", () => {
         {
           domain: "media.licdn.com",
           includeSubdomains: false,
+          action: "proxy",
           mode: "proxy",
           source: "diagnostic",
           createdAt
@@ -1509,6 +1580,21 @@ describe("popup remove current site rule helper", () => {
       rules: [manualRule("example.com", true)]
     });
     expect(rules).toEqual([manualRule("letterboxd.com", false), manualRule("example.com", true)]);
+  });
+
+  it("removes only the effective exact rule when proxy and direct exact rules coexist", () => {
+    const olderProxyRule = manualRule("example.com", false);
+    const newerDirectRule = {
+      ...directRule("example.com", false),
+      createdAt: "2026-06-24T00:00:01.000Z"
+    };
+    const rules = [olderProxyRule, newerDirectRule];
+
+    expect(removeCurrentSiteRule(rules, "example.com")).toEqual({
+      status: "removed",
+      domain: "example.com",
+      rules: [olderProxyRule]
+    });
   });
 
   it("does not remove parent includeSubdomains rules silently", () => {

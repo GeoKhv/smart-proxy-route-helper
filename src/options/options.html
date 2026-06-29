@@ -234,7 +234,7 @@
     <main>
       <h1>Smart Proxy Route Helper</h1>
       <p>
-        Configure the local proxy for this device and manage the synced domain rules that should use proxy routing.
+        Configure the local proxy for this device and manage synced proxy and direct route rules.
       </p>
 
       <section aria-labelledby="local-proxy-title">
@@ -282,13 +282,21 @@
 
       <section aria-labelledby="rules-title">
         <h2 id="rules-title">Synced domain rules</h2>
-        <p>Stored in Chrome Sync. Adding a rule requires this explicit action; the extension does not auto-add domains.</p>
+        <p>Stored in Chrome Sync. Adding or removing a rule requires an explicit action; the extension does not auto-add domains.</p>
 
         <form id="rule-form" novalidate>
           <label>
             Domain or URL
             <input id="rule-domain" name="domain" type="text" autocomplete="off" placeholder="letterboxd.com" />
             <span class="error" id="rule-domain-error" aria-live="polite"></span>
+          </label>
+
+          <label>
+            Route action
+            <select id="rule-action" name="action">
+              <option value="proxy">Route through proxy</option>
+              <option value="direct">Route directly</option>
+            </select>
           </label>
 
           <label class="checkbox-row">
@@ -302,6 +310,16 @@
         </form>
         <p class="status" id="rule-status" aria-live="polite"></p>
         <ul class="rule-list" id="rule-list"></ul>
+      </section>
+
+      <section aria-labelledby="rule-cleanup-title">
+        <h2 id="rule-cleanup-title">Optimize rules</h2>
+        <p>Find same-action child rules already covered by broader parent rules. Nothing is removed automatically.</p>
+        <div class="actions">
+          <button id="find-redundant-rules" type="button">Find redundant rules</button>
+        </div>
+        <p class="status" id="rule-cleanup-status" aria-live="polite"></p>
+        <ul class="rule-list" id="rule-cleanup-list"></ul>
       </section>
 
       <section aria-labelledby="denylist-title">

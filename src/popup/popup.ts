@@ -1,7 +1,8 @@
 import { checkDenylistedHost } from "../rules/denylist";
-import { domainMatchesRule } from "../rules/domainMatcher";
+import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
-import type { DomainRule, RuleSource } from "../rules/ruleTypes";
+import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
+import { getBaseDomain } from "../rules/baseDomain";
 import type { DomainCandidateUserOverrideAction } from "../domainClassification/domainClassificationTypes";
 import {
   isDomainCandidateUserOverrideAction,
@@ -58,11 +59,13 @@ export type PopupRuleStatus =
   | {
       state: "exact";
       exactRule: DomainRule;
+      action: RuleAction;
       message: string;
     }
   | {
       state: "inherited";
       parentRule: DomainRule;
+      action: RuleAction;
       message: string;
     }
   | {
@@ -76,6 +79,8 @@ export type AddCurrentSiteRuleResult =
       status: "added" | "duplicate" | "inherited";
       rules: DomainRule[];
       domain: string;
+      action: RuleAction;
+      includeSubdomains: boolean;
       parentRule?: DomainRule;
     }
   | {
@@ -241,16 +246,17 @@ function normalizeKnownDomain(input: string): string | null {
   return normalized.ok ? normalized.domain : null;
 }
 
-function exactRuleForDomain(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
-  return rules.find((rule) => normalizeKnownDomain(rule.domain) === domain);
-}
-
 function parentRuleForDomain(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
-  return rules.find((rule) => {
-    const ruleDomain = normalizeKnownDomain(rule.domain);
+  const parentMatch = findEffectiveDomainRule(
+    domain,
+    rules.filter((rule) => {
+      const ruleDomain = normalizeKnownDomain(rule.domain);
 
-    return ruleDomain !== null && ruleDomain !== domain && domainMatchesRule(domain, rule);
-  });
+      return ruleDomain !== null && ruleDomain !== domain && domainMatchesRule(domain, rule);
+    })
+  );
+
+  return parentMatch?.rule;
 }
 
 function isStoredDenylistedDomain(domain: string, denylist: readonly string[]): boolean {
@@ -272,14 +278,19 @@ function normalizeSafeRelatedDomain(input: string, denylist: readonly string[] =
 }
 
 function findCoveringRule(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
-  return exactRuleForDomain(domain, rules) ?? parentRuleForDomain(domain, rules);
+  return findEffectiveDomainRule(domain, rules)?.rule;
 }
 
 function routeTargetCoveredByRule(
   domain: string,
   includeSubdomains: boolean,
+  action: RuleAction,
   rule: DomainRule
 ): boolean {
+  if (rule.action !== action) {
+    return false;
+  }
+
   if (!includeSubdomains) {
     return domainMatchesRule(domain, rule);
   }
@@ -290,13 +301,34 @@ function routeTargetCoveredByRule(
 function findCoveringRouteTargetRule(
   domain: string,
   includeSubdomains: boolean,
+  action: RuleAction,
   rules: readonly DomainRule[]
 ): DomainRule | undefined {
-  return rules.find((rule) => routeTargetCoveredByRule(domain, includeSubdomains, rule));
+  return rules.find((rule) => routeTargetCoveredByRule(domain, includeSubdomains, action, rule));
 }
 
 function exactRuleIndexForDomain(domain: string, rules: readonly DomainRule[]): number {
   return rules.findIndex((rule) => normalizeKnownDomain(rule.domain) === domain);
+}
+
+function ruleActionLabel(action: RuleAction): string {
+  return action === "direct" ? "direct" : "proxy";
+}
+
+function suggestedCurrentSiteRuleTarget(domain: string): { domain: string; includeSubdomains: boolean } {
+  const baseDomain = getBaseDomain(domain);
+
+  if (domain.startsWith("www.") && baseDomain !== domain) {
+    return {
+      domain: baseDomain,
+      includeSubdomains: true
+    };
+  }
+
+  return {
+    domain,
+    includeSubdomains: false
+  };
 }
 
 function relatedDomainOverrideActions(
@@ -330,7 +362,7 @@ function candidateViewFromCandidate(
     return null;
   }
 
-  const coveringRule = findCoveringRouteTargetRule(domain, candidate.suggestedIncludeSubdomains, settings.rules);
+  const coveringRule = findCoveringRouteTargetRule(domain, candidate.suggestedIncludeSubdomains, "proxy", settings.rules);
   const alreadyCovered = coveringRule !== undefined;
   const saveable = category !== "ignored" && !alreadyCovered;
   const defaultSelected = category === "strong" && candidate.defaultSelected && saveable;
@@ -465,29 +497,39 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
     };
   }
 
-  const exactRule = exactRuleForDomain(domain, settings.rules);
+  const effectiveRule = findEffectiveDomainRule(domain, settings.rules);
 
-  if (exactRule) {
+  if (effectiveRule?.type === "exact") {
+    const action = effectiveRule.rule.action;
+
     return {
       state: "exact",
-      exactRule,
-      message: `${domain} is routed through proxy by an exact synced rule.`
+      exactRule: effectiveRule.rule,
+      action,
+      message:
+        action === "proxy"
+          ? `${domain} uses proxy via an exact synced rule.`
+          : `${domain} goes direct via an exact synced rule.`
     };
   }
 
-  const parentRule = parentRuleForDomain(domain, settings.rules);
+  if (effectiveRule?.type === "parent") {
+    const action = effectiveRule.rule.action;
 
-  if (parentRule) {
     return {
       state: "inherited",
-      parentRule,
-      message: `${domain} is routed through proxy by the parent rule ${parentRule.domain}. Open Options to edit it.`
+      parentRule: effectiveRule.rule,
+      action,
+      message:
+        action === "proxy"
+          ? `${domain} uses proxy via parent rule ${effectiveRule.rule.domain}. Open Options to edit it.`
+          : `${domain} goes direct via parent rule ${effectiveRule.rule.domain}. Open Options to edit it.`
     };
   }
 
   return {
     state: "none",
-    message: `${domain} is using the direct route unless another proxy setting applies.`
+    message: `${domain} uses the default direct route.`
   };
 }
 
@@ -495,7 +537,8 @@ export function addCurrentSiteRule(
   currentRules: readonly DomainRule[],
   input: string,
   createdAt: string = new Date().toISOString(),
-  source: RuleSource = "manual"
+  source: RuleSource = "manual",
+  action: RuleAction = "proxy"
 ): AddCurrentSiteRuleResult {
   const normalized = normalizeDomain(input);
 
@@ -515,23 +558,33 @@ export function addCurrentSiteRule(
     };
   }
 
-  if (exactRuleForDomain(normalized.domain, currentRules)) {
+  const target = suggestedCurrentSiteRuleTarget(normalized.domain);
+
+  if (
+    currentRules.some(
+      (rule) => rule.domain === target.domain && rule.includeSubdomains === target.includeSubdomains && rule.action === action
+    )
+  ) {
     return {
       ok: true,
       status: "duplicate",
       rules: [...currentRules],
-      domain: normalized.domain
+      domain: target.domain,
+      action,
+      includeSubdomains: target.includeSubdomains
     };
   }
 
-  const parentRule = parentRuleForDomain(normalized.domain, currentRules);
+  const parentRule = findCoveringRouteTargetRule(target.domain, target.includeSubdomains, action, currentRules);
 
   if (parentRule) {
     return {
       ok: true,
       status: "inherited",
       rules: [...currentRules],
-      domain: normalized.domain,
+      domain: target.domain,
+      action,
+      includeSubdomains: target.includeSubdomains,
       parentRule
     };
   }
@@ -542,26 +595,29 @@ export function addCurrentSiteRule(
     rules: [
       ...currentRules,
       {
-        domain: normalized.domain,
-        includeSubdomains: true,
+        domain: target.domain,
+        includeSubdomains: target.includeSubdomains,
+        action,
         mode: "proxy",
         source,
         createdAt
       }
     ],
-    domain: normalized.domain
+    domain: target.domain,
+    action,
+    includeSubdomains: target.includeSubdomains
   };
 }
 
 export function removeCurrentSiteRule(currentRules: readonly DomainRule[], input: string): RemoveCurrentSiteRuleResult {
   const normalized = normalizeDomain(input);
   const domain = normalized.ok ? normalized.domain : input.trim().toLowerCase();
-  const exactRule = exactRuleForDomain(domain, currentRules);
+  const exactRule = findEffectiveDomainRule(domain, currentRules);
 
-  if (exactRule) {
+  if (exactRule?.type === "exact") {
     return {
       status: "removed",
-      rules: currentRules.filter((rule) => normalizeKnownDomain(rule.domain) !== domain),
+      rules: currentRules.filter((_, ruleIndex) => ruleIndex !== exactRule.ruleIndex),
       domain
     };
   }
@@ -590,7 +646,10 @@ export function getDiagnosticActionStatus(
   routeStatus: PopupRuleStatus
 ): DiagnosticActionStatus {
   if (diagnostic.status === "proxy_reachable") {
-    if (routeStatus.state === "none") {
+    if (
+      routeStatus.state === "none" ||
+      ((routeStatus.state === "exact" || routeStatus.state === "inherited") && routeStatus.action === "direct")
+    ) {
       return {
         message: "This site appears reachable through your local proxy. You can add it as a synced proxy route.",
         kind: "success",
@@ -605,7 +664,7 @@ export function getDiagnosticActionStatus(
   }
 
   if (diagnostic.status === "proxy_unreachable") {
-    if (routeStatus.state === "exact" || routeStatus.state === "inherited") {
+    if ((routeStatus.state === "exact" || routeStatus.state === "inherited") && routeStatus.action === "proxy") {
       return {
         message:
           "A synced rule covers this site, but it did not appear reachable through your local proxy. Check your local proxy settings.",
@@ -933,14 +992,19 @@ export function addSelectedRelatedDomainRules(
       continue;
     }
 
-    if (findCoveringRouteTargetRule(domain, candidate.includeSubdomains, rules)) {
+    if (findCoveringRouteTargetRule(domain, candidate.includeSubdomains, "proxy", rules)) {
       skippedDomains.push(domain);
       continue;
     }
 
     const exactRuleIndex = exactRuleIndexForDomain(domain, rules);
 
-    if (candidate.includeSubdomains && exactRuleIndex >= 0 && !rules[exactRuleIndex].includeSubdomains) {
+    if (
+      candidate.includeSubdomains &&
+      exactRuleIndex >= 0 &&
+      rules[exactRuleIndex].action === "proxy" &&
+      !rules[exactRuleIndex].includeSubdomains
+    ) {
       const updatedRule: DomainRule = {
         ...rules[exactRuleIndex],
         includeSubdomains: true
@@ -954,6 +1018,7 @@ export function addSelectedRelatedDomainRules(
     const rule: DomainRule = {
       domain,
       includeSubdomains: candidate.includeSubdomains,
+      action: "proxy",
       mode: "proxy",
       source,
       createdAt
@@ -1263,6 +1328,7 @@ function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }
   setStatus(getElement<HTMLElement>("#route-status"), result.message, "error");
   setStatus(getElement<HTMLElement>("#action-status"), "Open a regular website tab to add a proxy route.", "neutral");
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), false);
+  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), false);
@@ -1277,7 +1343,8 @@ function renderSupported(domain: string, settings: SyncSettings): void {
   setStatus(getElement<HTMLElement>("#route-status"), status.message, status.state === "blocked" ? "error" : "neutral");
   setStatus(getElement<HTMLElement>("#action-status"), "Use explicit controls to update synced site rules.", "neutral");
 
-  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), status.state === "none");
+  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), status.state !== "blocked");
+  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), status.state !== "blocked");
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), status.state === "exact");
   setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), status.state !== "blocked");
   setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), status.state !== "blocked");
@@ -1298,7 +1365,7 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
   return result;
 }
 
-async function handleAddCurrentSite(): Promise<void> {
+async function handleAddCurrentSite(action: RuleAction): Promise<void> {
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
   const result = getCurrentTabDomain(await getActiveTabUrl());
@@ -1310,7 +1377,7 @@ async function handleAddCurrentSite(): Promise<void> {
   }
 
   const current = await getSyncSettings();
-  const addResult = addCurrentSiteRule(current.rules, result.domain);
+  const addResult = addCurrentSiteRule(current.rules, result.domain, new Date().toISOString(), "manual", action);
 
   if (!addResult.ok) {
     setStatus(actionStatus, addResult.error, "error");
@@ -1319,7 +1386,7 @@ async function handleAddCurrentSite(): Promise<void> {
 
   if (addResult.status === "duplicate") {
     renderSupported(result.domain, current);
-    setStatus(actionStatus, `${addResult.domain} already has a synced rule.`, "neutral");
+    setStatus(actionStatus, `${addResult.domain} already has that synced ${ruleActionLabel(action)} rule.`, "neutral");
     return;
   }
 
@@ -1327,7 +1394,7 @@ async function handleAddCurrentSite(): Promise<void> {
     renderSupported(result.domain, current);
     setStatus(
       actionStatus,
-      `${addResult.domain} is already routed by parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
+      `${addResult.domain} already uses ${ruleActionLabel(action)} via parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
       "neutral"
     );
     return;
@@ -1338,7 +1405,7 @@ async function handleAddCurrentSite(): Promise<void> {
   });
 
   renderSupported(result.domain, updated);
-  setStatus(actionStatus, `Added synced proxy route for ${addResult.domain}.`, "success");
+  setStatus(actionStatus, `Added synced ${ruleActionLabel(action)} route for ${addResult.domain}.`, "success");
 }
 
 async function handleRemoveCurrentSite(): Promise<void> {
@@ -1863,7 +1930,7 @@ async function handleSaveDiagnosticRule(): Promise<void> {
 
   if (addResult.status === "duplicate") {
     renderSupported(domain, current);
-    setStatus(actionStatus, `${addResult.domain} already has a synced rule.`, "neutral");
+    setStatus(actionStatus, `${addResult.domain} already has that synced proxy rule.`, "neutral");
     return;
   }
 
@@ -1871,7 +1938,7 @@ async function handleSaveDiagnosticRule(): Promise<void> {
     renderSupported(domain, current);
     setStatus(
       actionStatus,
-      `${addResult.domain} is already routed by parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
+      `${addResult.domain} already uses proxy via parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
       "neutral"
     );
     return;
@@ -1887,10 +1954,20 @@ async function handleSaveDiagnosticRule(): Promise<void> {
 
 function initPopupPage(): void {
   getElement<HTMLButtonElement>("#add-current-site").addEventListener("click", () => {
-    void handleAddCurrentSite().catch((error: unknown) => {
+    void handleAddCurrentSite("proxy").catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
         error instanceof Error ? error.message : "Could not add the current site.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#add-current-site-direct").addEventListener("click", () => {
+    void handleAddCurrentSite("direct").catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not add the direct route.",
         "error"
       );
     });

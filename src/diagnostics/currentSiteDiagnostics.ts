@@ -1,7 +1,7 @@
 import type { ApplyProxySettingsResult, ProxySettingsAdapter } from "../proxy/applyProxySettings";
 import { buildPacScript } from "../proxy/buildPac";
 import { checkDenylistedHost } from "../rules/denylist";
-import { domainMatchesRule } from "../rules/domainMatcher";
+import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule } from "../rules/ruleTypes";
 import { getLocalSettings } from "../storage/localStore";
@@ -216,6 +216,7 @@ export function createDiagnosticProbeRule(domain: string, createdAt: string = ne
   return {
     domain,
     includeSubdomains: true,
+    action: "proxy",
     mode: "proxy",
     source: "diagnostic",
     createdAt
@@ -228,9 +229,8 @@ export function rulesWithDiagnosticProbe(
   createdAt?: string
 ): DomainRule[] {
   const probeRule = createDiagnosticProbeRule(domain, createdAt);
-  const alreadyCoveredByProxyRule = currentRules.some(
-    (rule) => rule.mode === "proxy" && domainMatchesRule(probeRule.domain, rule)
-  );
+  const effectiveRule = findEffectiveDomainRule(probeRule.domain, currentRules);
+  const alreadyCoveredByProxyRule = effectiveRule?.rule.action === "proxy";
 
   return alreadyCoveredByProxyRule ? [...currentRules] : [...currentRules, probeRule];
 }

@@ -104,6 +104,7 @@ function manualRule(domain: string, includeSubdomains = true): DomainRule {
   return {
     domain,
     includeSubdomains,
+    action: "proxy",
     mode: "proxy",
     source: "manual",
     createdAt

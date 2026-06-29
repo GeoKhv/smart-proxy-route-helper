@@ -59,9 +59,17 @@ function manualRule(domain: string, includeSubdomains = true): DomainRule {
   return {
     domain,
     includeSubdomains,
+    action: "proxy",
     mode: "proxy",
     source: "manual",
     createdAt
+  };
+}
+
+function directRule(domain: string, includeSubdomains = true): DomainRule {
+  return {
+    ...manualRule(domain, includeSubdomains),
+    action: "direct"
   };
 }
 
@@ -157,6 +165,21 @@ describe("settings export", () => {
     expect(exportText).toContain("localSettings");
     expect(exportText).toContain("127.0.0.1");
     expect(exportText).toContain("10808");
+  });
+
+  it("exports direct route action values without changing format version", () => {
+    const document = buildSettingsExportDocument(
+      syncSettings({
+        rules: [directRule("www.example.com", false)]
+      }),
+      localSettings(),
+      {
+        exportedAt: "2026-06-29T00:00:00.000Z"
+      }
+    );
+
+    expect(document.version).toBe(1);
+    expect(document.data.syncSettings.rules).toEqual([directRule("www.example.com", false)]);
   });
 
   it("exports domain-level settings without raw URLs or diagnostic session data", () => {
@@ -272,6 +295,7 @@ describe("settings import preview", () => {
       {
         domain: "example.com",
         includeSubdomains: true,
+        action: "proxy",
         mode: "proxy",
         source: "import",
         createdAt: importedAt
@@ -343,6 +367,7 @@ describe("settings import preview", () => {
       {
         domain: "new.example",
         includeSubdomains: false,
+        action: "proxy",
         mode: "proxy",
         source: "import",
         createdAt: importedAt
@@ -352,6 +377,43 @@ describe("settings import preview", () => {
       "track.example": "ignored"
     });
     expect(preview.summary.classificationOverrides.addedOrUpdated).toBe(1);
+  });
+
+  it("imports direct actions and rejects malformed action values", () => {
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [
+              {
+                domain: "www.example.com",
+                includeSubdomains: false,
+                action: "direct",
+                mode: "proxy"
+              },
+              {
+                domain: "bad-action.example",
+                includeSubdomains: true,
+                action: "vpn",
+                mode: "proxy"
+              }
+            ]
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+
+    expect(preview.nextSyncSettings.rules).toEqual([
+      {
+        ...directRule("www.example.com", false),
+        source: "import",
+        createdAt: importedAt
+      }
+    ]);
+    expect(preview.summary.routeRules.skipped).toBe(1);
   });
 
   it("previews local proxy import only when the export includes local settings", () => {
@@ -540,6 +602,7 @@ describe("settings import apply", () => {
       {
         domain: "new.example",
         includeSubdomains: true,
+        action: "proxy",
         mode: "proxy",
         source: "import",
         createdAt: importedAt

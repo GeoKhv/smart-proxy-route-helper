@@ -11,6 +11,7 @@ function manualRule(domain: string, includeSubdomains = true): DomainRule {
   return {
     domain,
     includeSubdomains,
+    action: "proxy",
     mode: "proxy",
     source: "manual",
     createdAt
@@ -111,6 +112,24 @@ describe("options synced rule helpers", () => {
     });
   });
 
+  it("allows proxy and direct rules for the same domain scope", () => {
+    const currentRules = [manualRule("example.com", false)];
+    const result = addDomainRule(currentRules, "example.com", false, createdAt, "direct");
+
+    expect(result).toEqual({
+      ok: true,
+      status: "added",
+      normalizedDomain: "example.com",
+      rules: [
+        manualRule("example.com", false),
+        {
+          ...manualRule("example.com", false),
+          action: "direct"
+        }
+      ]
+    });
+  });
+
   it("removes rules by index without mutating the original list", () => {
     const currentRules = [manualRule("letterboxd.com", true), manualRule("ltrbxd.com", true)];
 
@@ -128,6 +147,9 @@ describe("options classification override UI boundary", () => {
     expect(optionsHtml).toContain("Classification overrides");
     expect(optionsHtml).toContain("classification-overrides-list");
     expect(optionsHtml).toContain("Backup and restore");
+    expect(optionsHtml).toContain("Route through proxy");
+    expect(optionsHtml).toContain("Route directly");
+    expect(optionsHtml).toContain("Find redundant rules");
     expect(optionsHtml).toContain("backup-include-local-proxy");
     expect(optionsHtml).toContain("preview-import-button");
     expect(optionsHtml).toContain("apply-import-button");

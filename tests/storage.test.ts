@@ -49,6 +49,7 @@ function manualRule(domain: string, includeSubdomains = true): DomainRule {
   return {
     domain,
     includeSubdomains,
+    action: "proxy",
     mode: "proxy",
     source: "manual",
     createdAt
@@ -72,6 +73,24 @@ describe("sync storage settings", () => {
     const settings = await getSyncSettings(
       createMemoryStorage({
         rules: [manualRule("Example.com.", true)]
+      })
+    );
+
+    expect(settings.rules).toEqual([manualRule("example.com", true)]);
+  });
+
+  it("migrates old stored rules without action to proxy action", async () => {
+    const settings = await getSyncSettings(
+      createMemoryStorage({
+        rules: [
+          {
+            domain: "Example.com",
+            includeSubdomains: true,
+            mode: "proxy",
+            source: "manual",
+            createdAt
+          }
+        ]
       })
     );
 

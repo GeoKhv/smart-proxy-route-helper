@@ -14,9 +14,18 @@ function manualRule(domain: string, includeSubdomains: boolean): DomainRule {
   return {
     domain,
     includeSubdomains,
+    action: "proxy",
     mode: "proxy",
     source: "manual",
     createdAt: "2026-06-24T00:00:00.000Z"
+  };
+}
+
+function directRule(domain: string, includeSubdomains: boolean, createdAt = "2026-06-24T00:00:01.000Z"): DomainRule {
+  return {
+    ...manualRule(domain, includeSubdomains),
+    action: "direct",
+    createdAt
   };
 }
 
@@ -114,7 +123,14 @@ describe("buildPacScript", () => {
     expect(result.pacScript).toContain("function FindProxyForURL(url, host)");
     expect(result.proxyString).toBe("SOCKS5 127.0.0.1:10808");
     expect(result.proxyString).not.toContain("DIRECT");
-    expect(result.rules).toEqual([{ domain: "example.com", includeSubdomains: true }]);
+    expect(result.rules).toEqual([
+      {
+        domain: "example.com",
+        includeSubdomains: true,
+        action: "proxy",
+        createdAt: "2026-06-24T00:00:00.000Z"
+      }
+    ]);
     expect(result.pacScript).not.toContain('bad"; return');
   });
 
@@ -143,6 +159,20 @@ describe("buildPacScript", () => {
   it("returns DIRECT when no rules match or the rule list is empty", () => {
     expect(runPac(buildTestPac([manualRule("example.com", true)]), "other.test")).toBe("DIRECT");
     expect(runPac(buildTestPac([]), "example.com")).toBe("DIRECT");
+  });
+
+  it("returns DIRECT for direct rule matches", () => {
+    const pacScript = buildTestPac([manualRule("linkedin.com", true), directRule("www.linkedin.com", false)]);
+
+    expect(runPac(pacScript, "www.linkedin.com")).toBe("DIRECT");
+    expect(runPac(pacScript, "linkedin.com")).toBe("SOCKS5 127.0.0.1:10808");
+  });
+
+  it("uses the most specific parent includeSubdomains rule", () => {
+    const pacScript = buildTestPac([manualRule("linkedin.com", true), directRule("media.linkedin.com", true)]);
+
+    expect(runPac(pacScript, "asset.media.linkedin.com")).toBe("DIRECT");
+    expect(runPac(pacScript, "www.linkedin.com")).toBe("SOCKS5 127.0.0.1:10808");
   });
 
   it("rejects invalid local proxy configs instead of generating partial PAC", () => {

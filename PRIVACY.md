@@ -53,14 +53,14 @@ The project does not store secrets, local proxy configuration, browsing history,
 User-controlled settings exports:
 
 - Exported settings JSON is generated locally only after the user clicks "Export settings".
-- The export contains synced route rules, ignored domains, denylist entries, and personal classification overrides as normalized domain-level data.
+- The export contains synced route rules with route actions, ignored domains, denylist entries, and personal classification overrides as normalized domain-level data.
 - Local proxy configuration is excluded by default because it is device-specific.
 - If the user explicitly selects "Include local proxy config for this device", the export may include the sanitized local proxy scheme, host, port, and enabled state.
 - Exports do not include raw URLs, page paths, query strings, fragments, credentials, collected resource host lists, diagnostic session metadata, page text, cookies, screenshots, file contents, telemetry, backend data, or remote executable code.
 
 Settings imports are parsed locally, validated for the supported format/version, sanitized, previewed, and applied only after an explicit user click. Import rejects malformed rules and protected/internal/private imported domains. The extension does not upload import files or backup contents.
 
-User-invoked related-domain preview and diagnostic recording may collect sanitized resource hostnames from bounded resource references on the current page in memory. Recording keeps collected hostnames in the temporary injected page recorder until stop, cancel, page unload, or expiry. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Paths, query strings, fragments, and credentials are dropped before preview output. The extension does not collect page text, form values, uploaded file contents, screenshots, cookies, auth/session data, or full resource URL lists. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
+User-invoked related-domain preview and diagnostic recording may collect sanitized resource hostnames from bounded resource references on the current page in memory. Recording keeps collected hostnames in the temporary injected page recorder until stop, cancel, page unload, or expiry. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Paths, query strings, fragments, and credentials are dropped before preview output. The extension does not collect page text, form values, uploaded file contents, screenshots, cookies, auth/session data, or full resource URL lists. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. Direct exceptions are created only through explicit route-rule actions, not through related-domain preview. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
 
 ## Chrome Sync
 

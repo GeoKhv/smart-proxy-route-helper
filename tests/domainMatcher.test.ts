@@ -1,15 +1,37 @@
 import { describe, expect, it } from "vitest";
 
-import { domainMatchesRule, findMatchingDomainRule } from "../src/rules/domainMatcher";
+import {
+  domainMatchesRule,
+  findEffectiveDomainRule,
+  findMatchingDomainRule,
+  findRedundantDomainRules
+} from "../src/rules/domainMatcher";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
 const letterboxdRule: DomainRule = {
   domain: "letterboxd.com",
   includeSubdomains: true,
+  action: "proxy",
   mode: "proxy",
   source: "manual",
   createdAt: "2026-06-24T00:00:00.000Z"
 };
+
+function rule(
+  domain: string,
+  includeSubdomains: boolean,
+  action: "proxy" | "direct" = "proxy",
+  createdAt = "2026-06-24T00:00:00.000Z"
+): DomainRule {
+  return {
+    domain,
+    includeSubdomains,
+    action,
+    mode: "proxy",
+    source: "manual",
+    createdAt
+  };
+}
 
 describe("domainMatchesRule", () => {
   it("matches exact domains", () => {
@@ -58,5 +80,66 @@ describe("domainMatchesRule", () => {
     ];
 
     expect(findMatchingDomainRule("a.ltrbxd.com", rules)).toEqual(rules[1]);
+  });
+});
+
+describe("findEffectiveDomainRule", () => {
+  it("prefers exact host rules over parent rules", () => {
+    const rules = [rule("linkedin.com", true, "proxy"), rule("www.linkedin.com", false, "direct")];
+
+    expect(findEffectiveDomainRule("www.linkedin.com", rules)).toMatchObject({
+      type: "exact",
+      rule: rule("www.linkedin.com", false, "direct")
+    });
+  });
+
+  it("uses the most specific parent includeSubdomains rule", () => {
+    const rules = [rule("linkedin.com", true, "proxy"), rule("media.linkedin.com", true, "direct")];
+
+    expect(findEffectiveDomainRule("img.media.linkedin.com", rules)).toMatchObject({
+      type: "parent",
+      rule: rule("media.linkedin.com", true, "direct")
+    });
+  });
+
+  it("uses the most recently created rule for equal specificity", () => {
+    const older = rule("example.com", true, "proxy", "2026-06-24T00:00:00.000Z");
+    const newer = rule("example.com", true, "direct", "2026-06-24T00:00:01.000Z");
+
+    expect(findEffectiveDomainRule("sub.example.com", [older, newer])).toMatchObject({
+      rule: newer
+    });
+  });
+
+  it("allows a proxy child rule to override a broader direct parent rule", () => {
+    const rules = [rule("linkedin.com", true, "direct"), rule("media.linkedin.com", true, "proxy")];
+
+    expect(findEffectiveDomainRule("asset.media.linkedin.com", rules)).toMatchObject({
+      type: "parent",
+      rule: rule("media.linkedin.com", true, "proxy")
+    });
+  });
+});
+
+describe("findRedundantDomainRules", () => {
+  it("suggests same-action child rules covered by a parent includeSubdomains rule", () => {
+    const parent = rule("linkedin.com", true, "proxy");
+    const child = rule("www.linkedin.com", true, "proxy");
+
+    expect(findRedundantDomainRules([parent, child])).toEqual([
+      {
+        redundantRule: child,
+        coveringRule: parent,
+        redundantRuleIndex: 1,
+        coveringRuleIndex: 0,
+        reason: "linkedin.com already covers this proxy route for the domain and its subdomains.",
+        safeToRemove: true
+      }
+    ]);
+  });
+
+  it("does not suggest override child rules with a different action", () => {
+    expect(findRedundantDomainRules([rule("linkedin.com", true, "proxy"), rule("www.linkedin.com", false, "direct")])).toEqual([]);
+    expect(findRedundantDomainRules([rule("linkedin.com", true, "direct"), rule("www.linkedin.com", false, "proxy")])).toEqual([]);
   });
 });

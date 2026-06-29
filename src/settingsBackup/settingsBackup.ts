@@ -3,7 +3,7 @@ import type { UserClassificationOverrides } from "../domainClassification/userCl
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
-import type { DomainRule } from "../rules/ruleTypes";
+import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import { updateLocalSettings } from "../storage/localStore";
 import { sanitizeLocalSettings, sanitizeSyncSettings } from "../storage/sanitize";
 import { setSyncSettings } from "../storage/syncStore";
@@ -143,6 +143,14 @@ function hasValidCreatedAt(input: unknown): input is string {
   return typeof input === "string" && input.length > 0 && !Number.isNaN(Date.parse(input));
 }
 
+function sanitizeRuleAction(input: unknown): RuleAction | null {
+  if (input === undefined) {
+    return "proxy";
+  }
+
+  return input === "proxy" || input === "direct" ? input : null;
+}
+
 function safeDomain(input: unknown): string | null {
   if (typeof input !== "string") {
     return null;
@@ -207,6 +215,12 @@ function sanitizeImportRule(input: unknown, importedAt: string): DomainRule | nu
     return null;
   }
 
+  const action = sanitizeRuleAction(input.action);
+
+  if (!action) {
+    return null;
+  }
+
   const domain = safeDomain(input.domain);
 
   if (!domain) {
@@ -216,6 +230,7 @@ function sanitizeImportRule(input: unknown, importedAt: string): DomainRule | nu
   return {
     domain,
     includeSubdomains: input.includeSubdomains,
+    action,
     mode: "proxy",
     source: "import",
     createdAt: hasValidCreatedAt(input.createdAt) ? input.createdAt : importedAt
@@ -402,8 +417,8 @@ function sanitizeImportedSyncSettings(
   };
 }
 
-function ruleKey(rule: Pick<DomainRule, "domain" | "includeSubdomains">): string {
-  return `${rule.domain}:${String(rule.includeSubdomains)}`;
+function ruleKey(rule: Pick<DomainRule, "domain" | "includeSubdomains" | "action">): string {
+  return `${rule.domain}:${String(rule.includeSubdomains)}:${rule.action}`;
 }
 
 function mergeRules(

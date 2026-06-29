@@ -54,7 +54,9 @@ Candidate scope:
 - Better status and error messages.
 - Versioned settings export/import for local backups and unpacked/local installation migration.
 - Local stable extension ID workflow for unpacked installs that need Chrome Sync continuity while Store publication is delayed or unavailable.
-- Export/import of synced route rules, ignored domains, denylist entries, and classification overrides as domain-level data.
+- Proxy rules and direct exceptions with deterministic exact/parent precedence.
+- Redundant same-action route-rule cleanup suggestions with no automatic deletion.
+- Export/import of synced route rules, route actions, ignored domains, denylist entries, and classification overrides as domain-level data.
 - Optional explicit local proxy config export for this device, excluded by default.
 - Rule search/filter for larger lists.
 - Safer migration path for stored schemas.
@@ -81,7 +83,7 @@ Exit criteria:
 - v0.1 manual smoke tests still pass.
 - Store listing claims match actual behavior.
 - Privacy disclosures are reviewed.
-- Settings import validates format/version, previews changes before apply, sanitizes domains, rejects protected/internal/private imported domains, and avoids duplicate route rules.
+- Settings import validates format/version, previews changes before apply, sanitizes domains, rejects protected/internal/private imported domains, rejects malformed route actions, and avoids duplicate route rules by domain, subdomain scope, and action.
 - Release artifact is reproducible from repository source.
 
 ## v0.3: Optional Safe Diagnostics

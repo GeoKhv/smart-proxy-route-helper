@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold, Popup current-site rule management, manual current-site diagnostics, Options configuration UI, Backup and restore, and runtime PAC application.
+This checklist covers the current Manifest V3 extension scaffold, Popup current-site proxy/direct rule management, manual current-site diagnostics, Options configuration UI, redundant-rule cleanup, Backup and restore, and runtime PAC application.
 
 ## Test Environment
 
@@ -28,6 +28,7 @@ Record:
 10. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
 11. Confirm classification overrides are saved only after explicit candidate-row actions and do not create proxy routing rules.
 12. Confirm settings export/import is local and user-controlled, with preview before apply and no cloud upload.
+13. Confirm direct exceptions and redundant-rule cleanup require explicit user action and do not delete or add rules automatically.
 
 ## Current Runtime Checks
 
@@ -65,7 +66,7 @@ await chrome.proxy.settings.get({ incognito: false });
 ```
 
 9. Confirm the value uses `mode: "pac_script"` and contains inline PAC `data`, not a PAC `url`.
-10. Confirm the PAC entry for matching rules returns a strict proxy string such as `SOCKS5 127.0.0.1:10808`, without `; DIRECT`.
+10. Confirm the PAC entry for matching proxy rules returns a strict proxy string such as `SOCKS5 127.0.0.1:10808`, without `; DIRECT`.
 11. If a local test proxy is running on the configured host/port, visit the test domain and confirm matching traffic reaches that local proxy.
 12. Stop the local proxy or change the local proxy port to a known-wrong value, reload the matching test domain, and confirm it fails closed instead of silently using the direct route.
 13. Visit a non-matching domain and confirm it uses the direct route.
@@ -86,7 +87,7 @@ await chrome.storage.sync.get(["deviceProxy"]);
 6. Confirm `deviceProxy` is present in local storage and absent from sync storage.
 7. Add `letterboxd.com` with subdomains included.
 8. Add `ltrbxd.com` with subdomains included.
-9. Confirm both rules appear in the Options list with mode/source metadata.
+9. Confirm both rules appear in the Options list with Proxy route action, source metadata, and subdomain scope.
 10. Confirm the rules are stored in `chrome.storage.sync`:
 
 ```js
@@ -94,10 +95,15 @@ await chrome.storage.sync.get(["rules"]);
 ```
 
 11. Try to add `localhost`, `192.168.1.1`, and `chrome://extensions`; confirm inline validation rejects them.
-12. Remove one rule and confirm it is removed from the Options list and synced storage.
-13. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
-14. If classification overrides exist, confirm they appear in the "Classification overrides" section.
-15. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
+12. Add a direct exception such as `www.example.com` exact. Confirm it can coexist with a broader `example.com` proxy rule.
+13. Add a redundant same-action child such as `www.linkedin.com` with subdomains included while `linkedin.com` proxy with subdomains already exists.
+14. Click "Find redundant rules" and confirm a cleanup suggestion appears.
+15. Confirm no rule is removed by the scan alone.
+16. Click the suggestion's remove button and confirm only that suggested redundant rule is removed after the explicit click.
+17. Confirm a direct child under a proxy parent and a proxy child under a direct parent are not suggested as redundant.
+18. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
+19. If classification overrides exist, confirm they appear in the "Classification overrides" section.
+20. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
 
 ## Backup and Restore Checks
 
@@ -133,6 +139,13 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
         {
           "domain": "https://Example.com/path?token=secret",
           "includeSubdomains": true,
+          "action": "proxy",
+          "mode": "proxy"
+        },
+        {
+          "domain": "www.example.com",
+          "includeSubdomains": false,
+          "action": "direct",
           "mode": "proxy"
         },
         {
@@ -161,7 +174,7 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
 16. Confirm `chrome.storage.sync` and `chrome.storage.local` are unchanged after preview alone.
 17. In a clean profile or safe demo state only, click "Apply import".
 18. Confirm imported route rules and classification overrides are written to `chrome.storage.sync` only after apply.
-19. Confirm duplicate existing route rules are not added twice.
+19. Confirm old imports without `action` are treated as proxy rules, direct imports keep `action: "direct"`, invalid action values are skipped, and duplicate existing route rules are not added twice when domain, subdomain scope, and action all match.
 20. Confirm local proxy config is not changed unless the import JSON contains `data.localSettings.deviceProxy` and the user explicitly applies that preview.
 21. Confirm Options still does not call `chrome.proxy.settings` directly; proxy re-application should happen through the background storage listener after storage changes.
 22. Confirm export/import does not add permissions, host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, backend calls, telemetry, remote list fetching, or remote executable code.
@@ -175,23 +188,27 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
 5. Confirm a success message appears and the rule is stored in `chrome.storage.sync` with:
 
 - `domain: "letterboxd.com"`.
-- `includeSubdomains: true`.
+- `includeSubdomains: false`.
+- `action: "proxy"`.
 - `mode: "proxy"`.
 - `source: "manual"`.
 
 6. Reopen the popup and confirm it reports an exact synced rule.
-7. Click "Remove current site rule".
-8. Confirm the exact `letterboxd.com` rule is removed from `chrome.storage.sync`.
-9. Add a parent rule such as `example.com` with subdomains included, then open a subdomain like `https://www.example.com/`.
-10. Confirm the popup explains that routing is inherited from the parent rule and does not remove the parent rule silently.
-11. Open `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
-12. Confirm the popup can open Options through the "Open Options" button.
-13. Confirm the popup shows a "Check via proxy" button on supported sites.
-14. Confirm the popup shows a "Preview related domains" button on supported sites.
-15. Confirm the popup shows "Start recording" on supported sites when no recording is active.
-16. Confirm the popup shows "Stop and preview" and "Cancel recording" when a recording is active for the current tab.
-17. Confirm the popup explains when a recording belongs to another tab and does not offer stop-and-preview from the wrong tab.
-18. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
+7. Click "Route this site directly" and confirm an exact direct rule is added only after that explicit click.
+8. Confirm the popup reports `direct via exact rule` behavior for the current site.
+9. Click "Remove current site rule".
+10. Confirm exact current-site rules are removed from `chrome.storage.sync`.
+11. Add a parent rule such as `example.com` with subdomains included, then open a subdomain like `https://www.example.com/`.
+12. Confirm the popup explains that routing is inherited from the parent rule and does not remove the parent rule silently.
+13. Open `https://www.linkedin.com/` in a safe clean-profile/demo context, click "Route this site through proxy", and confirm the stored rule defaults to `linkedin.com` with `includeSubdomains: true`.
+14. Open unsupported pages such as `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
+15. Confirm the popup can open Options through the "Open Options" button.
+16. Confirm the popup shows a "Check via proxy" button on supported sites.
+17. Confirm the popup shows a "Preview related domains" button on supported sites.
+18. Confirm the popup shows "Start recording" on supported sites when no recording is active.
+19. Confirm the popup shows "Stop and preview" and "Cancel recording" when a recording is active for the current tab.
+20. Confirm the popup explains when a recording belongs to another tab and does not offer stop-and-preview from the wrong tab.
+21. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
 
 ## Manual Current-Site Diagnostics Checks
 
@@ -207,7 +224,8 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
 6. If the check appears reachable, confirm the popup offers a separate "Add checked site as rule" action and does not add a rule automatically.
 7. Click "Add checked site as rule" and confirm the rule is stored in `chrome.storage.sync` with:
 
-- `includeSubdomains: true`.
+- `includeSubdomains: false` for a non-`www` current host, or base-domain `includeSubdomains: true` for a `www.*` current host.
+- `action: "proxy"`.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
 
@@ -273,6 +291,7 @@ await chrome.storage.local.get(null);
 
 - `domain` matching the candidate's suggested rule domain, not necessarily the exact observed host.
 - `includeSubdomains` matching the candidate suggestion.
+- `action: "proxy"`.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
 

@@ -1,12 +1,13 @@
 import { sanitizeUserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
-import type { DomainRule, RuleSource } from "../rules/ruleTypes";
+import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
 import { isDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { createDefaultLocalSettings, createDefaultSyncSettings } from "./defaults";
 import type { DeviceProxySettings, DiagnosticsSettings, LocalSettings, SyncSettings } from "./storageTypes";
 
 const validRuleSources = new Set<RuleSource>(["manual", "diagnostic", "import"]);
+const validRuleActions = new Set<RuleAction>(["proxy", "direct"]);
 
 function isRecord(input: unknown): input is Record<string, unknown> {
   return typeof input === "object" && input !== null;
@@ -47,7 +48,11 @@ function sanitizeDomainRule(input: unknown): DomainRule | null {
     return null;
   }
 
-  if (input.mode !== "proxy" || typeof input.includeSubdomains !== "boolean") {
+  if ((input.mode !== undefined && input.mode !== "proxy") || typeof input.includeSubdomains !== "boolean") {
+    return null;
+  }
+
+  if (input.action !== undefined && (typeof input.action !== "string" || !validRuleActions.has(input.action as RuleAction))) {
     return null;
   }
 
@@ -72,6 +77,7 @@ function sanitizeDomainRule(input: unknown): DomainRule | null {
   return {
     domain: normalized.domain,
     includeSubdomains: input.includeSubdomains,
+    action: input.action === "direct" ? "direct" : "proxy",
     mode: "proxy",
     source: input.source as RuleSource,
     createdAt: input.createdAt
@@ -93,7 +99,7 @@ function sanitizeRules(input: unknown): DomainRule[] {
       continue;
     }
 
-    const key = `${rule.domain}:${String(rule.includeSubdomains)}`;
+    const key = `${rule.domain}:${String(rule.includeSubdomains)}:${rule.action}`;
 
     if (seenRules.has(key)) {
       continue;

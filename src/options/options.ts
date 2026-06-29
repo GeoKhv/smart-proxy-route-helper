@@ -11,8 +11,9 @@ import type {
   UserClassificationSiteOverride
 } from "../domainClassification/userClassificationOverrides";
 import { checkDenylistedHost } from "../rules/denylist";
+import { findRedundantDomainRules } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
-import type { DomainRule } from "../rules/ruleTypes";
+import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import {
   applySettingsImportPreview,
   previewSettingsImport,
@@ -137,7 +138,8 @@ export function addDomainRule(
   currentRules: readonly DomainRule[],
   input: string,
   includeSubdomains: boolean,
-  createdAt: string = new Date().toISOString()
+  createdAt: string = new Date().toISOString(),
+  action: RuleAction = "proxy"
 ): AddRuleResult {
   const normalized = normalizeDomain(input);
 
@@ -158,7 +160,7 @@ export function addDomainRule(
   }
 
   const duplicate = currentRules.some(
-    (rule) => rule.domain === normalized.domain && rule.includeSubdomains === includeSubdomains
+    (rule) => rule.domain === normalized.domain && rule.includeSubdomains === includeSubdomains && rule.action === action
   );
 
   if (duplicate) {
@@ -177,6 +179,7 @@ export function addDomainRule(
       {
         domain: normalized.domain,
         includeSubdomains,
+        action,
         mode: "proxy",
         source: "manual",
         createdAt
@@ -245,7 +248,7 @@ function renderRules(settings: SyncSettings): void {
   if (settings.rules.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No synced proxy rules yet.";
+    empty.textContent = "No synced route rules yet.";
     list.append(empty);
     return;
   }
@@ -262,7 +265,7 @@ function renderRules(settings: SyncSettings): void {
     const metadata = document.createElement("div");
     metadata.className = "metadata";
     metadata.textContent = [
-      `mode: ${rule.mode}`,
+      rule.action === "direct" ? "Direct route" : "Proxy route",
       `source: ${rule.source}`,
       rule.includeSubdomains ? "includes subdomains" : "exact domain only"
     ].join(" · ");
@@ -272,6 +275,44 @@ function renderRules(settings: SyncSettings): void {
     removeButton.textContent = "Remove";
     removeButton.dataset.ruleIndex = String(index);
     removeButton.setAttribute("aria-label", `Remove ${rule.domain}`);
+
+    summary.append(domain, metadata);
+    item.append(summary, removeButton);
+    list.append(item);
+  });
+}
+
+function renderRuleCleanupSuggestions(settings: SyncSettings): void {
+  const list = getElement<HTMLUListElement>("#rule-cleanup-list");
+  const suggestions = findRedundantDomainRules(settings.rules);
+
+  list.replaceChildren();
+
+  if (suggestions.length === 0) {
+    const empty = document.createElement("li");
+
+    empty.className = "empty";
+    empty.textContent = "No redundant route rules found.";
+    list.append(empty);
+    return;
+  }
+
+  suggestions.forEach((suggestion) => {
+    const item = document.createElement("li");
+    const summary = document.createElement("div");
+    const domain = document.createElement("div");
+    const metadata = document.createElement("div");
+    const removeButton = document.createElement("button");
+
+    item.className = "rule-item";
+    domain.className = "rule-domain";
+    metadata.className = "metadata";
+    domain.textContent = `${suggestion.redundantRule.domain} (${suggestion.redundantRule.action})`;
+    metadata.textContent = `${suggestion.reason} Covered by ${suggestion.coveringRule.domain}.`;
+    removeButton.type = "button";
+    removeButton.textContent = "Remove suggestion";
+    removeButton.dataset.cleanupRuleIndex = String(suggestion.redundantRuleIndex);
+    removeButton.setAttribute("aria-label", `Remove redundant rule for ${suggestion.redundantRule.domain}`);
 
     summary.append(domain, metadata);
     item.append(summary, removeButton);
@@ -488,8 +529,9 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
   const status = getElement<HTMLElement>("#rule-status");
   const input = getElement<HTMLInputElement>("#rule-domain");
   const includeSubdomains = getElement<HTMLInputElement>("#rule-subdomains").checked;
+  const action = getElement<HTMLSelectElement>("#rule-action").value === "direct" ? "direct" : "proxy";
   const current = await getSyncSettings();
-  const addResult = addDomainRule(current.rules, input.value, includeSubdomains);
+  const addResult = addDomainRule(current.rules, input.value, includeSubdomains, new Date().toISOString(), action);
 
   if (!addResult.ok) {
     const message = addResult.error;
@@ -510,14 +552,15 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
   renderRules(updated);
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
+  renderRuleCleanupSuggestions(updated);
 
   if (addResult.status === "duplicate") {
-    setStatus(status, `${addResult.normalizedDomain} is already in synced rules.`, "neutral");
+    setStatus(status, `${addResult.normalizedDomain} already has that synced route rule.`, "neutral");
     return;
   }
 
   input.value = "";
-  setStatus(status, `Added synced rule for ${addResult.normalizedDomain}.`, "success");
+  setStatus(status, `Added synced ${action} rule for ${addResult.normalizedDomain}.`, "success");
 }
 
 async function handleRuleListClick(event: MouseEvent): Promise<void> {
@@ -537,6 +580,34 @@ async function handleRuleListClick(event: MouseEvent): Promise<void> {
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
   setStatus(getElement<HTMLElement>("#rule-status"), "Synced rule removed.", "success");
+  renderRuleCleanupSuggestions(updated);
+}
+
+async function handleRuleCleanupClick(event: MouseEvent): Promise<void> {
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-cleanup-rule-index]");
+
+  if (!button) {
+    return;
+  }
+
+  const index = Number(button.dataset.cleanupRuleIndex);
+  const updated = await updateSyncSettings((current) => ({
+    ...current,
+    rules: removeRuleAtIndex(current.rules, index)
+  }));
+
+  renderRules(updated);
+  renderStoredLists(updated);
+  renderClassificationOverrides(updated);
+  renderRuleCleanupSuggestions(updated);
+  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), "Redundant rule removed after confirmation.", "success");
+}
+
+async function handleFindRedundantRulesClick(): Promise<void> {
+  const settings = await getSyncSettings();
+
+  renderRuleCleanupSuggestions(settings);
+  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), "Rule cleanup scan complete. Nothing was removed automatically.", "success");
 }
 
 async function handleClassificationOverrideListClick(event: MouseEvent): Promise<void> {
@@ -635,6 +706,7 @@ async function handleApplyImportClick(): Promise<void> {
     renderRules(result.syncSettings);
     renderStoredLists(result.syncSettings);
     renderClassificationOverrides(result.syncSettings);
+    renderRuleCleanupSuggestions(result.syncSettings);
 
     if (result.localSettings) {
       renderLocalSettings(result.localSettings);
@@ -661,6 +733,7 @@ async function initOptionsPage(): Promise<void> {
   renderLocalSettings(localSettings);
   setStatus(getElement<HTMLElement>("#local-proxy-status"), "Loaded local settings.", "neutral");
   setStatus(getElement<HTMLElement>("#rule-status"), "Loaded synced rules.", "neutral");
+  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), "Run a scan to find redundant route rules.", "neutral");
   setStatus(getElement<HTMLElement>("#classification-overrides-status"), "Loaded classification overrides.", "neutral");
   setStatus(getElement<HTMLElement>("#export-settings-status"), "Backup export ready.", "neutral");
   setStatus(getElement<HTMLElement>("#import-settings-status"), "Paste export JSON to preview import.", "neutral");
@@ -673,6 +746,12 @@ async function initOptionsPage(): Promise<void> {
   });
   getElement<HTMLUListElement>("#rule-list").addEventListener("click", (event) => {
     void handleRuleListClick(event);
+  });
+  getElement<HTMLButtonElement>("#find-redundant-rules").addEventListener("click", () => {
+    void handleFindRedundantRulesClick();
+  });
+  getElement<HTMLUListElement>("#rule-cleanup-list").addEventListener("click", (event) => {
+    void handleRuleCleanupClick(event);
   });
   getElement<HTMLUListElement>("#classification-overrides-list").addEventListener("click", (event) => {
     void handleClassificationOverrideListClick(event);

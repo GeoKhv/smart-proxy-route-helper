@@ -14,7 +14,7 @@ For unpacked local installs, a stable extension ID can be kept by adding the man
 
 When Chrome Sync is enabled for the user's Chrome profile, the extension can sync:
 
-- Domain route rules.
+- Domain route rules, including proxy/direct action and subdomain scope.
 - Domain-level classification overrides.
 - Synced ignored domains and denylist entries.
 - Rule metadata such as source and creation time.
@@ -30,7 +30,7 @@ The extension does not sync:
 - Collected resource host lists or diagnostic history.
 - Backend state, telemetry, or remote configuration.
 
-Settings export/import remains a local backup and migration option. Local proxy configuration is excluded from export by default and is included only when the user explicitly selects that option.
+Settings export/import remains a local backup and migration option. Route actions are included in synced route-rule exports. Local proxy configuration is excluded from export by default and is included only when the user explicitly selects that option.
 
 ## Get the Public Key
 

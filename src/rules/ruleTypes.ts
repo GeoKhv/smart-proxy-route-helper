@@ -1,10 +1,13 @@
 export type RuleMode = "proxy";
 
+export type RuleAction = "proxy" | "direct";
+
 export type RuleSource = "manual" | "diagnostic" | "import";
 
 export type DomainRule = {
   domain: string;
   includeSubdomains: boolean;
+  action: RuleAction;
   mode: RuleMode;
   source: RuleSource;
   createdAt: string;
