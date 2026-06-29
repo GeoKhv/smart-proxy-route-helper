@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && vite build",
+    "build:local-stable-id": "node scripts/build-local-stable-id.mjs",
     "package": "node scripts/package-extension.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

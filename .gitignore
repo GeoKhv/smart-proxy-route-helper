@@ -1,8 +1,10 @@
 node_modules/
 dist/
+dist-local/
 build/
 coverage/
 .vite/
+.local/
 release/*.zip
 .DS_Store
 .env

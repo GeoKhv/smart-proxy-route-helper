@@ -53,6 +53,7 @@ Candidate scope:
 
 - Better status and error messages.
 - Versioned settings export/import for local backups and unpacked/local installation migration.
+- Local stable extension ID workflow for unpacked installs that need Chrome Sync continuity while Store publication is delayed or unavailable.
 - Export/import of synced route rules, ignored domains, denylist entries, and classification overrides as domain-level data.
 - Optional explicit local proxy config export for this device, excluded by default.
 - Rule search/filter for larger lists.
@@ -72,6 +73,7 @@ Out of scope:
 - Background page observation.
 - Remote domain lists.
 - Remote settings sync, cloud upload, or backend backup storage.
+- WebDAV, Gist, backend, or remote-list sync for unpacked installs.
 - Any feature that requires broad host access.
 
 Exit criteria:

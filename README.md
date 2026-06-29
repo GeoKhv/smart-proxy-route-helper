@@ -77,6 +77,20 @@ Configure and use the MVP:
 7. Select only the related domains you want and click the separate add action.
 8. Use Options > Backup and restore to export or import a local settings backup when moving between unpacked/local installations.
 
+### Local Stable-ID Build
+
+For local/unpacked installs that should share the same Chrome Sync identity across devices, create a separate stable-ID build:
+
+```sh
+npm run build:local-stable-id
+```
+
+This writes `dist-local/` from the normal `dist/` output and injects `manifest.key` from either `.local/extension-public-key.txt` or `SPRH_EXTENSION_PUBLIC_KEY`. Use only the public manifest key string. Do not commit `.local/`, `dist-local/`, private keys, or user-specific key material.
+
+Load `dist-local/` through `chrome://extensions` > "Load unpacked". The normal `npm run build` output remains `dist/` without `manifest.key`.
+
+See [docs/local-install-sync.md](docs/local-install-sync.md) for the full local install and Chrome Sync fallback workflow.
+
 ## Development Commands
 
 Run tests:
@@ -193,6 +207,8 @@ User-controlled backup files:
 
 The project does not store, sync, export, or send raw URLs, page paths, query strings, fragments, credentials, browsing history, collected resource host lists, or diagnostics history. Local proxy configuration stays in local storage, is not synced or sent, and is excluded from settings exports unless the user explicitly includes it. `chrome.storage.session` data is short-lived recording metadata only; it is not used as persistent or synced user storage.
 
+A local stable-ID unpacked build can use a public manifest key in `dist-local/` so Chrome Sync can associate synced route rules and classification overrides with the same extension identity across local installs. This is local setup data, not runtime product data, and it does not sync local proxy configuration.
+
 See [docs/architecture.md](docs/architecture.md) for the planned data boundaries.
 
 ## Privacy Posture
@@ -243,6 +259,7 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): draft release notes for v0.1.0.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
+- [docs/local-install-sync.md](docs/local-install-sync.md): local/unpacked stable-ID build and Chrome Sync fallback workflow.
 - [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md): draft Chrome Web Store listing materials.
 - [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md): draft Store privacy-field language.
 - [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md): screenshot and image asset plan.
