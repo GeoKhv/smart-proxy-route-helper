@@ -33,6 +33,10 @@ The current public pre-release is `v0.1.0` on GitHub:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
 
+Development on `main` continues after the `v0.1.0` Store submission baseline. Current `main` also includes a local
+Backup and restore Options section for versioned settings export/import; the submitted `v0.1.0` tag and release package
+remain the fixed baseline.
+
 Chrome Web Store preparation materials are available in:
 
 - [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
@@ -71,6 +75,7 @@ Configure and use the MVP:
 5. Add the current site as a synced proxy route, or run "Check via proxy" first.
 6. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions, or click "Start recording" before a page action and "Stop and preview" afterward.
 7. Select only the related domains you want and click the separate add action.
+8. Use Options > Backup and restore to export or import a local settings backup when moving between unpacked/local installations.
 
 ## Development Commands
 
@@ -121,6 +126,7 @@ The MVP runtime provides a small manual PAC manager:
 - Use public-suffix-aware registrable-domain parsing so route planning does not rely on unsafe "last two labels" assumptions.
 - Plan ChatGPT/OpenAI generated asset hosts as `oaiusercontent.com` with subdomains included only when bundled site-scoped hints apply.
 - Save related-domain candidates only after explicit user selection and confirmation.
+- Export and import versioned local backup JSON after explicit user actions.
 - Keep domain parsing, validation, storage mapping, and PAC generation in pure modules with focused tests.
 
 ## What It Does Not Do
@@ -140,6 +146,7 @@ The MVP does not include:
 - Managed remote domain lists.
 - Runtime fetching of GitHub/raw classification lists.
 - Automatic upload or reporting of collected domains.
+- Automatic cloud upload or remote sync of settings backups.
 - Proxy authentication management.
 - Chrome Web Store submission automation.
 
@@ -177,7 +184,14 @@ Transient while a recording is active:
 
 - Diagnostic recording metadata in `chrome.storage.session`, such as tab/domain/time/status fields.
 
-The project does not store, sync, or send raw URLs, page paths, query strings, fragments, credentials, browsing history, local proxy configuration, collected resource host lists, or diagnostics history. `chrome.storage.session` data is short-lived recording metadata only; it is not used as persistent or synced user storage.
+User-controlled backup files:
+
+- Exported settings JSON contains synced route rules, ignored domains, denylist entries, and classification overrides as normalized domain-level data.
+- Local proxy configuration is excluded by default because it is device-specific.
+- If the user explicitly selects "Include local proxy config for this device", the export may include the sanitized local proxy scheme, host, port, and enabled state.
+- Import validates the export format/version, sanitizes domains, rejects protected/internal/private domains, shows a preview, and writes storage only after the user clicks "Apply import".
+
+The project does not store, sync, export, or send raw URLs, page paths, query strings, fragments, credentials, browsing history, collected resource host lists, or diagnostics history. Local proxy configuration stays in local storage, is not synced or sent, and is excluded from settings exports unless the user explicitly includes it. `chrome.storage.session` data is short-lived recording metadata only; it is not used as persistent or synced user storage.
 
 See [docs/architecture.md](docs/architecture.md) for the planned data boundaries.
 

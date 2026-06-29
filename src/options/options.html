@@ -83,7 +83,8 @@
       }
 
       input,
-      select {
+      select,
+      textarea {
         width: 100%;
         min-height: 38px;
         border: 1px solid color-mix(in srgb, CanvasText 28%, Canvas);
@@ -91,6 +92,15 @@
         padding: 8px 10px;
         background: Canvas;
         color: CanvasText;
+      }
+
+      textarea {
+        min-height: 160px;
+        resize: vertical;
+        font-family:
+          ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 13px;
+        line-height: 1.45;
       }
 
       button {
@@ -128,6 +138,19 @@
       .hint {
         margin: 0;
         font-size: 13px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
       }
 
       .status {
@@ -188,6 +211,15 @@
         border: 1px dashed color-mix(in srgb, CanvasText 22%, Canvas);
         border-radius: 6px;
         color: color-mix(in srgb, CanvasText 70%, Canvas);
+      }
+
+      .preview-list {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding-left: 20px;
+        font-size: 14px;
+        line-height: 1.45;
       }
 
       @media (max-width: 720px) {
@@ -286,6 +318,52 @@
         </p>
         <p class="status" id="classification-overrides-status" aria-live="polite"></p>
         <ul class="rule-list" id="classification-overrides-list"></ul>
+      </section>
+
+      <section aria-labelledby="backup-restore-title">
+        <h2 id="backup-restore-title">Backup and restore</h2>
+        <p>
+          Export and import local user-controlled backups. No cloud upload, telemetry, backend, raw URLs, diagnostic
+          sessions, or page content are included.
+        </p>
+
+        <div class="stack">
+          <h3>Export settings</h3>
+          <label class="checkbox-row">
+            <input id="backup-include-local-proxy" name="includeLocalProxyConfig" type="checkbox" />
+            Include local proxy config for this device
+          </label>
+          <p class="hint">
+            Local proxy host and port are device-specific and are excluded by default. Include them only for a backup you
+            control.
+          </p>
+          <div class="actions">
+            <button id="export-settings-button" type="button">Export settings</button>
+          </div>
+          <label>
+            Export JSON
+            <textarea id="export-settings-output" readonly spellcheck="false"></textarea>
+          </label>
+          <p class="status" id="export-settings-status" aria-live="polite"></p>
+        </div>
+
+        <div class="stack">
+          <h3>Import settings</h3>
+          <label>
+            Import JSON
+            <textarea
+              id="import-settings-input"
+              spellcheck="false"
+              placeholder="Paste a Smart Proxy Route Helper settings export JSON document"
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button id="preview-import-button" type="button">Preview import</button>
+            <button id="apply-import-button" type="button" disabled>Apply import</button>
+          </div>
+          <div id="import-preview" class="empty" aria-live="polite">No import preview yet.</div>
+          <p class="status" id="import-settings-status" aria-live="polite"></p>
+        </div>
       </section>
     </main>
     <script type="module" src="./options.ts"></script>

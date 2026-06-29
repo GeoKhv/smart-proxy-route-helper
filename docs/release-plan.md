@@ -52,7 +52,9 @@ Goal: improve user confidence and release readiness without expanding the permis
 Candidate scope:
 
 - Better status and error messages.
-- Import/export of domain rules as local files, if needed.
+- Versioned settings export/import for local backups and unpacked/local installation migration.
+- Export/import of synced route rules, ignored domains, denylist entries, and classification overrides as domain-level data.
+- Optional explicit local proxy config export for this device, excluded by default.
 - Rule search/filter for larger lists.
 - Safer migration path for stored schemas.
 - More complete automated tests.
@@ -69,6 +71,7 @@ Out of scope:
 - Default-on diagnostics.
 - Background page observation.
 - Remote domain lists.
+- Remote settings sync, cloud upload, or backend backup storage.
 - Any feature that requires broad host access.
 
 Exit criteria:
@@ -76,6 +79,7 @@ Exit criteria:
 - v0.1 manual smoke tests still pass.
 - Store listing claims match actual behavior.
 - Privacy disclosures are reviewed.
+- Settings import validates format/version, previews changes before apply, sanitizes domains, rejects protected/internal/private imported domains, and avoids duplicate route rules.
 - Release artifact is reproducible from repository source.
 
 ## v0.3: Optional Safe Diagnostics

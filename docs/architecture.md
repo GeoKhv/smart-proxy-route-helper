@@ -42,8 +42,9 @@ Options page:
 - Manage domain rules.
 - Show and remove synced personal classification overrides.
 - Show which settings are local to this device and which domain rules are synced.
-- Show storage status for saves, additions, and removals.
-- Provide reset/export affordances only after implementation design is settled.
+- Show storage status for saves, additions, removals, exports, import previews, and import apply actions.
+- Provide Backup and restore controls for versioned local settings export/import.
+- Keep import preview separate from import apply; no imported settings are written until the user explicitly confirms.
 
 ### Extension Service Worker
 
@@ -76,6 +77,7 @@ Core logic is isolated from Chrome APIs where practical:
 - Domain candidate classification from local built-in data, caller-provided user override inputs, and conservative heuristics.
 - Current-page resource host sanitization and preview planning.
 - Diagnostic recording target validation, transient recorder state handling, bounded page-local host collection, and recorded-host preview planning.
+- Settings backup export/import formatting, validation, sanitization, merge preview, and explicit apply helpers.
 
 These modules should be unit-tested without Chrome.
 
@@ -108,6 +110,30 @@ Current local data:
 - Local diagnostics preference.
 
 Do not store telemetry, browsing history, raw URLs, raw diagnostic history, secrets, synced proxy host/port values, collected page resource hosts, or temporary probe state.
+
+### Settings Export and Import
+
+The Options page includes a user-controlled Backup and restore section for local/unpacked installation workflows.
+
+Export behavior:
+
+- Produces versioned JSON with `format: "smart-proxy-route-helper-settings"` and `version: 1`.
+- Exports synced route rules, ignored domains, denylist entries, and personal classification overrides by default.
+- Stores only normalized domain-level data in the export.
+- Excludes local proxy configuration by default because local proxy host and port are device-specific.
+- Includes local proxy scheme, host, port, and enabled state only when the user explicitly selects "Include local proxy config for this device".
+- Does not export raw URLs, paths, query strings, fragments, credentials, diagnostic session metadata, collected resource host lists, page text, cookies, screenshots, file contents, telemetry, backend state, or remote code.
+
+Import behavior:
+
+- Parses JSON locally and validates the export format/version before preview.
+- Sanitizes imported domains with the same domain normalization and protected-host guards used elsewhere.
+- Rejects malformed rules, duplicate imported entries, invalid domains, localhost, private/internal IPs, browser/internal pages, and internal local suffixes.
+- Shows a preview summary before applying changes, including route rule counts, classification override counts, local proxy inclusion, warnings, and errors.
+- Merges imported synced settings with existing settings by default and avoids duplicate route rules.
+- Writes to `chrome.storage.sync` and, only when local proxy config is present in the import, `chrome.storage.local` after the user clicks "Apply import".
+- Does not call `chrome.proxy.settings` from Options; the background storage listener remains responsible for proxy re-application.
+- Ignores unknown extra JSON fields and never evaluates imported data as executable logic.
 
 ### Session Storage
 
@@ -318,6 +344,7 @@ The runtime boundary remains narrow:
 - Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`. Recorded hostnames stay in the injected page recorder until stop/cancel/expiry and are not written to sync or local storage.
 - Popup classification override actions write only the synced `classificationOverrides` data and then refresh preview; they do not create proxy routing rules.
 - Options classification override removal updates storage only and does not call `chrome.proxy.settings`.
+- Options Backup and restore export/import reads and writes only through storage helpers. Import preview does not write storage, and import apply requires an explicit button click.
 - No host permissions are required.
 - No `webRequest` or `webNavigation` APIs are used.
 - No backend, telemetry, remote PAC URL, or remote executable code is used.

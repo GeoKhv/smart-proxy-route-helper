@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold, Popup current-site rule management, manual current-site diagnostics, Options configuration UI, and runtime PAC application.
+This checklist covers the current Manifest V3 extension scaffold, Popup current-site rule management, manual current-site diagnostics, Options configuration UI, Backup and restore, and runtime PAC application.
 
 ## Test Environment
 
@@ -27,6 +27,7 @@ Record:
 9. Confirm related-domain preview and recording do not store, sync, send, or automatically save collected hosts or diagnostic summary counts.
 10. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
 11. Confirm classification overrides are saved only after explicit candidate-row actions and do not create proxy routing rules.
+12. Confirm settings export/import is local and user-controlled, with preview before apply and no cloud upload.
 
 ## Current Runtime Checks
 
@@ -35,7 +36,7 @@ Record:
 3. Run `npm run build`.
 4. Load `dist/` as an unpacked extension in Chrome.
 5. Open the popup on a regular `http` or `https` site and confirm the current domain renders.
-6. Open the options page and confirm local proxy settings, synced domain rules, classification overrides, and read-only denylist/ignored-domain sections render.
+6. Open the options page and confirm local proxy settings, synced domain rules, classification overrides, read-only denylist/ignored-domain sections, and Backup and restore render.
 7. Inspect the service worker and confirm it starts without uncaught errors.
 8. Confirm no automatic diagnostics, backend calls, telemetry, persistent content scripts, or host permissions are present.
 9. Confirm manifest permissions are `proxy`, `storage`, `activeTab`, and `scripting`.
@@ -97,6 +98,73 @@ await chrome.storage.sync.get(["rules"]);
 13. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
 14. If classification overrides exist, confirm they appear in the "Classification overrides" section.
 15. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
+
+## Backup and Restore Checks
+
+Use a clean Chrome profile or sanitized demo data for import apply checks. Do not overwrite real user settings. If a clean profile or safe demo state is unavailable, stop before applying import and record the blocker.
+
+1. Open Options and confirm the "Backup and restore" section renders.
+2. Confirm the "Include local proxy config for this device" checkbox is unchecked by default.
+3. Configure a local proxy such as `socks5`, `127.0.0.1`, `10808`, and add a safe route rule such as `example.com`.
+4. Click "Export settings" with the local proxy checkbox unchecked.
+5. Confirm the generated JSON contains:
+
+- `format: "smart-proxy-route-helper-settings"`.
+- `version: 1`.
+- `data.syncSettings.rules`.
+- No `localSettings`.
+- No local proxy host or port.
+
+6. Check the local proxy checkbox and click "Export settings" again.
+7. Confirm the generated JSON includes `data.localSettings.deviceProxy` and that the local proxy host/port appear only in this explicit export.
+8. Confirm exported synced data is domain-level only and does not include raw URLs, paths, query strings, fragments, collected resource hosts, diagnostic session data, page text, cookies, screenshots, file contents, telemetry, backend data, or remote executable code.
+9. Paste malformed JSON into Import JSON and click "Preview import"; confirm an error appears and "Apply import" remains disabled.
+10. Paste a wrong-format JSON document and click "Preview import"; confirm an unsupported format/version error appears and nothing is written.
+11. Paste a small safe demo import JSON, for example:
+
+```json
+{
+  "format": "smart-proxy-route-helper-settings",
+  "version": 1,
+  "exportedAt": "2026-06-29T00:00:00.000Z",
+  "data": {
+    "syncSettings": {
+      "rules": [
+        {
+          "domain": "https://Example.com/path?token=secret",
+          "includeSubdomains": true,
+          "mode": "proxy"
+        },
+        {
+          "domain": "192.168.1.1",
+          "includeSubdomains": true,
+          "mode": "proxy"
+        }
+      ],
+      "ignoredDomains": [],
+      "denylist": [],
+      "classificationOverrides": {
+        "global": {
+          "https://Track.Example/path?secret=1": "ignored"
+        },
+        "site": {}
+      }
+    }
+  }
+}
+```
+
+12. Click "Preview import" and confirm the preview appears before apply.
+13. Confirm the preview summarizes route rules, classification overrides, local proxy inclusion, skipped protected domains, and warnings/errors.
+14. Confirm `example.com` and `track.example` are normalized and that path/query data such as `token=secret` is not written to storage.
+15. Confirm protected/internal/private domains such as `192.168.1.1`, `localhost`, and `chrome://extensions` are skipped.
+16. Confirm `chrome.storage.sync` and `chrome.storage.local` are unchanged after preview alone.
+17. In a clean profile or safe demo state only, click "Apply import".
+18. Confirm imported route rules and classification overrides are written to `chrome.storage.sync` only after apply.
+19. Confirm duplicate existing route rules are not added twice.
+20. Confirm local proxy config is not changed unless the import JSON contains `data.localSettings.deviceProxy` and the user explicitly applies that preview.
+21. Confirm Options still does not call `chrome.proxy.settings` directly; proxy re-application should happen through the background storage listener after storage changes.
+22. Confirm export/import does not add permissions, host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, backend calls, telemetry, remote list fetching, or remote executable code.
 
 ## Popup Current-Site Checks
 

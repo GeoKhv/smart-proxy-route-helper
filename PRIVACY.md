@@ -18,6 +18,7 @@ Smart Proxy Route Helper is local-first:
 - No remote executable code.
 - No runtime remote list fetching.
 - No raw URLs stored, synced, or sent by the project.
+- No settings backup upload or remote settings sync.
 
 ## Data the Extension Is Expected to Store
 
@@ -49,6 +50,16 @@ Stored temporarily with `chrome.storage.session` only while diagnostic recording
 
 The project does not store secrets, local proxy configuration, browsing history, raw URLs, raw diagnostic history, page resource lists, or temporary probe state in synced storage.
 
+User-controlled settings exports:
+
+- Exported settings JSON is generated locally only after the user clicks "Export settings".
+- The export contains synced route rules, ignored domains, denylist entries, and personal classification overrides as normalized domain-level data.
+- Local proxy configuration is excluded by default because it is device-specific.
+- If the user explicitly selects "Include local proxy config for this device", the export may include the sanitized local proxy scheme, host, port, and enabled state.
+- Exports do not include raw URLs, page paths, query strings, fragments, credentials, collected resource host lists, diagnostic session metadata, page text, cookies, screenshots, file contents, telemetry, backend data, or remote executable code.
+
+Settings imports are parsed locally, validated for the supported format/version, sanitized, previewed, and applied only after an explicit user click. Import rejects malformed rules and protected/internal/private imported domains. The extension does not upload import files or backup contents.
+
 User-invoked related-domain preview and diagnostic recording may collect sanitized resource hostnames from bounded resource references on the current page in memory. Recording keeps collected hostnames in the temporary injected page recorder until stop, cancel, page unload, or expiry. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Paths, query strings, fragments, and credentials are dropped before preview output. The extension does not collect page text, form values, uploaded file contents, screenshots, cookies, auth/session data, or full resource URL lists. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
 
 ## Chrome Sync
@@ -56,6 +67,8 @@ User-invoked related-domain preview and diagnostic recording may collect sanitiz
 If the user has Chrome Sync enabled, Chrome may sync the domain rule list and personal classification overrides through the user's Chrome profile because the MVP uses `chrome.storage.sync` for those domain-level settings.
 
 The local proxy configuration is intentionally device-specific and should remain in `chrome.storage.local`.
+
+Local proxy configuration is also excluded from settings exports unless the user explicitly includes it in the generated backup JSON.
 
 ## Data the Developer Does Not Receive
 
@@ -68,6 +81,7 @@ The project must not send the developer:
 - Related-domain preview resource hosts.
 - Diagnostic recording resource hosts.
 - Classification overrides.
+- Settings backup files.
 - IP addresses.
 - Error logs.
 - Usage events.
@@ -75,6 +89,8 @@ The project must not send the developer:
 ## Network Requests
 
 The extension must not contact a project backend because no backend exists.
+
+Settings export/import does not contact a project backend, upload backup files, fetch remote backup data, or synchronize backups through any developer-operated service.
 
 Manual current-site diagnostics may make a user-initiated best-effort request from the extension context to the current tab origin after the user clicks "Check via proxy". The check temporarily routes the current normalized domain through the configured local proxy, then restores normal proxy routing.
 
@@ -98,6 +114,7 @@ Users should be able to delete stored extension data by:
 - Removing classification overrides in the extension UI.
 - Clearing local proxy settings in the extension UI.
 - Removing the extension from Chrome.
+- Deleting any settings export files they saved outside the extension.
 
 ## Changes
 

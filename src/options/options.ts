@@ -13,6 +13,12 @@ import type {
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule } from "../rules/ruleTypes";
+import {
+  applySettingsImportPreview,
+  previewSettingsImport,
+  serializeSettingsExport,
+  type SettingsImportPreview
+} from "../settingsBackup/settingsBackup";
 import { getLocalSettings, updateLocalSettings } from "../storage/localStore";
 import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
 import type { DeviceProxySettings, LocalSettings, SyncSettings } from "../storage/storageTypes";
@@ -23,7 +29,10 @@ const suggestedLocalProxyConfig: LocalProxyConfig = {
   port: 10808
 };
 
+type ReadySettingsImportPreview = Extract<SettingsImportPreview, { ok: true }>;
 type FieldErrors = Partial<Record<"scheme" | "host" | "port" | "domain", string>>;
+
+let pendingImportPreview: ReadySettingsImportPreview | null = null;
 
 export type LocalProxyFormInput = {
   enabled: boolean;
@@ -372,6 +381,75 @@ function renderClassificationOverrides(settings: SyncSettings): void {
   });
 }
 
+function plural(value: number, singular: string, pluralValue = `${singular}s`): string {
+  return value === 1 ? singular : pluralValue;
+}
+
+function appendPreviewItem(list: HTMLUListElement, message: string, className?: string): void {
+  const item = document.createElement("li");
+  item.textContent = message;
+
+  if (className) {
+    item.className = className;
+  }
+
+  list.append(item);
+}
+
+function renderImportPreview(preview: SettingsImportPreview): void {
+  const container = getElement<HTMLElement>("#import-preview");
+  const list = document.createElement("ul");
+  list.className = "preview-list";
+  container.replaceChildren();
+
+  if (!preview.ok) {
+    preview.errors.forEach((error) => appendPreviewItem(list, error, "error"));
+    preview.warnings.forEach((warning) => appendPreviewItem(list, warning));
+    container.append(list);
+    return;
+  }
+
+  const { summary } = preview;
+
+  appendPreviewItem(
+    list,
+    `Route rules: ${summary.routeRules.importable} ${plural(
+      summary.routeRules.importable,
+      "rule"
+    )} importable, ${summary.routeRules.added} new, ${summary.routeRules.duplicates} duplicate ${plural(
+      summary.routeRules.duplicates,
+      "match",
+      "matches"
+    )}, ${summary.routeRules.skipped} skipped.`
+  );
+  appendPreviewItem(
+    list,
+    `Classification overrides: ${summary.classificationOverrides.importable} importable, ${summary.classificationOverrides.addedOrUpdated} added or updated, ${summary.classificationOverrides.skipped} skipped.`
+  );
+  appendPreviewItem(
+    list,
+    `Ignored domains: ${summary.ignoredDomains.importable} importable, ${summary.ignoredDomains.added} new, ${summary.ignoredDomains.duplicates} duplicate, ${summary.ignoredDomains.skipped} skipped.`
+  );
+  appendPreviewItem(
+    list,
+    `Denylist: ${summary.denylist.importable} importable, ${summary.denylist.added} new, ${summary.denylist.duplicates} duplicate, ${summary.denylist.skipped} skipped.`
+  );
+  appendPreviewItem(
+    list,
+    summary.localProxyWillBeApplied
+      ? "Local proxy config: included and will be applied after confirmation."
+      : "Local proxy config: not included."
+  );
+
+  if (preview.warnings.length === 0) {
+    appendPreviewItem(list, "Warnings: none.");
+  } else {
+    preview.warnings.forEach((warning) => appendPreviewItem(list, warning));
+  }
+
+  container.append(list);
+}
+
 async function refreshSyncView(): Promise<SyncSettings> {
   const settings = await getSyncSettings();
   renderRules(settings);
@@ -487,12 +565,105 @@ async function handleClassificationOverrideListClick(event: MouseEvent): Promise
   setStatus(status, "Classification override removed.", "success");
 }
 
+async function handleSettingsExportClick(): Promise<void> {
+  const status = getElement<HTMLElement>("#export-settings-status");
+
+  try {
+    const [syncSettings, localSettings] = await Promise.all([getSyncSettings(), getLocalSettings()]);
+    const includeLocalProxyConfig = getElement<HTMLInputElement>("#backup-include-local-proxy").checked;
+    const exportText = serializeSettingsExport(syncSettings, localSettings, {
+      includeLocalProxyConfig
+    });
+
+    getElement<HTMLTextAreaElement>("#export-settings-output").value = exportText;
+    setStatus(
+      status,
+      includeLocalProxyConfig
+        ? "Export JSON generated with local proxy config included."
+        : "Export JSON generated without local proxy config.",
+      "success"
+    );
+  } catch (error) {
+    setStatus(status, error instanceof Error ? error.message : "Could not export settings.", "error");
+  }
+}
+
+async function handleImportPreviewClick(): Promise<void> {
+  const status = getElement<HTMLElement>("#import-settings-status");
+  const applyButton = getElement<HTMLButtonElement>("#apply-import-button");
+
+  try {
+    const [currentSyncSettings, currentLocalSettings] = await Promise.all([getSyncSettings(), getLocalSettings()]);
+    const preview = previewSettingsImport(
+      getElement<HTMLTextAreaElement>("#import-settings-input").value,
+      currentSyncSettings,
+      currentLocalSettings
+    );
+
+    renderImportPreview(preview);
+
+    if (!preview.ok) {
+      pendingImportPreview = null;
+      applyButton.disabled = true;
+      setStatus(status, "Fix the import JSON before applying changes.", "error");
+      return;
+    }
+
+    pendingImportPreview = preview;
+    applyButton.disabled = false;
+    setStatus(status, "Import preview ready. Review it before applying changes.", "success");
+  } catch (error) {
+    pendingImportPreview = null;
+    applyButton.disabled = true;
+    setStatus(status, error instanceof Error ? error.message : "Could not preview import.", "error");
+  }
+}
+
+async function handleApplyImportClick(): Promise<void> {
+  const status = getElement<HTMLElement>("#import-settings-status");
+  const applyButton = getElement<HTMLButtonElement>("#apply-import-button");
+
+  if (!pendingImportPreview) {
+    applyButton.disabled = true;
+    setStatus(status, "Preview a valid import before applying it.", "error");
+    return;
+  }
+
+  try {
+    const result = await applySettingsImportPreview(pendingImportPreview);
+
+    renderRules(result.syncSettings);
+    renderStoredLists(result.syncSettings);
+    renderClassificationOverrides(result.syncSettings);
+
+    if (result.localSettings) {
+      renderLocalSettings(result.localSettings);
+      setStatus(getElement<HTMLElement>("#local-proxy-status"), "Local proxy settings restored on this device.", "success");
+    }
+
+    pendingImportPreview = null;
+    applyButton.disabled = true;
+    setStatus(status, "Import applied after explicit confirmation.", "success");
+  } catch (error) {
+    setStatus(status, error instanceof Error ? error.message : "Could not apply import.", "error");
+  }
+}
+
+function clearPendingImportPreview(): void {
+  pendingImportPreview = null;
+  getElement<HTMLButtonElement>("#apply-import-button").disabled = true;
+  getElement<HTMLElement>("#import-preview").textContent = "No import preview yet.";
+  setStatus(getElement<HTMLElement>("#import-settings-status"), "Import preview cleared.", "neutral");
+}
+
 async function initOptionsPage(): Promise<void> {
   const [localSettings] = await Promise.all([getLocalSettings(), refreshSyncView()]);
   renderLocalSettings(localSettings);
   setStatus(getElement<HTMLElement>("#local-proxy-status"), "Loaded local settings.", "neutral");
   setStatus(getElement<HTMLElement>("#rule-status"), "Loaded synced rules.", "neutral");
   setStatus(getElement<HTMLElement>("#classification-overrides-status"), "Loaded classification overrides.", "neutral");
+  setStatus(getElement<HTMLElement>("#export-settings-status"), "Backup export ready.", "neutral");
+  setStatus(getElement<HTMLElement>("#import-settings-status"), "Paste export JSON to preview import.", "neutral");
 
   getElement<HTMLFormElement>("#local-proxy-form").addEventListener("submit", (event) => {
     void handleLocalProxySubmit(event);
@@ -505,6 +676,18 @@ async function initOptionsPage(): Promise<void> {
   });
   getElement<HTMLUListElement>("#classification-overrides-list").addEventListener("click", (event) => {
     void handleClassificationOverrideListClick(event);
+  });
+  getElement<HTMLButtonElement>("#export-settings-button").addEventListener("click", () => {
+    void handleSettingsExportClick();
+  });
+  getElement<HTMLButtonElement>("#preview-import-button").addEventListener("click", () => {
+    void handleImportPreviewClick();
+  });
+  getElement<HTMLButtonElement>("#apply-import-button").addEventListener("click", () => {
+    void handleApplyImportClick();
+  });
+  getElement<HTMLTextAreaElement>("#import-settings-input").addEventListener("input", () => {
+    clearPendingImportPreview();
   });
 }
 

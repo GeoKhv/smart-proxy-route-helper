@@ -127,8 +127,14 @@ describe("options classification override UI boundary", () => {
 
     expect(optionsHtml).toContain("Classification overrides");
     expect(optionsHtml).toContain("classification-overrides-list");
+    expect(optionsHtml).toContain("Backup and restore");
+    expect(optionsHtml).toContain("backup-include-local-proxy");
+    expect(optionsHtml).toContain("preview-import-button");
+    expect(optionsHtml).toContain("apply-import-button");
     expect(optionsSource).toContain("removeUserClassificationOverride");
     expect(optionsSource).toContain("classificationOverrides: removeUserClassificationOverride");
+    expect(optionsSource).toContain("previewSettingsImport");
+    expect(optionsSource).toContain("applySettingsImportPreview");
     expect(optionsSource).not.toContain("chrome.proxy");
   });
 });
