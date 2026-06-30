@@ -1,6 +1,10 @@
-# Chrome Web Store Listing Draft
+# Chrome Web Store Listing Reference
 
-This draft prepares public listing text for a future Chrome Web Store submission. The extension is not yet published on Chrome Web Store, and this document is not a submission record.
+This document records the public listing text and maintenance references for the published `v0.1.0` Chrome Web Store listing. It is not Chrome Web Store Dashboard automation and does not modify the live listing.
+
+Published listing:
+
+- https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
 ## Extension Name
 
@@ -68,11 +72,15 @@ For support, bug reports, and feature requests, open a GitHub issue. Do not incl
 
 ## Website and GitHub Links
 
+Chrome Web Store listing:
+
+- https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
+
 Project repository:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper
 
-Current GitHub pre-release:
+Current GitHub release:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
 
@@ -120,26 +128,26 @@ None. The MVP does not request host permissions, `<all_urls>`, `webRequest`, or 
 
 ## Known Limitations
 
-- The extension is not yet published on Chrome Web Store.
 - A local proxy must be configured outside the extension.
 - Chrome proxy settings may be controlled by enterprise policy, another extension, or user settings.
 - Related-domain preview and diagnostic recording can surface noisy suggestions because they are based on resource hosts visible to the active page.
 - The built-in classification data is intentionally small and curated.
 - Proxy authentication management is not included in version `0.1.0`.
-- Store review has not yet been completed.
+- Future Store listing updates must stay aligned with the exact submitted package and privacy disclosures.
 
-## Submission Status
+## Publication Status
 
-Current status: not yet published on Chrome Web Store.
+Current status: `v0.1.0` is published in Chrome Web Store.
 
-Preparation status:
+Publication reference status:
 
-- GitHub pre-release `v0.1.0` exists.
+- Chrome Web Store listing exists at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
+- GitHub release `v0.1.0` exists.
 - Release asset `smart-proxy-route-helper-v0.1.0.zip` exists.
-- Store listing draft prepared in this document.
-- Store privacy disclosure draft prepared in `docs/chrome-web-store-privacy-disclosure.md`.
-- Screenshot plan prepared in `docs/chrome-web-store-screenshots.md`.
-- Submission readiness checklist prepared in `docs/chrome-web-store-submission-checklist.md`.
+- Store listing reference is maintained in this document.
+- Store privacy disclosure reference is maintained in `docs/chrome-web-store-privacy-disclosure.md`.
+- Screenshot asset references are maintained in `docs/chrome-web-store-screenshots.md`.
+- Submission readiness history and future update checklist are maintained in `docs/chrome-web-store-submission-checklist.md`.
 
 ## Official References
 

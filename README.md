@@ -2,11 +2,11 @@
 
 Smart Proxy Route Helper is an open-source Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
 
-The extension lets a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is local-first, permission-minimal, and designed to be publishable to Chrome Web Store.
+The extension lets a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is local-first, permission-minimal, and published in Chrome Web Store.
 
-## MVP Release Candidate Status
+## MVP Release Status
 
-Version `0.1.0` is the first MVP release candidate. The runtime includes:
+Version `0.1.0` is the first published MVP release. The runtime includes:
 
 - Options UI for device-specific local proxy configuration, synced proxy rules, direct exceptions, and redundant-rule cleanup suggestions.
 - Popup UI for current-site effective route status and explicit proxy/direct route management.
@@ -25,11 +25,11 @@ It does not include telemetry, backend calls, host permissions, persistent conte
 
 ## Chrome Web Store Status
 
-Smart Proxy Route Helper is not yet published on Chrome Web Store.
+Smart Proxy Route Helper `v0.1.0` is published in Chrome Web Store:
 
-The repository Store asset set is ready for manual Chrome Web Store Dashboard dry-run / final human review: the small promotional image exists, the recommended final screenshots are prepared, and the remaining gates are Dashboard field review plus final privacy policy URL verification.
+- https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
-The current public pre-release is `v0.1.0` on GitHub:
+The current public GitHub release is `v0.1.0`:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
 
@@ -37,7 +37,7 @@ Development on `main` continues after the `v0.1.0` Store submission baseline. Cu
 Backup and restore Options section for versioned settings export/import; the submitted `v0.1.0` tag and release package
 remain the fixed baseline.
 
-Chrome Web Store preparation materials are available in:
+Chrome Web Store listing, submission, and publication-reference materials are available in:
 
 - [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md)
 - [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md)
@@ -230,7 +230,6 @@ See [PRIVACY.md](PRIVACY.md).
 
 ## Known Limitations
 
-- The extension is not yet published on Chrome Web Store.
 - Local proxy availability depends on software configured outside this extension.
 - Chrome proxy settings may be controlled by enterprise policy, another extension, or user settings.
 - Related-domain preview and recording can be noisy because they are based on resource references visible to the loaded page.
@@ -256,13 +255,13 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/architecture.md](docs/architecture.md): planned extension architecture and storage boundaries.
 - [docs/domain-classification.md](docs/domain-classification.md): local candidate classification model, precedence, and contribution workflow.
 - [docs/permissions.md](docs/permissions.md): MVP and future permission strategy.
-- [docs/release-checklist.md](docs/release-checklist.md): release candidate verification checklist.
-- [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): draft release notes for v0.1.0.
+- [docs/release-checklist.md](docs/release-checklist.md): release verification checklist.
+- [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): release notes for v0.1.0.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
 - [docs/local-install-sync.md](docs/local-install-sync.md): local/unpacked stable-ID build and Chrome Sync fallback workflow.
-- [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md): draft Chrome Web Store listing materials.
-- [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md): draft Store privacy-field language.
+- [docs/chrome-web-store-listing.md](docs/chrome-web-store-listing.md): Chrome Web Store listing reference.
+- [docs/chrome-web-store-privacy-disclosure.md](docs/chrome-web-store-privacy-disclosure.md): Store privacy-field reference.
 - [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md): screenshot and image asset plan.
 - [docs/chrome-web-store-screenshot-workflow.md](docs/chrome-web-store-screenshot-workflow.md): clean-profile screenshot capture workflow and demo-data guardrails.
 - [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md): Store submission readiness checklist.

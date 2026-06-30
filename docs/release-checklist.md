@@ -1,6 +1,6 @@
 # MVP Release Checklist
 
-Use this checklist before publishing or tagging an MVP release candidate.
+Use this checklist before publishing, tagging, or updating an MVP release.
 
 ## Automated Checks
 
@@ -64,21 +64,21 @@ Use this checklist before publishing or tagging an MVP release candidate.
 
 ## npm Audit Notes
 
-Current v0.1.0 RC audit result:
+Current v0.1.0 audit result:
 
 - Severity: low.
 - Affected dependency: `esbuild` 0.27.3 - 0.28.0.
 - Advisory: arbitrary file read when running the development server on Windows.
 - Runtime impact assessment: dev-server-only tooling issue; the packaged extension does not run the Vite dev server, does not include `node_modules`, and does not include `esbuild`.
 - Dependency note: `tldts` is used for bundled public-suffix-aware domain parsing and did not introduce runtime remote fetching.
-- `npm audit fix`: available, but not applied in this release-polish change to avoid dependency churn during RC closeout. Reassess separately before publication if the release branch can absorb a lockfile update and a fresh full verification pass.
+- `npm audit fix`: available, but not applied in this release-polish change to avoid dependency churn during v0.1.0 closeout. Reassess separately before a future package update if the release branch can absorb a lockfile update and a fresh full verification pass.
 
 Do not apply broad dependency upgrades during release closeout unless the change is trivial, safe, and tested.
 
-Refresh this audit note whenever `npm audit` changes. If the known low-severity `esbuild` development-server advisory remains the only finding, document it in the final RC report and keep dependency upgrades out of this slice unless explicitly approved.
+Refresh this audit note whenever `npm audit` changes. If the known low-severity `esbuild` development-server advisory remains the only finding, document it in the final release report and keep dependency upgrades out of this slice unless explicitly approved.
 
 ## Release Notes
 
 - Update `docs/release-notes-v0.1.0.md`.
-- State whether the extension is Chrome Web Store published. For this RC, it is not yet published unless a separate publishing step has completed.
+- State whether the extension is Chrome Web Store published. For `v0.1.0`, it is published at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
 - Keep public wording neutral: proxy routing, local proxy, PAC manager, diagnostics, direct route, proxy route.

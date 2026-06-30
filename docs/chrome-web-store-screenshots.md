@@ -1,6 +1,6 @@
 # Chrome Web Store Screenshot Plan
 
-This plan defines screenshot candidates and the current draft canvas set for a future Chrome Web Store submission. Do not include private user data, personal accounts, private messages, bank or work bookmarks, credentials, proxy secrets, or sensitive tabs.
+This plan defines screenshot candidates and the current draft canvas set for the published `v0.1.0` Chrome Web Store listing and future Store updates. Do not include private user data, personal accounts, private messages, bank or work bookmarks, credentials, proxy secrets, or sensitive tabs.
 
 Chrome Web Store listing documentation requires at least one `1280x800` screenshot and allows up to five screenshots. Prepare a focused five-image set first, then keep the additional ideas as optional support images for documentation or future listing updates.
 
@@ -35,7 +35,7 @@ Prepared on 2026-06-28 under [../store-assets/promotional/](../store-assets/prom
 
 | Asset | Source | Status |
 | --- | --- | --- |
-| `small-promo-440x280.png` | `small-promo-440x280.svg` | `440x280` small promotional image draft for Chrome Web Store; not uploaded to the Developer Dashboard |
+| `small-promo-440x280.png` | `small-promo-440x280.svg` | `440x280` small promotional image source asset for Chrome Web Store listing maintenance |
 
 The small promotional image uses neutral copy: `Smart Proxy Route Helper` and `Route selected sites through your local proxy`. The visual uses sanitized example domains, a local proxy diagram, and privacy/user-control labels. It contains no private data, personal browser content, external CDN assets, external fonts, backend references, telemetry claims, or publication claims.
 
@@ -78,16 +78,16 @@ If clean screenshots are not feasible, do not capture live UI. Use placeholder s
 
 ## Required Store Assets
 
-Prepare before submission:
+Verify before any future Store package or listing update:
 
 - Store icon: `128x128` px.
 - Screenshots: at least one `1280x800` px screenshot, up to five total.
-- Small promo tile: `store-assets/promotional/small-promo-440x280.png`, `440x280` px PNG draft prepared; upload and final-review manually in the Developer Dashboard before submission.
+- Small promo tile: `store-assets/promotional/small-promo-440x280.png`, `440x280` px PNG source asset prepared; final-review manually in the Developer Dashboard before future submission updates.
 - Optional marquee promo tile: `1400x560` px PNG or JPEG.
 
 ## Recommended Five-Screenshot Set
 
-Use these five content slots for the first Store submission set:
+Use these five content slots for the published listing or future Store update set:
 
 ### 1. Options: Local Proxy Configuration
 

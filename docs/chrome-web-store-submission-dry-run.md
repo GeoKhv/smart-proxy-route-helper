@@ -1,8 +1,10 @@
 # Chrome Web Store Submission Dry-Run Pack
 
-This document is a manual dry-run pack for a future Chrome Web Store submission. It is not a submission record, does not publish the extension, and does not modify the Chrome Web Store Developer Dashboard.
+This document was a manual dry-run pack for the Chrome Web Store submission and remains a reference checklist for future Store package or listing updates. It is not submission automation and does not modify the Chrome Web Store Developer Dashboard.
 
 Dry-run date: 2026-06-26; refreshed 2026-06-28 after clean screenshot and promotional image updates.
+
+Post-publication update: `v0.1.0` is now published in Chrome Web Store at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj. This dry-run pack remains a preparation record and a reference checklist for future Store package or listing updates.
 
 Repository baseline checked:
 
@@ -26,18 +28,19 @@ Preflight checks run:
 
 ## 1. Submission Status
 
-Status: not yet submitted to Chrome Web Store.
+Current status: published in Chrome Web Store as `v0.1.0`.
 
-Current preparation state:
+Publication reference state:
 
-- GitHub pre-release `v0.1.0` exists.
+- Chrome Web Store listing exists at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
+- GitHub release `v0.1.0` exists.
 - Release asset exists at `release/smart-proxy-route-helper-v0.1.0.zip`.
 - Store-readiness docs exist in `docs/`.
-- Store listing assets are draft-ready.
+- Store listing assets are maintained as repository source assets.
 - Small promotional image exists at `store-assets/promotional/small-promo-440x280.png`.
 - Popup screenshots `04` and `05` were replaced on 2026-06-28 from clean manually captured Chrome sources and no longer show cursor highlights.
 
-Ready for manual Chrome Web Store Dashboard dry-run / final human review before submission. Do not press Submit until the final screenshot set, small promotional image, privacy policy URL, and Dashboard fields are reviewed against the exact uploaded package.
+For any future Store package or listing update, repeat the final Dashboard review against the exact package before pressing Submit.
 
 ## 2. Package To Upload
 
@@ -334,11 +337,10 @@ Use these where useful in listing copy, support docs, or release notes:
 - Related-domain suggestions are best-effort and may require user review.
 - Diagnostic recording is user-invoked, temporary, and action-specific.
 - Mobile and Android Chrome are not supported.
-- Smart Proxy Route Helper is not yet published on Chrome Web Store.
 
-## 8. Final Manual Checklist Before Pressing Submit
+## 8. Future Store Update Checklist Before Pressing Submit
 
-Complete this checklist manually in the final submission pass:
+Complete this checklist manually in any future Store package or listing update pass:
 
 - [ ] Verify clean screenshots from a private-data-safe profile.
 - [ ] Verify no accidental private data appears in screenshots.
@@ -361,13 +363,13 @@ Local smoke checks:
 - [ ] Confirm diagnostic recording start, stop-and-preview, and cancel behavior.
 - [ ] Confirm classification override add/remove behavior.
 
-## 9. Post-Submission Plan
+## 9. Post-Publication Maintenance Plan
 
-After submission:
+After publication:
 
 - Monitor Chrome Web Store review feedback.
 - If rejected, capture the exact review reason and map it to a repo issue or follow-up task.
-- If approved, update `README.md` with the Chrome Web Store link.
+- Keep `README.md`, release notes, and Store reference docs aligned with the Chrome Web Store listing URL.
 - If Store-specific changes are needed, create a follow-up release note and keep the GitHub release asset, Store package, privacy policy, and listing copy aligned.
 
 ## Official References Checked

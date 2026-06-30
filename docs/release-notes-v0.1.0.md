@@ -1,8 +1,14 @@
-# Smart Proxy Route Helper v0.1.0 Release Notes Draft
+# Smart Proxy Route Helper v0.1.0 Release Notes
 
-Smart Proxy Route Helper v0.1.0 is the first MVP release candidate for local, per-domain proxy routing in Chrome.
+Smart Proxy Route Helper v0.1.0 is the first MVP release for local, per-domain proxy routing in Chrome.
 
-This release is not yet published on Chrome Web Store unless a separate publishing step has completed.
+Published Chrome Web Store listing:
+
+- https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
+
+GitHub release:
+
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
 
 ## Features
 
@@ -23,9 +29,9 @@ This release is not yet published on Chrome Web Store unless a separate publishi
 - Built-in ChatGPT/OpenAI related-domain handling for generated and file-related `*.oaiusercontent.com` hosts. Matching hosts can be suggested as `oaiusercontent.com` with subdomains included only through bundled site-scoped hints.
 - Simple bundled PNG extension icons.
 
-## Current Release Candidate Smoke Highlights
+## Release Smoke Highlights
 
-Recent local smoke coverage for this release candidate included:
+Recent local smoke coverage for this release included:
 
 - 2ip.ru and 2ip.io routed through the configured local proxy and showed the expected proxy IP/city behavior.
 - A wrong local proxy port did not produce false proxy success for matched proxy-route domains.
@@ -65,7 +71,6 @@ The MVP does not request host permissions, `<all_urls>`, `webRequest`, `webNavig
 
 ## Known Limitations
 
-- Not yet published on Chrome Web Store.
 - Local proxy availability depends on user-configured software outside the extension.
 - Chrome proxy settings may be controlled by enterprise policy, another extension, or user settings.
 - Related-domain preview can be noisy because it depends on resources present on the currently loaded page.

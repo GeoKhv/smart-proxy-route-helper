@@ -4,7 +4,9 @@ Audit date: 2026-06-26; refreshed 2026-06-28 after the clean popup screenshot an
 
 Asset updates: 2026-06-28 added the mandatory small promotional image draft asset and replaced popup screenshots `04` and `05` from clean manually captured Chrome sources. These updates do not publish the extension, modify Chrome Web Store Developer Dashboard fields, change runtime code, change manifest permissions, or bump the version.
 
-This report reviews Smart Proxy Route Helper for future Chrome Web Store submission readiness. It is a review artifact only. It does not publish the extension, modify Chrome Web Store Developer Dashboard fields, create a release, create a tag, change runtime code, change manifest permissions, or bump the version.
+Post-publication update: `v0.1.0` is now published in Chrome Web Store at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj. This report remains the pre-submit audit record and a future Store update reference.
+
+This report reviewed Smart Proxy Route Helper for Chrome Web Store submission readiness before publication. It is a review artifact only. It did not publish the extension, modify Chrome Web Store Developer Dashboard fields, create a release, create a tag, change runtime code, change manifest permissions, or bump the version.
 
 ## Baseline
 
@@ -17,7 +19,8 @@ This report reviews Smart Proxy Route Helper for future Chrome Web Store submiss
 | Current readiness baseline | Clean popup screenshot replacements and small promotional image draft are present in the repository |
 | `manifest.json` version | `0.1.0` |
 | `package.json` version | `0.1.0` |
-| GitHub release | `v0.1.0`, pre-release, not draft, published 2026-06-25 |
+| Chrome Web Store listing | Published `v0.1.0`: https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj |
+| GitHub release | `v0.1.0`, release, not draft, published 2026-06-25 |
 | GitHub release target | `696bf08f847cf0952a938c2d06456f38e4d25e9e` |
 | Release asset | `smart-proxy-route-helper-v0.1.0.zip` exists on GitHub release and in local `release/` after packaging |
 
@@ -114,7 +117,7 @@ Privacy status: pass with final-dashboard verification required.
 - domain routing rules, ignored/denylisted domains, and classification overrides are domain-level data in `chrome.storage.sync`;
 - related-domain preview and diagnostic recording are explicit, user-invoked, transient, and do not automatically create rules.
 
-The Store privacy draft also includes permission-specific disclosure text and a Limited Use certification draft. The privacy policy URL is present as:
+The Store privacy reference also includes permission-specific disclosure text and a Limited Use certification reference. The privacy policy URL is present as:
 
 ```text
 https://github.com/GeoKhv/smart-proxy-route-helper/blob/main/PRIVACY.md
@@ -124,9 +127,9 @@ Before pressing Submit, verify in the Dashboard that the Store privacy field lab
 
 ## Store Listing Audit
 
-Listing status: pass with manual Dashboard completion still required.
+Listing status: pass for repository listing text; keep the live Store listing aligned with this reference during future updates.
 
-`docs/chrome-web-store-listing.md` and `docs/chrome-web-store-submission-dry-run.md` include ready-to-copy draft fields:
+`docs/chrome-web-store-listing.md` and `docs/chrome-web-store-submission-dry-run.md` include ready-to-copy reference fields:
 
 - extension name: `Smart Proxy Route Helper`;
 - short description: `Manage per-domain proxy routing through a user-configured local proxy.`;
@@ -139,11 +142,11 @@ Listing status: pass with manual Dashboard completion still required.
 
 The wording avoids risky positioning such as "bypass", "unblock", political framing, sanctions framing, or censorship framing. Known limitations are documented.
 
-Manual Dashboard fields were not opened or modified during this audit.
+Manual Dashboard fields were not opened or modified during this audit. The extension has since been published through the Chrome Web Store flow.
 
 ## Screenshot And Image Audit
 
-Screenshot status: pass for repository screenshot assets; small promotional image draft is present, with final Dashboard upload and review still required.
+Screenshot status: pass for repository screenshot assets; small promotional image draft is present. Final Dashboard upload and review were outside this audit and should be repeated for future Store updates.
 
 Final screenshot files exist:
 
@@ -237,7 +240,7 @@ Release status: pass with provenance note.
 `gh release view v0.1.0 --repo GeoKhv/smart-proxy-route-helper` confirmed:
 
 - release URL: `https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0`;
-- release is a pre-release;
+- release is not marked as a pre-release after Chrome Web Store publication;
 - release is not a draft;
 - asset `smart-proxy-route-helper-v0.1.0.zip` exists;
 - release notes match the v0.1.0 capabilities and privacy/permission posture.
@@ -249,7 +252,7 @@ Provenance note:
 - The commits after the release target are Store-preparation docs/assets work, not runtime or manifest changes.
 - The remote release asset content matches the locally rebuilt package content after extraction.
 
-No release or tag was created or edited.
+Post-publication metadata update: after Chrome Web Store publication, the existing GitHub release `v0.1.0` was changed from pre-release to a normal release. No release assets, tags, or package contents were edited.
 
 ## Functionality Readiness Audit
 
@@ -270,24 +273,24 @@ This audit did not rerun live browser smoke tests. The manual smoke coverage is 
 
 | Level | Item | Recommendation |
 | --- | --- | --- |
-| Ready in repository | Mandatory `440x280` small promotional image draft exists at `store-assets/promotional/small-promo-440x280.png`. | Upload and final-review it manually in the Dashboard before submission. |
-| Manual gate | Chrome Web Store Developer Dashboard fields were not filled or final-reviewed in this audit. | Complete Dashboard fields manually and compare them against the exact uploaded package before pressing Submit. |
-| Ready in repository | `04` and `05` popup screenshot canvases use clean manually captured replacement sources and show no visible cursor highlights. | Final-review the uploaded images in the Dashboard before submission. |
+| Ready in repository | Mandatory `440x280` small promotional image source asset exists at `store-assets/promotional/small-promo-440x280.png`. | Final-review it manually in the Dashboard before any future Store update. |
+| Published | Chrome Web Store listing is live for `v0.1.0`. | Recheck Dashboard fields manually before any future Store package or listing update. |
+| Ready in repository | `04` and `05` popup screenshot canvases use clean manually captured replacement sources and show no visible cursor highlights. | Final-review the uploaded images in the Dashboard before any future Store update. |
 | Warning | `npm audit` reports low severity `esbuild` advisory `GHSA-g7r4-m6w7-qqqr`. | Track separately as dependency maintenance; do not fold into this Store audit unless policy or risk changes. |
-| Warning | GitHub release target commit differs from current `origin/main`. | Treat `b43d40f` as the current docs/assets-ready pre-submit baseline; if a new runtime build is required later, cut a fresh release intentionally. |
-| Warning | Privacy policy URL is drafted but final public signed-out check was not performed in the Dashboard submission flow. | Verify immediately before submission. |
+| Warning | GitHub release target commit differs from current `origin/main`. | Treat the `v0.1.0` tag as the fixed published package baseline; if a new runtime build is required later, cut a fresh release intentionally. |
+| Warning | Privacy policy URL should stay publicly reachable and aligned with the live Store privacy fields. | Verify before any future Store update. |
 | Nice-to-have | Add a concise provenance note or checksum note to final submission records. | Helpful for future review, not required for Store upload. |
 | Nice-to-have | Add optional marquee promotional image if final positioning benefits from it. | Optional Store polish after mandatory image assets are complete. |
 
 ## Final Recommendation
 
-Ready for manual Chrome Web Store Dashboard dry-run / final human review before submission.
+Published in Chrome Web Store as `v0.1.0`.
 
-Do not claim the extension is published or approved. Do not press Submit until these manual gates are complete:
+For any future Store package or listing update, repeat these manual gates before pressing Submit:
 
-1. Open the Chrome Web Store Developer Dashboard manually and fill the listing/privacy/distribution fields from the checked docs.
-2. Upload and final-review the recommended screenshot set and `store-assets/promotional/small-promo-440x280.png` in the Dashboard.
+1. Open the Chrome Web Store Developer Dashboard manually and compare listing/privacy/distribution fields against the checked docs.
+2. Final-review the recommended screenshot set and `store-assets/promotional/small-promo-440x280.png` in the Dashboard.
 3. Verify the privacy policy URL from a signed-out browser immediately before upload.
-4. Upload `release/smart-proxy-route-helper-v0.1.0.zip` only after confirming the chosen zip is the intended build.
+4. Upload a package only after confirming the chosen zip is the intended build.
 
 No runtime blockers, manifest blockers, permission blockers, telemetry/backend blockers, remote-code blockers, or package-content blockers were found.

@@ -1,6 +1,6 @@
-# Chrome Web Store Privacy Disclosure Draft
+# Chrome Web Store Privacy Disclosure Reference
 
-This draft prepares Store privacy-field language for a future Chrome Web Store submission. It must be reviewed against the exact submitted build before upload.
+This document records Store privacy-field language for the published `v0.1.0` listing and remains a reference for future Store package or listing updates. Review it against the exact submitted build before any future upload.
 
 ## Single Purpose
 
@@ -135,7 +135,7 @@ Suggested URL:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/blob/main/PRIVACY.md
 
-Before submission, confirm that the Store privacy fields and this privacy policy are consistent.
+Before any future Store update, confirm that the Store privacy fields and this privacy policy are consistent.
 
 ## Official References
 

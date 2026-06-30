@@ -1,11 +1,11 @@
 # Chrome Web Store Submission Readiness Checklist
 
-This checklist prepares Smart Proxy Route Helper for a future Chrome Web Store submission. It is not a submission automation guide and must not be used to publish without an explicit release decision.
+This checklist was used to prepare Smart Proxy Route Helper for Chrome Web Store submission and remains the reference checklist for future Store package or listing updates. It is not submission automation and must not be used to modify the Chrome Web Store Developer Dashboard without an explicit release decision.
 
-## Submission Boundary
+## Submission Boundary For Future Store Updates
 
-- [ ] Do not publish to Chrome Web Store in this preparation slice.
-- [ ] Do not create or modify Chrome Web Store Developer Dashboard entries in this preparation slice.
+- [ ] Do not publish or update Chrome Web Store entries in a preparation slice unless the current task explicitly includes that Dashboard action.
+- [ ] Do not create or modify Chrome Web Store Developer Dashboard entries in a documentation-only preparation slice.
 - [ ] Do not bump the extension version unless a separate release task explicitly requires it.
 - [ ] Do not change runtime code unless a blocker is found, documented, and approved for implementation.
 - [ ] Do not add manifest permissions.
@@ -15,10 +15,11 @@ This checklist prepares Smart Proxy Route Helper for a future Chrome Web Store s
 
 - [ ] Confirm `manifest.json` version is `0.1.0`.
 - [ ] Confirm `package.json` version is `0.1.0`.
-- [ ] Confirm GitHub pre-release `v0.1.0` exists.
+- [ ] Confirm GitHub release `v0.1.0` exists and is not marked as a pre-release after Chrome Web Store publication.
 - [ ] Confirm release asset `smart-proxy-route-helper-v0.1.0.zip` exists.
 - [ ] Confirm the release asset corresponds to the intended release commit before submission.
 - [ ] Confirm the GitHub release URL is public: https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
+- [ ] Confirm the Chrome Web Store listing URL is public: https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
 ## Build and Package Commands
 
@@ -151,7 +152,7 @@ Use a clean Chrome profile where feasible.
 - [ ] Locale selected, with English as the primary suggestion.
 - [ ] Homepage/support/privacy URLs are public and correct.
 - [ ] Listing does not overpromise privacy beyond the implementation.
-- [ ] Listing does not imply Store availability before publication.
+- [ ] Listing availability language matches the current publication state.
 - [ ] Listing avoids policy-sensitive positioning and stays focused on local proxy routing.
 - [ ] Known limitations are disclosed where useful.
 
@@ -177,22 +178,24 @@ esbuild 0.27.3 - 0.28.0, GHSA-g7r4-m6w7-qqqr.
 
 If findings appear, do not upgrade dependencies inside a Store-preparation slice unless a separate dependency-maintenance task is approved.
 
-## Remaining Manual Gates
+## Publication Status And Future Manual Gates
 
-Repository asset blockers are closed:
+Current status: `v0.1.0` is published in Chrome Web Store at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
+
+Repository asset blockers closed before publication:
 
 - Small promotional image exists as a repository draft asset at `store-assets/promotional/small-promo-440x280.png`.
 - Popup screenshots `04` and `05` were regenerated from clean manually captured source screenshots and no longer contain cursor highlights.
 
-Remaining manual gates before direct submission:
+Manual gates to repeat before any future Store package or listing update:
 
-- Final Dashboard upload and review for the recommended screenshot set and small promotional image have not been performed.
-- Chrome Web Store Developer Dashboard fields have not been filled out.
-- Privacy policy URL must be reviewed immediately before submission.
-- Release asset must be re-verified against the final submitted build.
-- `npm audit` must be reviewed from the final pre-submission run.
+- Final Dashboard upload and review for the recommended screenshot set and small promotional image.
+- Chrome Web Store Developer Dashboard field review.
+- Privacy policy URL public-access check.
+- Release asset verification against the exact submitted build.
+- `npm audit` review from the final pre-submission run.
 
-Recommendation: ready for manual Chrome Web Store Dashboard dry-run / final human review before submission. The extension has not been submitted, published, or approved by Chrome Web Store.
+Recommendation for future updates: perform a manual Chrome Web Store Dashboard dry-run / final human review before pressing Submit.
 
 ## Official References
 

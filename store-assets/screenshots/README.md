@@ -68,4 +68,4 @@ Recommended five Store screenshot slots:
 
 Keep `final/02-options-route-rules.png` in the repository as a useful fallback/supporting image.
 
-No Chrome Web Store Developer Dashboard changes were made.
+No Chrome Web Store Developer Dashboard changes were made during screenshot preparation. Smart Proxy Route Helper `v0.1.0` is now published in Chrome Web Store, and these repository assets remain the reference set for future listing maintenance.
