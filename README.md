@@ -45,6 +45,26 @@ Chrome Web Store listing, submission, and publication-reference materials are av
 - [docs/chrome-web-store-screenshot-workflow.md](docs/chrome-web-store-screenshot-workflow.md)
 - [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md)
 
+## FAQ
+
+### Why does Chrome show "Proceed with caution"?
+
+Chrome Enhanced Safe Browsing may show a reputation warning for some newly published or less widely used extensions. That warning is a prompt to review the extension before installing; it is not an endorsement signal beyond the normal Chrome Web Store publication flow.
+
+Smart Proxy Route Helper is open source:
+
+- Chrome Web Store listing: https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
+- Source repository: https://github.com/GeoKhv/smart-proxy-route-helper
+
+Current required permissions are:
+
+- `proxy`
+- `storage`
+- `activeTab`
+- `scripting`
+
+The extension has no telemetry and no backend. Before installing, review the source code, release notes, and requested permissions. If you are comfortable trusting the extension after that review, you can continue installation through Chrome's prompt.
+
 ## Quick Start
 
 Install dependencies:
@@ -272,6 +292,7 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 ## References
 
 - Chrome extension permissions: https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions
+- Chrome Safe Browsing protection levels: https://support.google.com/chrome/answer/9890866
 - Chrome storage API: https://developer.chrome.com/docs/extensions/reference/api/storage
 - Chrome proxy API: https://developer.chrome.com/docs/extensions/reference/api/proxy
 - Manifest V3 remote code requirements: https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements
