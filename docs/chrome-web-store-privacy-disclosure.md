@@ -42,7 +42,7 @@ Local storage with `chrome.storage.local`:
 
 Temporary session storage with `chrome.storage.session`:
 
-- Diagnostic recording metadata while a recording is active, such as tab ID, current domain, start time, expiry time, and status.
+- Diagnostic recording lifecycle metadata while a recording is active or awaiting explicit handling after expiry, such as tab ID, current domain, start/expiry time, status, random session nonce, and recorded-document identity. Collected hostnames are not stored there.
 
 ## Data Not Stored, Synced, or Sent
 
@@ -88,6 +88,8 @@ Diagnostic recording is user-invoked and transient.
 After the user clicks the recording action, the extension may temporarily observe bounded resource-like signals in the active tab to help identify action-specific resource hosts. The user can stop and preview or cancel the recording.
 
 Recorded hostnames are not stored in synced storage or local storage. Cancelling a recording returns no candidates and saves nothing.
+
+Collection ends and temporary hooks/listeners are removed at timeout. The bounded hostname set may remain only in the recorded page's isolated-world memory so the user can explicitly preview an expired session; Stop, Cancel, navigation, or tab teardown removes it.
 
 Diagnostic recording does not read uploaded file contents, page text, cookies, credentials, screenshots, or local files.
 

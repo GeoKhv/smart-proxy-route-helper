@@ -58,11 +58,10 @@ Candidate scope:
 - Redundant same-action route-rule cleanup suggestions with no automatic deletion.
 - Export/import of synced route rules, route actions, ignored domains, denylist entries, and classification overrides as domain-level data.
 - Optional explicit local proxy config export for this device, excluded by default.
-- Rule search/filter for larger lists.
 - Safer migration path for stored schemas.
 - More complete automated tests.
-- Chrome Web Store listing draft and screenshots.
-- Accessibility pass for popup/options UI.
+- Improved user-invoked action-specific request recorder with temporary MAIN-world hooks, continuous resource timing, a nonce-bound hostname-only bridge, navigation/session expiry, and explicit Stop/Cancel cleanup.
+- Chrome Web Store update text, privacy disclosures, and refreshed screenshots that match the candidate UI.
 
 Permissions:
 
@@ -84,6 +83,7 @@ Exit criteria:
 - Store listing claims match actual behavior.
 - Privacy disclosures are reviewed.
 - Settings import validates format/version, previews changes before apply, sanitizes domains, rejects protected/internal/private imported domains, rejects malformed route actions, and avoids duplicate route rules by domain, subdomain scope, and action.
+- Diagnostic recording remains bounded, user-invoked, hostname-only across the page/extension bridge, and unable to add rules without a separate explicit confirmation.
 - Release artifact is reproducible from repository source.
 
 ## v0.3: Optional Safe Diagnostics
@@ -97,9 +97,7 @@ Candidate scope:
 - Local user overrides for personal classification preferences.
 - Future GitHub issue or pull-request workflow for sanitized domain-level community proposals.
 - User-initiated reachability check for the current site or an explicitly selected domain.
-- User-invoked temporary MAIN-world recording for page-level action-specific request hostnames, using only the existing `activeTab` and `scripting` permissions.
-- Automatic capture of page `fetch`, XMLHttpRequest, and beacon initiation before completion, plus continuous resource timing and safe failed-resource signals.
-- A nonce-bound hostname-only bridge, explicit candidate preview, and a separate explicit save action.
+- Optional future visibility into worker, service-worker, or browser-level requests only if a separate design preserves explicit consent, minimum permissions, and Chrome Web Store compliance.
 - Clear explanation before any additional permission request, if a future design needs one.
 - Recommendation UI that suggests a domain rule only when appropriate.
 - Explicit confirmation before adding a suggested rule.
@@ -135,7 +133,7 @@ Exit criteria:
 - Classification data is bundled locally or provided explicitly by the user.
 - Privacy and Chrome Web Store disclosures are updated before release.
 
-The published `v0.1.0` tag and package remain immutable. These post-release diagnostics changes continue on `main` and require a future versioned release before they can replace the published baseline.
+The published `v0.1.0` tag and package remain immutable. The implemented v0.2 candidate changes continue on `main` and require a later explicit version-bump/release task before they can replace the published baseline.
 
 ## Chrome Web Store Submission Checklist
 

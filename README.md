@@ -217,9 +217,9 @@ Device-specific:
 - Extension enabled state for the current device.
 - Local diagnostics preference.
 
-Transient while a recording is active:
+Session-scoped while a recording is active or awaiting explicit handling after expiry:
 
-- Diagnostic recording metadata in `chrome.storage.session`, such as tab/domain/time/status fields.
+- Diagnostic recording metadata in `chrome.storage.session`, such as tab/domain/time/status, a random session nonce, and recorded-document identity. Collected hostnames are not stored there.
 
 User-controlled backup files:
 
@@ -281,6 +281,9 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/permissions.md](docs/permissions.md): MVP and future permission strategy.
 - [docs/release-checklist.md](docs/release-checklist.md): release verification checklist.
 - [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): release notes for v0.1.0.
+- [docs/release-readiness-v0.2.0.md](docs/release-readiness-v0.2.0.md): v0.1.0-to-main inventory, compatibility/privacy audit, blockers, and later release sequence.
+- [docs/release-notes-v0.2.0-draft.md](docs/release-notes-v0.2.0-draft.md): unpublished candidate release notes for v0.2.0.
+- [docs/chrome-web-store-update-v0.2.0-draft.md](docs/chrome-web-store-update-v0.2.0-draft.md): unpublished Store update copy, disclosure changes, and screenshot plan.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
 - [docs/local-install-sync.md](docs/local-install-sync.md): local/unpacked stable-ID build and Chrome Sync fallback workflow.

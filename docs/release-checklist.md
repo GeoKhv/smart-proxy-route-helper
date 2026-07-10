@@ -39,7 +39,8 @@ Use this checklist before publishing, tagging, or updating an MVP release.
 - Confirm related-domain preview is user-invoked, transient, and does not save rules without a separate explicit action.
 - Confirm diagnostic recording is user-invoked, bounded, transient, and does not save rules without a separate explicit action.
 - Confirm `scripting` is used only after a user action to inspect current loaded page resource hostnames for preview or diagnostic recording.
-- Confirm diagnostic recording metadata in `chrome.storage.session` contains only tab/domain/time/status fields and no collected hosts.
+- Confirm diagnostic recording metadata in `chrome.storage.session` contains only tab/domain/time/status, random nonce, and recorded-document identity fields and no collected hosts.
+- Confirm timeout stops collection and removes hooks/listeners, while any bounded hostname set retained for expired-session preview is deleted on Stop, Cancel, navigation, or tab teardown.
 
 ## Manual Smoke
 

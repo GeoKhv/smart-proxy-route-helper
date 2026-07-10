@@ -38,7 +38,7 @@ The MVP must not request:
 - Persistent content scripts or content script matches.
 - Remote code exemptions or debugger capabilities.
 
-The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect bounded current-page resource references only after the user clicks "Preview related domains". Diagnostic recording may inject a temporary recorder only after the user clicks "Start recording", and it may return candidates only after the user clicks "Stop and preview". The extension must not observe navigation, collect page resources automatically, or request broad host access.
+The MVP may read the active page URL only after the user invokes the extension popup. The related-domain preview may inspect bounded current-page resource references only after the user clicks "Preview related domains". Diagnostic recording may inject a temporary recorder only after the user clicks "Start recording", and it may return candidates only after the user clicks "Stop and preview". While a recording exists, the service worker may use the recorded tab's loading event only to expire that session honestly after reload/navigation; it does not perform continuous browsing observation. The extension must not collect page resources outside explicit preview/recording actions or request broad host access.
 
 ## Why No Broad Host Access in MVP
 
@@ -88,8 +88,9 @@ These flows must:
 - Treat obvious analytics/adtech/shared-infrastructure/local-helper hosts as ignored, non-saveable candidates through local logic only.
 - Show a neutral warning instead of normal candidates when the active tab appears to be an error page, protection page, or interstitial.
 - Store no collected hosts or transient diagnostic summary counts in `chrome.storage.sync` or `chrome.storage.local`.
-- Store only short-lived diagnostic recording metadata in `chrome.storage.session` when a recording is active.
+- Store only session-scoped diagnostic recording lifecycle metadata in `chrome.storage.session` while a recording is active or awaiting explicit handling after expiry; never store collected hostnames there.
 - Restore original request functions and remove temporary observers/listeners on stop, cancel, timeout, navigation, or tab close.
+- After timeout, allow only the bounded in-page hostname set needed for explicit expired-session preview; remove it on Stop, Cancel, navigation, or tab teardown.
 - Never create or save related-domain rules automatically.
 - Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
 - Store classification overrides as normalized domain-level preferences only.

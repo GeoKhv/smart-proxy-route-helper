@@ -39,7 +39,7 @@ Stored only on the local device with `chrome.storage.local`:
 - Device enabled/disabled state.
 - Local diagnostics preference.
 
-Stored temporarily with `chrome.storage.session` only while diagnostic recording is active:
+Stored temporarily with `chrome.storage.session` while diagnostic recording is active or awaiting explicit handling after expiry:
 
 - Recorded tab ID.
 - Recorded current domain.
@@ -47,7 +47,7 @@ Stored temporarily with `chrome.storage.session` only while diagnostic recording
 - Recording status.
 - A random session nonce and recorded-document identifier used only to bind and expire the temporary recorder.
 
-`chrome.storage.session` is used only for short-lived recording metadata. It is not used as persistent storage, is not synced by the extension, and does not contain collected host lists.
+`chrome.storage.session` is used only for session-scoped recording lifecycle metadata. It is not used as persistent or synced settings storage and does not contain collected host lists.
 
 The project does not store secrets, local proxy configuration, browsing history, raw URLs, raw diagnostic history, page resource lists, or temporary probe state in synced storage.
 
@@ -99,7 +99,7 @@ Diagnostics do not upload results to the developer, do not store diagnostic hist
 
 The related-domain preview does not make project backend requests. After the user clicks "Preview related domains", it may inspect bounded current-page resource references through a one-time active-tab script and use sanitized hostnames locally to preview related-domain candidates. The preview drops paths, query strings, fragments, and credentials as early as possible, rejects local/private/internal hosts, and does not store, sync, or send collected hosts anywhere. It may show compact transient counts and a small sample of sanitized hostnames when no saveable candidates remain, but it does not display or retain raw full URLs. It also uses local-only filters for obvious analytics, adtech, shared-infrastructure, and local/adblock helper hosts so those hosts are not offered as normal saveable candidates. If the loaded page appears to be an error or protection page, the popup shows a neutral warning instead of normal related-domain results. Preview candidates do not become routing rules unless the user selects candidates and clicks the separate add button. Classification override actions are separate explicit actions; they store normalized domain preferences only and do not submit community votes, create GitHub issues, or upload data.
 
-Diagnostic recording does not make project backend requests. After the user clicks "Start recording", it injects temporary bundled code into the MAIN world of all frames that Chrome allows through the existing `activeTab` grant; it does not register a persistent content script. A random nonce binds MAIN-world hostname events to a temporary isolated-world listener. The isolated side treats every page event as untrusted, validates the nonce and payload, accepts hostname strings only, normalizes again, caps length and count, and deduplicates. On "Stop and preview", sanitized hostnames are passed to the same local related-domain candidate engine used by preview. Cancelling returns no candidates and saves nothing. Stop, cancel, timeout, navigation, and tab close remove or destroy hooks and listeners and expire transient state. Some worker, service-worker, extension, or browser-level requests may not be visible to this page-level recorder; the extension does not ask the user to inspect DevTools or paste a failed URL. Recording metadata is temporary and stored in `chrome.storage.session`; recorded hostnames are not stored in `chrome.storage.sync` or `chrome.storage.local`.
+Diagnostic recording does not make project backend requests. After the user clicks "Start recording", it injects temporary bundled code into the MAIN world of all frames that Chrome allows through the existing `activeTab` grant; it does not register a persistent content script. A random nonce binds MAIN-world hostname events to a temporary isolated-world listener. The isolated side treats every page event as untrusted, validates the nonce and payload, accepts hostname strings only, normalizes again, caps length and count, and deduplicates. On "Stop and preview", sanitized hostnames are passed to the same local related-domain candidate engine used by preview. Cancelling returns no candidates and saves nothing. Stop and Cancel remove hooks/listeners and delete page recorder state. Timeout stops collection and removes hooks/listeners; the bounded hostname set may remain only in the recorded page's isolated-world memory so the user can explicitly preview an expired session. Stop, Cancel, navigation, or tab teardown removes that set. Some worker, service-worker, extension, or browser-level requests may not be visible to this page-level recorder; the extension does not ask the user to inspect DevTools or paste a failed URL. Recording lifecycle metadata is temporary and stored in `chrome.storage.session`; recorded hostnames are not stored in `chrome.storage.sync`, `chrome.storage.local`, or `chrome.storage.session`.
 
 ## Limited Use Statement
 
