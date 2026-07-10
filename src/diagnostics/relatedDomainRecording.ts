@@ -2,6 +2,7 @@ import {
   buildCurrentPageResourceHostPreview,
   type CurrentPageResourceHostsResponse
 } from "./currentPageResourceHosts";
+import type { RelatedDomainRecorderSummary } from "./actionRequestRecorder";
 import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
@@ -30,6 +31,11 @@ export type RelatedDomainRecordingSessionMetadata = {
   status: "recording" | "expired";
 };
 
+export type StoredRelatedDomainRecordingSessionMetadata = RelatedDomainRecordingSessionMetadata & {
+  sessionNonce: string;
+  mainDocumentId?: string;
+};
+
 export type RelatedDomainRecordingSessionState =
   | {
       status: "idle";
@@ -51,30 +57,6 @@ export type RelatedDomainRecordingResponse = {
   state: RelatedDomainRecordingSessionState;
   currentDomain?: string;
   preview?: CurrentPageResourceHostsResponse;
-};
-
-export type RelatedDomainRecorderPageAction = "start" | "stop" | "cancel";
-
-export type RelatedDomainRecorderPageResult = {
-  status: "started" | "already_recording" | "stopped" | "expired" | "cancelled" | "not_found" | "error";
-  hosts: string[];
-  pageLooksLikeErrorOrProtection: boolean;
-  summary: {
-    rawEntriesInspected: number;
-    performanceEntriesInspected: number;
-    domAttributesInspected: number;
-    urlLikeValuesFound: number;
-    hostsExtracted: number;
-    hostsRejected: number;
-  };
-  message?: string;
-};
-
-export type RelatedDomainRecorderPageOptions = {
-  maxDurationMs?: number;
-  maxHosts?: number;
-  maxUrlLikeValues?: number;
-  maxDomAttributesInspected?: number;
 };
 
 type RecordingTarget =
@@ -212,51 +194,6 @@ function isSupportedStatus(status: unknown): status is RelatedDomainRecordingSta
   );
 }
 
-function isStringArray(input: unknown): input is string[] {
-  return Array.isArray(input) && input.every((item) => typeof item === "string");
-}
-
-function isRecorderSummary(input: unknown): input is RelatedDomainRecorderPageResult["summary"] {
-  return (
-    typeof input === "object" &&
-    input !== null &&
-    "rawEntriesInspected" in input &&
-    typeof input.rawEntriesInspected === "number" &&
-    "performanceEntriesInspected" in input &&
-    typeof input.performanceEntriesInspected === "number" &&
-    "domAttributesInspected" in input &&
-    typeof input.domAttributesInspected === "number" &&
-    "urlLikeValuesFound" in input &&
-    typeof input.urlLikeValuesFound === "number" &&
-    "hostsExtracted" in input &&
-    typeof input.hostsExtracted === "number" &&
-    "hostsRejected" in input &&
-    typeof input.hostsRejected === "number"
-  );
-}
-
-export function isRelatedDomainRecorderPageResult(input: unknown): input is RelatedDomainRecorderPageResult {
-  return (
-    typeof input === "object" &&
-    input !== null &&
-    "status" in input &&
-    (input.status === "started" ||
-      input.status === "already_recording" ||
-      input.status === "stopped" ||
-      input.status === "expired" ||
-      input.status === "cancelled" ||
-      input.status === "not_found" ||
-      input.status === "error") &&
-    "hosts" in input &&
-    isStringArray(input.hosts) &&
-    "pageLooksLikeErrorOrProtection" in input &&
-    typeof input.pageLooksLikeErrorOrProtection === "boolean" &&
-    "summary" in input &&
-    isRecorderSummary(input.summary) &&
-    (!("message" in input) || typeof input.message === "string")
-  );
-}
-
 export function isRelatedDomainRecordingSessionMetadata(
   input: unknown
 ): input is RelatedDomainRecordingSessionMetadata {
@@ -278,6 +215,20 @@ export function isRelatedDomainRecordingSessionMetadata(
   );
 }
 
+export function isStoredRelatedDomainRecordingSessionMetadata(
+  input: unknown
+): input is StoredRelatedDomainRecordingSessionMetadata {
+  return (
+    isRelatedDomainRecordingSessionMetadata(input) &&
+    "sessionNonce" in input &&
+    typeof input.sessionNonce === "string" &&
+    input.sessionNonce.length >= 32 &&
+    input.sessionNonce.length <= 96 &&
+    /^[a-f0-9-]+$/i.test(input.sessionNonce) &&
+    (!("mainDocumentId" in input) || typeof input.mainDocumentId === "string")
+  );
+}
+
 export function relatedDomainRecordingSessionState(
   metadata: RelatedDomainRecordingSessionMetadata | null,
   now: number = Date.now()
@@ -286,16 +237,13 @@ export function relatedDomainRecordingSessionState(
     return idleState();
   }
 
-  if (metadata.status === "expired" || metadata.expiresAt <= now) {
-    return {
-      ...metadata,
-      status: "expired"
-    };
-  }
-
   return {
-    ...metadata,
-    status: "recording"
+    tabId: metadata.tabId,
+    currentDomain: metadata.currentDomain,
+    startedAt: metadata.startedAt,
+    expiresAt: metadata.expiresAt,
+    maxDurationMs: metadata.maxDurationMs,
+    status: metadata.status === "expired" || metadata.expiresAt <= now ? "expired" : "recording"
   };
 }
 
@@ -335,604 +283,43 @@ export function buildRelatedDomainRecordingPreview(input: {
   currentDomain: string;
   recordedHosts: readonly string[];
   pageLooksLikeErrorOrProtection?: boolean;
-  collectionSummary?: RelatedDomainRecorderPageResult["summary"];
+  collectionSummary?: RelatedDomainRecorderSummary;
   userOverrides?: readonly DomainCandidateUserOverride[];
 }): CurrentPageResourceHostsResponse {
-  return buildCurrentPageResourceHostPreview({
+  const preview = buildCurrentPageResourceHostPreview({
     url: `https://${input.currentDomain}/`,
     collectedHosts: input.recordedHosts,
     pageLooksLikeErrorOrProtection: input.pageLooksLikeErrorOrProtection,
     collectionSummary: input.collectionSummary,
     userOverrides: input.userOverrides
   });
+
+  return {
+    ...preview,
+    captureMode: "recording"
+  };
 }
 
-export function runRelatedDomainRecorderInPage(
-  action: RelatedDomainRecorderPageAction,
-  options: RelatedDomainRecorderPageOptions = {}
-): RelatedDomainRecorderPageResult {
-  type RecorderSummary = RelatedDomainRecorderPageResult["summary"];
-  type RecorderState = {
-    status: "recording" | "expired";
-    hosts: Set<string>;
-    performanceEntryNames: Set<string>;
-    startedAt: number;
-    expiresAt: number;
-    maxHosts: number;
-    maxUrlLikeValues: number;
-    maxDomAttributesInspected: number;
-    maxAttributeValueLength: number;
-    maxGenericAttributeValueLength: number;
-    maxMutationNodesScanned: number;
-    maxStyleUrlMatches: number;
-    styleUrlMatches: number;
-    mutationNodesScanned: number;
-    summary: RecorderSummary;
-    mutationObserver?: MutationObserver;
-    performanceObserver?: PerformanceObserver;
-    timerId?: ReturnType<typeof setTimeout>;
-    pageLooksLikeErrorOrProtection: boolean;
-  };
+export function sanitizeRelatedDomainRecordedHostname(input: string): string | null {
+  const trimmed = input.trim();
 
-  type RecorderGlobal = typeof globalThis & {
-    __smartProxyRouteHelperRelatedDomainRecorder?: RecorderState;
-  };
-
-  const recorderGlobal = globalThis as RecorderGlobal;
-  const now = Date.now();
-
-  const emptySummary = (): RecorderSummary => ({
-    rawEntriesInspected: 0,
-    performanceEntriesInspected: 0,
-    domAttributesInspected: 0,
-    urlLikeValuesFound: 0,
-    hostsExtracted: 0,
-    hostsRejected: 0
-  });
-
-  const emptyResult = (status: RelatedDomainRecorderPageResult["status"], message?: string): RelatedDomainRecorderPageResult => ({
-    status,
-    hosts: [],
-    pageLooksLikeErrorOrProtection: false,
-    summary: emptySummary(),
-    ...(message ? { message } : {})
-  });
-
-  const snapshot = (status: RelatedDomainRecorderPageResult["status"], state: RecorderState): RelatedDomainRecorderPageResult => {
-    state.summary.hostsExtracted = state.hosts.size;
-
-    return {
-      status,
-      hosts: [...state.hosts].sort((left, right) => left.localeCompare(right)),
-      pageLooksLikeErrorOrProtection: state.pageLooksLikeErrorOrProtection,
-      summary: {
-        ...state.summary,
-        rawEntriesInspected: state.summary.performanceEntriesInspected + state.summary.domAttributesInspected,
-        hostsExtracted: state.hosts.size
-      }
-    };
-  };
-
-  const disconnect = (state: RecorderState): void => {
-    try {
-      state.mutationObserver?.disconnect();
-    } catch {
-      // Observer cleanup is best-effort in page contexts.
-    }
-
-    try {
-      state.performanceObserver?.disconnect();
-    } catch {
-      // Observer cleanup is best-effort in page contexts.
-    }
-
-    if (state.timerId !== undefined) {
-      clearTimeout(state.timerId);
-      state.timerId = undefined;
-    }
-  };
-
-  const expire = (state: RecorderState): void => {
-    if (state.status !== "recording") {
-      return;
-    }
-
-    state.status = "expired";
-    disconnect(state);
-  };
-
-  const existing = recorderGlobal.__smartProxyRouteHelperRelatedDomainRecorder;
-
-  if (action === "cancel") {
-    if (!existing) {
-      return emptyResult("not_found", "No diagnostic recording was found in this page.");
-    }
-
-    disconnect(existing);
-    delete recorderGlobal.__smartProxyRouteHelperRelatedDomainRecorder;
-    return emptyResult("cancelled");
+  if (
+    trimmed !== input ||
+    trimmed.length === 0 ||
+    trimmed.length > 253 ||
+    /[\s:/?#@\\]/.test(trimmed) ||
+    !trimmed.includes(".")
+  ) {
+    return null;
   }
 
-  if (action === "stop") {
-    if (!existing) {
-      return emptyResult("not_found", "No diagnostic recording was found in this page. The page may have reloaded.");
-    }
+  const normalized = normalizeDomain(trimmed);
 
-    if (existing.expiresAt <= now) {
-      expire(existing);
-    }
-
-    const result = snapshot(existing.status === "expired" ? "expired" : "stopped", existing);
-
-    disconnect(existing);
-    delete recorderGlobal.__smartProxyRouteHelperRelatedDomainRecorder;
-    return result;
+  if (!normalized.ok || checkDenylistedHost(normalized.domain).denied) {
+    return null;
   }
 
-  if (action !== "start") {
-    return emptyResult("error", "Unsupported diagnostic recording action.");
-  }
+  const canonicalInput = trimmed.toLowerCase().replace(/\.+$/, "");
 
-  if (existing && existing.status === "recording" && existing.expiresAt > now) {
-    return snapshot("already_recording", existing);
-  }
-
-  if (existing) {
-    disconnect(existing);
-    delete recorderGlobal.__smartProxyRouteHelperRelatedDomainRecorder;
-  }
-
-  const maxDurationMs = Math.max(5_000, Math.min(options.maxDurationMs ?? 120_000, 120_000));
-  const maxHosts = Math.max(1, Math.min(options.maxHosts ?? 80, 80));
-  const maxUrlLikeValues = Math.max(1, Math.min(options.maxUrlLikeValues ?? 500, 500));
-  const maxDomAttributesInspected = Math.max(
-    1,
-    Math.min(options.maxDomAttributesInspected ?? 1_400, 1_400)
-  );
-  const state: RecorderState = {
-    status: "recording",
-    hosts: new Set<string>(),
-    performanceEntryNames: new Set<string>(),
-    startedAt: now,
-    expiresAt: now + maxDurationMs,
-    maxHosts,
-    maxUrlLikeValues,
-    maxDomAttributesInspected,
-    maxAttributeValueLength: 4_096,
-    maxGenericAttributeValueLength: 1_024,
-    maxMutationNodesScanned: 700,
-    maxStyleUrlMatches: 80,
-    styleUrlMatches: 0,
-    mutationNodesScanned: 0,
-    summary: emptySummary(),
-    pageLooksLikeErrorOrProtection: false
-  };
-  const internalHostSuffixes = [".local", ".lan", ".localhost", ".internal", ".home", ".home.arpa"];
-  const resourceAttributeNames = new Set([
-    "src",
-    "href",
-    "poster",
-    "data-src",
-    "data-delayed-url",
-    "data-ghost-url",
-    "data-media-url",
-    "data-li-src"
-  ]);
-  const srcsetAttributeNames = new Set(["srcset", "data-srcset"]);
-  const styleUrlAttributeNames = new Set(["style", "data-background-image"]);
-  const observedAttributeNames = [
-    ...resourceAttributeNames,
-    ...srcsetAttributeNames,
-    ...styleUrlAttributeNames
-  ];
-  const selectors = [
-    "img",
-    "script[src]",
-    'link[href][rel~="stylesheet"]',
-    'link[href][rel~="preload"]',
-    'link[href][rel~="modulepreload"]',
-    'link[href][rel~="preconnect"]',
-    'link[href][rel~="dns-prefetch"]',
-    'link[href][rel~="prefetch"]',
-    'link[href][rel~="icon"]',
-    'link[href][rel~="apple-touch-icon"]',
-    'link[href][rel~="apple-touch-startup-image"]',
-    "iframe[src]",
-    "audio[src]",
-    "video[src]",
-    "video[poster]",
-    "source[src]",
-    "source[srcset]",
-    "object[data]",
-    "embed[src]",
-    "track[src]",
-    "[src]",
-    "[href]",
-    "[srcset]",
-    "[data-src]",
-    "[data-srcset]",
-    "[data-delayed-url]",
-    "[data-ghost-url]",
-    "[data-media-url]",
-    "[data-background-image]",
-    "[data-li-src]",
-    "[style]"
-  ];
-
-  const canInspectMore = (): boolean =>
-    state.hosts.size < state.maxHosts && state.summary.urlLikeValuesFound < state.maxUrlLikeValues;
-
-  const isBlockedHostname = (hostname: string): boolean => {
-    if (
-      hostname === "localhost" ||
-      !hostname.includes(".") ||
-      internalHostSuffixes.some((suffix) => hostname.endsWith(suffix))
-    ) {
-      return true;
-    }
-
-    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":")) {
-      return true;
-    }
-
-    return false;
-  };
-
-  const looksLikeHttpUrl = (value: string): boolean => /^(?:https?:)?\/\//i.test(value.trim());
-
-  const addUrlHostname = (
-    value: string | null | undefined,
-    urlOptions: {
-      allowRelative: boolean;
-      requireHttpLike?: boolean;
-    }
-  ): void => {
-    if (!value || !canInspectMore()) {
-      return;
-    }
-
-    const boundedValue = value.trim();
-
-    if (boundedValue.length === 0 || boundedValue.length > state.maxAttributeValueLength) {
-      state.summary.hostsRejected += 1;
-      return;
-    }
-
-    if (urlOptions.requireHttpLike && !looksLikeHttpUrl(boundedValue)) {
-      return;
-    }
-
-    state.summary.urlLikeValuesFound += 1;
-
-    try {
-      const parsedUrl =
-        urlOptions.allowRelative || boundedValue.startsWith("//")
-          ? new URL(boundedValue, document.baseURI)
-          : new URL(boundedValue);
-
-      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-        state.summary.hostsRejected += 1;
-        return;
-      }
-
-      const hostname = parsedUrl.hostname.toLowerCase().replace(/\.+$/, "");
-
-      if (hostname.length > 0 && !isBlockedHostname(hostname)) {
-        state.hosts.add(hostname);
-      } else {
-        state.summary.hostsRejected += 1;
-      }
-    } catch {
-      state.summary.hostsRejected += 1;
-    }
-  };
-
-  const addSrcsetHostnames = (value: string | null | undefined): void => {
-    if (!value || !canInspectMore()) {
-      return;
-    }
-
-    const boundedValue = value.trim();
-
-    if (boundedValue.length === 0 || boundedValue.length > state.maxAttributeValueLength) {
-      state.summary.hostsRejected += 1;
-      return;
-    }
-
-    for (const candidate of boundedValue.split(",")) {
-      if (!canInspectMore()) {
-        return;
-      }
-
-      const urlCandidate = candidate.trim().split(/\s+/, 1)[0];
-
-      addUrlHostname(urlCandidate, { allowRelative: true });
-    }
-  };
-
-  const addStyleUrlValues = (value: string | null | undefined): void => {
-    if (!value || !canInspectMore() || state.styleUrlMatches >= state.maxStyleUrlMatches) {
-      return;
-    }
-
-    const boundedValue = value.trim();
-
-    if (boundedValue.length === 0 || boundedValue.length > state.maxAttributeValueLength) {
-      state.summary.hostsRejected += 1;
-      return;
-    }
-
-    const urlPattern = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
-    let match: RegExpExecArray | null;
-
-    while ((match = urlPattern.exec(boundedValue)) !== null) {
-      if (!canInspectMore() || state.styleUrlMatches >= state.maxStyleUrlMatches) {
-        return;
-      }
-
-      state.styleUrlMatches += 1;
-      addUrlHostname(match[1], {
-        allowRelative: true,
-        requireHttpLike: false
-      });
-    }
-  };
-
-  const inspectAttributeValue = (name: string, value: string | null | undefined): void => {
-    if (state.summary.domAttributesInspected >= state.maxDomAttributesInspected || !canInspectMore()) {
-      return;
-    }
-
-    state.summary.domAttributesInspected += 1;
-
-    if (!value || value.trim().length === 0 || value.length > state.maxGenericAttributeValueLength) {
-      return;
-    }
-
-    const attributeName = name.toLowerCase();
-
-    if (srcsetAttributeNames.has(attributeName)) {
-      addSrcsetHostnames(value);
-      return;
-    }
-
-    if (styleUrlAttributeNames.has(attributeName)) {
-      if (/url\(/i.test(value)) {
-        addStyleUrlValues(value);
-      } else {
-        addUrlHostname(value, { allowRelative: true });
-      }
-      return;
-    }
-
-    if (resourceAttributeNames.has(attributeName)) {
-      addUrlHostname(value, { allowRelative: true });
-      return;
-    }
-
-    if (looksLikeHttpUrl(value)) {
-      addUrlHostname(value, {
-        allowRelative: false,
-        requireHttpLike: true
-      });
-    }
-  };
-
-  const inspectElement = (element: Element): void => {
-    if (state.hosts.size >= state.maxHosts || state.mutationNodesScanned >= state.maxMutationNodesScanned) {
-      return;
-    }
-
-    state.mutationNodesScanned += 1;
-
-    if ("currentSrc" in element) {
-      addUrlHostname((element as Partial<HTMLImageElement>).currentSrc, { allowRelative: true });
-    }
-
-    for (const attributeName of observedAttributeNames) {
-      inspectAttributeValue(attributeName, element.getAttribute(attributeName));
-    }
-
-    const attributes = "attributes" in element ? Array.from(element.attributes) : [];
-
-    for (const attribute of attributes) {
-      if (!canInspectMore() || state.summary.domAttributesInspected >= state.maxDomAttributesInspected) {
-        return;
-      }
-
-      inspectAttributeValue(attribute.name, attribute.value);
-    }
-  };
-
-  const inspectElementTree = (root: Element): void => {
-    inspectElement(root);
-
-    for (const selector of selectors) {
-      if (!canInspectMore()) {
-        return;
-      }
-
-      try {
-        for (const element of Array.from(root.querySelectorAll(selector))) {
-          inspectElement(element);
-
-          if (!canInspectMore()) {
-            return;
-          }
-        }
-      } catch {
-        // Some page-provided nodes may reject selector inspection.
-      }
-    }
-  };
-
-  const inspectDocument = (): void => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    try {
-      if (document.title.replace(/\s+/g, " ").trim().toLowerCase().includes("error 403 forbidden")) {
-        state.pageLooksLikeErrorOrProtection = true;
-      }
-    } catch {
-      // Page title inspection can fail in unusual document contexts.
-    }
-
-    for (const image of Array.from(document.images ?? [])) {
-      inspectElement(image);
-
-      if (!canInspectMore()) {
-        return;
-      }
-    }
-
-    for (const selector of selectors) {
-      if (!canInspectMore()) {
-        return;
-      }
-
-      try {
-        for (const element of Array.from(document.querySelectorAll(selector))) {
-          inspectElement(element);
-
-          if (!canInspectMore()) {
-            return;
-          }
-        }
-      } catch {
-        // Some pages can reject a selector in unusual document contexts.
-      }
-    }
-  };
-
-  const addPerformanceEntryName = (name: string | undefined): void => {
-    if (!name || state.performanceEntryNames.has(name) || !canInspectMore()) {
-      return;
-    }
-
-    state.performanceEntryNames.add(name);
-    state.summary.performanceEntriesInspected += 1;
-    addUrlHostname(name, {
-      allowRelative: false,
-      requireHttpLike: true
-    });
-  };
-
-  const inspectExistingPerformanceEntries = (): void => {
-    try {
-      if (typeof performance !== "undefined" && typeof performance.getEntries === "function") {
-        for (const entry of performance.getEntries()) {
-          addPerformanceEntryName(entry.name);
-
-          if (!canInspectMore()) {
-            return;
-          }
-        }
-      }
-    } catch {
-      // Resource timing can be unavailable in some document contexts.
-    }
-
-    try {
-      if (typeof performance !== "undefined" && typeof performance.getEntriesByType === "function") {
-        for (const entryType of ["resource", "navigation"]) {
-          for (const entry of performance.getEntriesByType(entryType)) {
-            addPerformanceEntryName(entry.name);
-
-            if (!canInspectMore()) {
-              return;
-            }
-          }
-        }
-      }
-    } catch {
-      // Resource timing can be unavailable in some document contexts.
-    }
-  };
-
-  const observePerformanceEntries = (): void => {
-    try {
-      if (typeof PerformanceObserver === "undefined") {
-        return;
-      }
-
-      state.performanceObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          addPerformanceEntryName(entry.name);
-
-          if (!canInspectMore()) {
-            return;
-          }
-        }
-      });
-      state.performanceObserver.observe({
-        type: "resource",
-        buffered: true
-      });
-    } catch {
-      try {
-        state.performanceObserver?.observe({
-          entryTypes: ["resource"]
-        });
-      } catch {
-        state.performanceObserver = undefined;
-      }
-    }
-  };
-
-  const observeMutations = (): void => {
-    try {
-      if (typeof MutationObserver === "undefined") {
-        return;
-      }
-
-      const target = document.documentElement ?? document;
-
-      state.mutationObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (!canInspectMore()) {
-            return;
-          }
-
-          if (mutation.type === "attributes" && mutation.target instanceof Element) {
-            inspectAttributeValue(
-              mutation.attributeName ?? "",
-              mutation.attributeName ? mutation.target.getAttribute(mutation.attributeName) : null
-            );
-            continue;
-          }
-
-          for (const addedNode of Array.from(mutation.addedNodes)) {
-            if (!canInspectMore()) {
-              return;
-            }
-
-            if (addedNode instanceof Element) {
-              inspectElementTree(addedNode);
-            }
-          }
-        }
-      });
-      state.mutationObserver.observe(target, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: observedAttributeNames
-      });
-    } catch {
-      state.mutationObserver = undefined;
-    }
-  };
-
-  inspectExistingPerformanceEntries();
-  inspectDocument();
-  observePerformanceEntries();
-  observeMutations();
-  state.timerId = setTimeout(() => {
-    expire(state);
-  }, maxDurationMs);
-  recorderGlobal.__smartProxyRouteHelperRelatedDomainRecorder = state;
-
-  return snapshot("started", state);
+  return normalized.domain === canonicalInput ? normalized.domain : null;
 }

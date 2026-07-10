@@ -321,51 +321,58 @@ await chrome.proxy.settings.get({ incognito: false });
 6. Confirm the popup shows "Stop and preview" and "Cancel recording".
 7. Click "Stop and preview".
 8. Confirm recorded candidates render in the existing related-domain preview UI and the status says they were recorded during this session.
-9. Confirm stopping the recording alone does not add or change entries in `chrome.storage.sync.rules`.
-10. Confirm selected candidates are saved only after the user clicks "Add selected domains".
-11. Start another recording, reopen the popup on a different tab, and confirm the popup says the recording belongs to another tab.
-12. From the different tab, click "Cancel recording" and confirm no candidates are returned and no rules are saved.
-13. Start another recording and wait past the duration cap. Reopen the popup on the recorded tab and confirm the recording can be stopped and previewed or cancelled.
-14. Reload or navigate the recorded tab during recording, then try to stop. Confirm the popup shows a friendly page-changed or recording-not-found message and does not save rules.
-15. Confirm recorded host output contains hostnames only, not full URLs with paths, query strings, fragments, credentials, page text, form values, uploaded file contents, screenshots, cookies, or auth/session data.
-16. Confirm recorded hosts are not written to `chrome.storage.sync`:
+9. Confirm an ordinary page-level `fetch`, XMLHttpRequest, or beacon attempt can be captured even when it later rejects, fails, or returns false.
+10. Confirm new resource timing entries that occur after Start are observed without relying only on a Stop-time snapshot.
+11. If Chrome reports dropped resource timing entries, confirm the transient preview details report the count.
+12. Confirm stopping the recording alone does not add or change entries in `chrome.storage.sync.rules`.
+13. Confirm selected candidates are saved only after the user clicks "Add selected domains" and that new route actions default to proxy.
+14. Start another recording, reopen the popup on a different tab, and confirm the popup says the recording belongs to another tab.
+15. From the different tab, click "Cancel recording" and confirm no candidates are returned, original page request functions are restored, and no rules are saved.
+16. Start another recording and wait past the duration cap. Reopen the popup on the recorded tab and confirm the recording can be stopped and previewed or cancelled and that temporary hooks/listeners are no longer active.
+17. Reload or navigate the recorded tab during recording, then try to stop. Confirm the popup reports an expired/reloaded recording rather than claiming that no related domains exist.
+18. Confirm recorded host output contains hostnames only, not full URLs with paths, query strings, signatures (`sig`, `se`, or `sp`), fragments, credentials, headers, bodies, cookies, response contents, page text, form values, uploaded file contents, screenshots, or auth/session data.
+19. If nothing is captured, confirm the popup explains that some worker, service-worker, extension, or browser-level requests may be outside the privacy-preserving recorder. It must not recommend DevTools inspection or manual URL entry.
+20. Confirm recorded hosts are not written to `chrome.storage.sync`:
 
 ```js
 await chrome.storage.sync.get(null);
 ```
 
-17. Confirm recorded hosts are not written to `chrome.storage.local`:
+21. Confirm recorded hosts are not written to `chrome.storage.local`:
 
 ```js
 await chrome.storage.local.get(null);
 ```
 
-18. Confirm only transient metadata appears in `chrome.storage.session` while recording is active:
+22. Confirm only transient metadata appears in `chrome.storage.session` while recording is active:
 
 ```js
 await chrome.storage.session.get(null);
 ```
 
-19. Confirm metadata is cleared from `chrome.storage.session` after stop, cancel, or tab close.
-20. Confirm recording uses no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no persistent content scripts, no backend calls, no telemetry, no remote PAC URLs, no remote executable code, and no remote list fetching.
+23. Confirm metadata is cleared or expired in `chrome.storage.session` after stop, cancel, navigation, timeout, or tab close.
+24. Confirm recording uses no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no `chrome.debugger`, no persistent content scripts, no backend calls, no telemetry, no remote PAC URLs, no remote executable code, and no remote list fetching.
+25. Confirm the popup and Options contain no field for pasting a failed URL or hostname.
 
 ## ChatGPT/OpenAI Diagnostic Recording Upload Check
 
-1. Configure a working local proxy in Options.
-2. Confirm `chatgpt.com` has a synced proxy route with subdomains included, or add it only if needed and safe.
-3. Do not remove an existing `oaiusercontent.com` rule.
-4. Open `https://chatgpt.com/`.
-5. If ChatGPT is not logged in, blocked by captcha, or inaccessible, stop this ChatGPT-specific smoke and record the blocker.
-6. Create a temporary harmless text file such as `sprh-recording-smoke.txt`.
-7. Open the popup and click "Start recording".
-8. Upload the temporary text file in ChatGPT.
+1. Use a separate clean Chrome profile or isolated sanitized demo profile where `oaiusercontent.com` is not already covered. Do not alter the user's normal profile for this smoke.
+2. Configure a working local proxy in Options only if the isolated profile needs it.
+3. Open `https://chatgpt.com/` through the normal toolbar flow.
+4. If ChatGPT is not logged in, blocked by captcha, inaccessible, or shows private data that cannot be kept out of the smoke, stop and record the blocker.
+5. Create a temporary harmless text file such as `sprh-recording-smoke.txt` containing no private data.
+6. Open the extension from the Chrome toolbar and click "Start recording".
+7. Attach the temporary text file in ChatGPT.
+8. Wait for the upload attempt or visible upload failure.
 9. Do not send the chat message.
-10. Reopen the popup and click "Stop and preview".
-11. Confirm recorded candidates or already-covered hosts include action-specific hosts when observed, such as generated `*.oaiusercontent.com` hosts or `files.openai.com`.
-12. If a generated `*.oaiusercontent.com` host is observed, confirm the suggested route target is `oaiusercontent.com` with subdomains included, not an exact generated-host rule.
-13. Confirm no route rule was saved automatically before "Add selected domains".
-14. If saving is safe and needed, save only explicitly selected non-duplicate candidates.
-15. Delete the temporary text file.
+10. Reopen the extension from the Chrome toolbar and click "Stop and preview".
+11. Confirm a generated host such as `sdmntpritalynorth.oaiusercontent.com` was captured automatically without DevTools, console inspection, Network-panel inspection, URL copying, or manual hostname entry.
+12. Confirm the suggested route target is `oaiusercontent.com` with subdomains included, not an exact generated-host rule.
+13. Confirm no raw URL, file path, query, `sig`, `se`, `sp`, credentials, headers, body, cookie, response content, page text, or file content appears in the popup, storage, logs, or export.
+14. Confirm no route rule was saved automatically before "Add selected domains".
+15. Do not save the rule unless this is isolated demo data and saving is explicitly part of the smoke.
+16. Delete the temporary text file.
+17. If the request is still not captured, record whether it appears to originate from a worker, service worker, extension, or browser context outside the standard page recorder. Do not add or recommend a manual paste field; treat broader opt-in deep diagnostics as a separate future design.
 
 ## ChatGPT/OpenAI Related-Domain Save Check
 

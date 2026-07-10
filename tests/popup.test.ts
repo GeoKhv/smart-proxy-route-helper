@@ -434,6 +434,38 @@ describe("popup related-domain preview messages", () => {
       kind: "neutral"
     });
   });
+
+  it("explains the privacy-preserving visibility limit when recording captures nothing", () => {
+    expect(
+      getRelatedDomainPreviewActionStatus({
+        status: "success",
+        message: "No request hostnames were captured during this session.",
+        captureMode: "recording",
+        currentDomain: "chatgpt.com",
+        resultState: "no_resource_entries_collected",
+        summary: {
+          rawEntriesInspected: 0,
+          requestInitiationsInspected: 0,
+          hostsExtracted: 0,
+          hostsAfterSanitization: 0,
+          hostsIgnoredOrInternal: 0,
+          reviewableCandidates: 0,
+          ignoredCandidates: 0
+        },
+        collectedHosts: [],
+        candidates: {
+          currentDomain: "chatgpt.com",
+          strongCandidates: [],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      })
+    ).toEqual({
+      message:
+        "No request hostnames were captured during this session. Some worker, service-worker, or browser-level requests may be outside this privacy-preserving recorder.",
+      kind: "neutral"
+    });
+  });
 });
 
 describe("popup related-domain candidate view model", () => {
@@ -801,7 +833,7 @@ describe("popup related-domain candidate view model", () => {
     expect(view.resultState).toBe("hosts_collected_but_all_already_covered");
     expect(view.message).toBe("Resource hosts were found, but they are already covered by existing rules. No rules were saved.");
     expect(view.diagnosticSummary).toBe(
-      "Preview details: 2 inspected; 0 performance; 0 DOM attributes; 2 URL-like values; 2 sanitized hosts; 0 ignored or internal; 2 already covered; 0 saveable. Hosts: media.licdn.com, static.licdn.com."
+      "Preview details: 2 inspected; 0 request initiations; 0 performance; 0 DOM resource attributes; 2 URL-like values; 2 sanitized hosts; 0 ignored or internal; 2 already covered; 0 saveable. Hosts: media.licdn.com, static.licdn.com."
     );
     expect(view.summary).toMatchObject({
       alreadyCoveredCandidates: 2,
@@ -849,7 +881,7 @@ describe("popup related-domain candidate view model", () => {
       alreadyCoveredCandidates: 0
     });
     expect(view.diagnosticSummary).toBe(
-      "Preview details: 4 inspected; 1 performance; 3 DOM attributes; 0 URL-like values; 0 sanitized hosts; 0 ignored or internal; 0 already covered; 0 saveable."
+      "Preview details: 4 inspected; 0 request initiations; 1 performance; 3 DOM resource attributes; 0 URL-like values; 0 sanitized hosts; 0 ignored or internal; 0 already covered; 0 saveable."
     );
   });
 

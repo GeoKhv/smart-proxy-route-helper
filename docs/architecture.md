@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the v0.1.0 MVP architecture. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the current `main` architecture, which continues beyond the immutable published `v0.1.0` baseline. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -149,6 +149,8 @@ Current session data:
 - Expiry time.
 - Duration cap.
 - Recording status.
+- Random session nonce.
+- Main-frame document identifier for reload/navigation detection.
 
 Do not store raw URLs, page text, form values, uploaded file contents, screenshots, cookies, auth/session data, collected host lists, candidate lists, diagnostic history, local proxy credentials, synced route rules, or permanent user preferences in session storage.
 
@@ -277,20 +279,25 @@ Diagnostic recording is an explicit, user-invoked related-domain helper for acti
 The recording flow:
 
 - Requires the user to open the popup on a supported `http` or `https` page and click "Start recording".
-- Uses `activeTab` plus `chrome.scripting.executeScript` after that click to inject a temporary recorder into the current active tab.
-- Keeps the collected hostnames only inside the injected page/isolated-world recorder until the user stops the session, cancels it, the page unloads, or the duration cap expires.
+- Uses `activeTab` plus `chrome.scripting.executeScript` after that click to inject bundled temporary code into all frames accessible through the existing grant. No script is registered persistently.
+- Installs the request hooks with `world: "MAIN"`, because page `fetch`, XMLHttpRequest, and `sendBeacon` live in the page's execution world rather than the extension's default isolated world.
+- Wraps `window.fetch`, `XMLHttpRequest.prototype.open`, and `navigator.sendBeacon` and captures the request hostname synchronously when the request is initiated. A later rejection, network failure, or `sendBeacon` false result does not discard that hostname.
+- Runs a continuous `PerformanceObserver` for resource entries, requests buffered entries where supported, and inspects existing resource entries as a fallback. It bounds its own capture instead of depending on an unbounded Stop-time resource timing snapshot, and reports dropped-entry counts when Chrome exposes them.
+- Adds a capturing resource error listener and reads only `src`, `currentSrc`, `href`, and `poster` from failed resource elements. It does not read arbitrary DOM attributes, page text, or error messages during recording.
+- Sends only hostname strings across a session-bound MAIN-to-ISOLATED `CustomEvent` bridge. The bridge uses a random nonce, treats every event as untrusted, validates and normalizes hostname-only payloads again, caps count and length, and deduplicates.
+- Keeps the collected hostnames only inside the temporary isolated-world bridge until the user stops the session, cancels it, the page unloads, or the duration cap expires.
 - Stores only transient session metadata in `chrome.storage.session`; collected hosts are not written to synced or local storage.
-- Observes bounded resource-like signals while active, including resource timing entries, new performance resource entries, selected resource URL attributes, `srcset` values, and style `url(...)` values.
-- Sanitizes immediately to hostnames by dropping paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal/IP hosts, deduplicating, and capping results.
+- Converts a signed URL to its hostname before bridge dispatch. Schemes, paths, queries, signatures, expiry values, fragments, credentials, headers, bodies, cookies, and response contents are not retained, logged, rendered, exported, synced, or persisted.
 - Does not inspect page text, form values, uploaded file contents, screenshots, cookies, auth/session data, or browser history.
-- Auto-expires after a short duration cap and disconnects observers.
+- Auto-expires after a short duration cap and restores original request functions, disconnects observers, removes listeners, and expires bridge state.
 - Allows "Stop and preview" only from the recorded tab; opening the popup on another tab shows that the recording belongs to another tab and allows cancellation.
 - On stop, feeds recorded sanitized hostnames into the same related-domain candidate engine used by current-page preview.
 - Shows the resulting candidates in the existing related-domain preview UI with "Recorded during this session" status copy.
 - Saves no rules automatically. The user must still select candidates and click "Add selected domains".
-- Cancel disconnects the recorder when possible, clears metadata, returns no candidates, and saves nothing.
+- Stop and Cancel restore original request functions, disconnect observers, remove listeners, clear the bridge, and expire session metadata. Navigation/reload is detected through document identity and reported honestly instead of as an empty result; tab close destroys page hooks and clears metadata.
+- If nothing is observed, the popup says that no request hostnames were captured and explains that some worker, service-worker, extension, or browser-level requests may be outside this privacy-preserving recorder. It does not direct the user to DevTools or a manual URL field.
 
-Recording does not use automatic/background traffic monitoring, `webRequest`, `webNavigation`, host permissions, `<all_urls>`, persistent content scripts, backend services, telemetry, remote PAC URLs, remote executable code, remote list fetching, or automatic rule creation.
+Recording does not use automatic/background traffic monitoring, `webRequest`, `webNavigation`, `chrome.debugger`, host permissions, `<all_urls>`, persistent content scripts, backend services, telemetry, remote PAC URLs, remote executable code, remote list fetching, manual failed-URL input, or automatic rule creation.
 
 ### Related-Domain Candidate Engine
 
@@ -306,7 +313,7 @@ The engine now delegates candidate governance to the domain classification layer
 
 The engine can mark conservative same-site or explicitly known related domains as strong candidates, unknown or suspicious third-party resource hosts as medium candidates for manual review, and known tracking/analytics, local/adblock helper, schema-helper, or huge shared infrastructure domains as ignored candidates. Medium and ignored candidates are not selected by default, and ignored candidates are not saveable from the popup.
 
-The engine returns both the sanitized observed hosts and the suggested route target. Route target planning can suggest a known related base domain with subdomains included, keep a single unknown host exact, or widen multiple safe sibling hosts to their public-suffix-aware registrable domain for manual review. Coverage and duplicate checks use that suggested route target and its subdomain scope, so an exact generated-host rule does not incorrectly cover sibling generated hosts.
+The engine returns both the sanitized observed hosts and the suggested route target. Route target planning can suggest a known related base domain with subdomains included, keep a normal single unknown host exact, widen multiple safe sibling hosts, or widen a strongly generated-looking subdomain to its public-suffix-aware registrable domain. Generic widening is disabled for known shared infrastructure. Coverage and duplicate checks use the suggested route target and its subdomain scope, so an exact generated-host rule does not incorrectly cover sibling generated hosts.
 
 Built-in classification data is bundled locally in the extension source. Public suffix data comes from the bundled `tldts` package in the extension build. The runtime does not fetch GitHub raw files, remote lists, remote PAC data, suffix updates, or remotely controlled classification logic. The bundled classification data includes a small set of high-confidence ignored domains and site-scoped related hints such as `chatgpt.com` to `oaiusercontent.com`, `chatgpt.com` to `oaistatic.com`, `openai.com` to OpenAI asset domains, `linkedin.com` to `licdn.com`, and `letterboxd.com` to `ltrbxd.com`.
 
@@ -350,7 +357,7 @@ The runtime boundary remains narrow:
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
 - Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
-- Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`. Recorded hostnames stay in the injected page recorder until stop/cancel/expiry and are not written to sync or local storage.
+- Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`, a temporary MAIN-world request recorder, and a nonce-bound isolated bridge. Recorded hostnames stay in the injected bridge until stop/cancel/expiry and are not written to sync or local storage.
 - Popup classification override actions write only the synced `classificationOverrides` data and then refresh preview; they do not create proxy routing rules.
 - Options classification override removal updates storage only and does not call `chrome.proxy.settings`.
 - Options Backup and restore export/import reads and writes only through storage helpers. Import preview does not write storage, and import apply requires an explicit button click.

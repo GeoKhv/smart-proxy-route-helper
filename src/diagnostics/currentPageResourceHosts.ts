@@ -20,9 +20,12 @@ export type CurrentPageResourceHostResultState =
 
 export type CurrentPageResourceHostPreviewSummary = {
   rawEntriesInspected: number;
+  requestInitiationsInspected?: number;
   performanceEntriesInspected?: number;
   domAttributesInspected?: number;
   urlLikeValuesFound?: number;
+  droppedPerformanceEntries?: number;
+  bridgeEventsRejected?: number;
   hostsExtracted: number;
   hostsAfterSanitization: number;
   hostsIgnoredOrInternal: number;
@@ -45,6 +48,7 @@ export type CurrentPageResourceHostsResponse = {
   summary?: CurrentPageResourceHostPreviewSummary;
   collectedHosts?: string[];
   candidates?: RelatedDomainCandidatesResult;
+  captureMode?: "snapshot" | "recording";
 };
 
 type CurrentPageResourceHostCollectionResult = {
@@ -52,7 +56,14 @@ type CurrentPageResourceHostCollectionResult = {
   pageLooksLikeErrorOrProtection: boolean;
   summary?: Pick<
     CurrentPageResourceHostPreviewSummary,
-    "rawEntriesInspected" | "performanceEntriesInspected" | "domAttributesInspected" | "urlLikeValuesFound" | "hostsExtracted"
+    | "rawEntriesInspected"
+    | "requestInitiationsInspected"
+    | "performanceEntriesInspected"
+    | "domAttributesInspected"
+    | "urlLikeValuesFound"
+    | "droppedPerformanceEntries"
+    | "bridgeEventsRejected"
+    | "hostsExtracted"
   > & {
     hostsRejected: number;
   };
@@ -433,15 +444,21 @@ export function buildCurrentPageResourceHostPreview(input: {
   const ignoredCandidates = candidates.ignoredCandidates.length;
   const rawEntriesInspected = input.collectionSummary?.rawEntriesInspected ?? input.collectedHosts.length;
   const performanceEntriesInspected = input.collectionSummary?.performanceEntriesInspected;
+  const requestInitiationsInspected = input.collectionSummary?.requestInitiationsInspected;
   const domAttributesInspected = input.collectionSummary?.domAttributesInspected;
   const urlLikeValuesFound = input.collectionSummary?.urlLikeValuesFound ?? input.collectedHosts.length;
+  const droppedPerformanceEntries = input.collectionSummary?.droppedPerformanceEntries;
+  const bridgeEventsRejected = input.collectionSummary?.bridgeEventsRejected;
   const hostsExtracted = input.collectionSummary?.hostsExtracted ?? sanitized.acceptedHostCount;
   const hostsIgnoredOrInternal = (input.collectionSummary?.hostsRejected ?? 0) + sanitized.rejectedHostCount;
   const summary: CurrentPageResourceHostPreviewSummary = {
     rawEntriesInspected,
+    ...(requestInitiationsInspected !== undefined ? { requestInitiationsInspected } : {}),
     ...(performanceEntriesInspected !== undefined ? { performanceEntriesInspected } : {}),
     ...(domAttributesInspected !== undefined ? { domAttributesInspected } : {}),
     urlLikeValuesFound,
+    ...(droppedPerformanceEntries !== undefined ? { droppedPerformanceEntries } : {}),
+    ...(bridgeEventsRejected !== undefined ? { bridgeEventsRejected } : {}),
     hostsExtracted,
     hostsAfterSanitization: collectedHosts.length,
     hostsIgnoredOrInternal,

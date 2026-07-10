@@ -31,6 +31,7 @@ export type RelatedDomainRouteTargetReason =
   | "same-site-resources"
   | "known-related-domain"
   | "multiple-sibling-hosts"
+  | "generated-subdomain"
   | "exact-observed-host"
   | "unsafe-shared-infrastructure";
 
@@ -241,6 +242,38 @@ function collectSiblingWideningGroups(
   return groups;
 }
 
+function generatedSubdomainWideningBaseDomain(
+  observation: ClassifiedObservation,
+  currentBaseDomain: string
+): string | null {
+  if (
+    observation.classification.classification !== "review" ||
+    observation.observedBaseDomain === currentBaseDomain ||
+    observation.observedBaseDomain === observation.observedHost ||
+    isSharedInfrastructureRegistrableDomain(observation.observedBaseDomain) ||
+    !canBroadenToRegistrableDomain(observation.observedHost, {
+      targetDomain: observation.observedBaseDomain
+    })
+  ) {
+    return null;
+  }
+
+  const subdomain = getDomainParts(observation.observedHost)?.subdomain;
+
+  if (!subdomain) {
+    return null;
+  }
+
+  const labels = subdomain.split(".");
+  const looksGenerated = labels.some(
+    (label) =>
+      /^[a-z0-9-]+$/i.test(label) &&
+      (label.length >= 16 || (label.length >= 12 && /\d/.test(label)))
+  );
+
+  return looksGenerated ? observation.observedBaseDomain : null;
+}
+
 function routeTargetPlanForObservation(
   observation: ClassifiedObservation,
   currentBaseDomain: string,
@@ -273,6 +306,17 @@ function routeTargetPlanForObservation(
       suggestedIncludeSubdomains: false,
       routeTargetReason: "unsafe-shared-infrastructure",
       routeTargetConfidence: "low"
+    };
+  }
+
+  const generatedBaseDomain = generatedSubdomainWideningBaseDomain(observation, currentBaseDomain);
+
+  if (generatedBaseDomain) {
+    return {
+      domain: generatedBaseDomain,
+      suggestedIncludeSubdomains: true,
+      routeTargetReason: "generated-subdomain",
+      routeTargetConfidence: "medium"
     };
   }
 

@@ -10,19 +10,27 @@ import {
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
 import {
+  isRelatedDomainMainWorldRecorderResult,
+  isRelatedDomainRecorderBridgeResult,
+  runRelatedDomainMainWorldRecorderInPage,
+  runRelatedDomainRecorderBridgeInPage,
+  type RelatedDomainMainWorldRecorderResult,
+  type RelatedDomainRecorderBridgeResult,
+  type RelatedDomainRecorderSummary
+} from "../diagnostics/actionRequestRecorder";
+import {
   buildRelatedDomainRecordingPreview,
   buildRelatedDomainRecordingResponse,
   getRelatedDomainRecordingTarget,
-  isRelatedDomainRecorderPageResult,
   isRelatedDomainRecordingRequest,
-  isRelatedDomainRecordingSessionMetadata,
+  isStoredRelatedDomainRecordingSessionMetadata,
   relatedDomainRecordingMaxDurationMs,
+  relatedDomainRecordingMaxHosts,
   relatedDomainRecordingSessionState,
-  runRelatedDomainRecorderInPage,
-  type RelatedDomainRecorderPageResult,
+  sanitizeRelatedDomainRecordedHostname,
   type RelatedDomainRecordingRequest,
   type RelatedDomainRecordingResponse,
-  type RelatedDomainRecordingSessionMetadata
+  type StoredRelatedDomainRecordingSessionMetadata
 } from "../diagnostics/relatedDomainRecording";
 import { domainCandidateUserOverridesFromStorage } from "../domainClassification/userClassificationOverrides";
 import { createChromeProxySettingsAdapter, createProxySettingsController } from "../proxy/applyProxySettings";
@@ -35,9 +43,11 @@ const proxySettingsController = createProxySettingsController({
 });
 const relatedDomainRecordingSessionStorageKey = "relatedDomainRecordingSession";
 
-let fallbackRelatedDomainRecordingSession: RelatedDomainRecordingSessionMetadata | null = null;
+let fallbackRelatedDomainRecordingSession: StoredRelatedDomainRecordingSessionMetadata | null = null;
 
 type ScriptInjectionResult = {
+  documentId?: string;
+  frameId?: number;
   result?: unknown;
 };
 
@@ -45,7 +55,7 @@ function sessionStorageArea(): chrome.storage.StorageArea | null {
   return chrome.storage.session ?? null;
 }
 
-async function readRelatedDomainRecordingSession(): Promise<RelatedDomainRecordingSessionMetadata | null> {
+async function readRelatedDomainRecordingSession(): Promise<StoredRelatedDomainRecordingSessionMetadata | null> {
   const storageArea = sessionStorageArea();
 
   if (!storageArea) {
@@ -55,7 +65,7 @@ async function readRelatedDomainRecordingSession(): Promise<RelatedDomainRecordi
   const stored = await storageArea.get(relatedDomainRecordingSessionStorageKey);
   const candidate = stored[relatedDomainRecordingSessionStorageKey];
 
-  if (!isRelatedDomainRecordingSessionMetadata(candidate)) {
+  if (!isStoredRelatedDomainRecordingSessionMetadata(candidate)) {
     fallbackRelatedDomainRecordingSession = null;
     return null;
   }
@@ -64,7 +74,7 @@ async function readRelatedDomainRecordingSession(): Promise<RelatedDomainRecordi
   return candidate;
 }
 
-async function writeRelatedDomainRecordingSession(session: RelatedDomainRecordingSessionMetadata): Promise<void> {
+async function writeRelatedDomainRecordingSession(session: StoredRelatedDomainRecordingSessionMetadata): Promise<void> {
   fallbackRelatedDomainRecordingSession = session;
 
   await sessionStorageArea()?.set({
@@ -78,14 +88,104 @@ async function clearRelatedDomainRecordingSession(): Promise<void> {
   await sessionStorageArea()?.remove(relatedDomainRecordingSessionStorageKey);
 }
 
-function firstRecorderPageResult(results: readonly ScriptInjectionResult[]): RelatedDomainRecorderPageResult | null {
-  for (const item of results) {
-    if (isRelatedDomainRecorderPageResult(item.result)) {
-      return item.result;
+function createRelatedDomainRecordingNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function recorderInjectionTarget(tabId: number): chrome.scripting.InjectionTarget {
+  return {
+    tabId,
+    allFrames: true
+  };
+}
+
+function mainFrameDocumentId(results: readonly ScriptInjectionResult[]): string | undefined {
+  return results.find((result) => result.frameId === 0)?.documentId ?? results[0]?.documentId;
+}
+
+function validBridgeResults(results: readonly ScriptInjectionResult[]): RelatedDomainRecorderBridgeResult[] {
+  return results.flatMap((item) =>
+    isRelatedDomainRecorderBridgeResult(item.result) ? [item.result] : []
+  );
+}
+
+function validMainWorldResults(results: readonly ScriptInjectionResult[]): RelatedDomainMainWorldRecorderResult[] {
+  return results.flatMap((item) =>
+    isRelatedDomainMainWorldRecorderResult(item.result) ? [item.result] : []
+  );
+}
+
+function hasStartedRecorder(results: readonly { status: string }[]): boolean {
+  return results.some((result) => result.status === "started" || result.status === "already_recording");
+}
+
+function mergeRecorderResults(
+  bridgeResults: readonly RelatedDomainRecorderBridgeResult[],
+  mainResults: readonly RelatedDomainMainWorldRecorderResult[]
+): RelatedDomainRecorderBridgeResult | null {
+  const stoppedBridgeResults = bridgeResults.filter(
+    (result) => result.status === "stopped" || result.status === "expired"
+  );
+
+  if (stoppedBridgeResults.length === 0) {
+    return null;
+  }
+
+  const hosts = new Set<string>();
+  let extensionRejectedHosts = 0;
+
+  for (const result of stoppedBridgeResults) {
+    for (const input of result.hosts) {
+      const hostname = sanitizeRelatedDomainRecordedHostname(input);
+
+      if (!hostname || (hosts.size >= relatedDomainRecordingMaxHosts && !hosts.has(hostname))) {
+        extensionRejectedHosts += 1;
+        continue;
+      }
+
+      hosts.add(hostname);
     }
   }
 
-  return null;
+  const summary: RelatedDomainRecorderSummary = {
+    rawEntriesInspected: 0,
+    requestInitiationsInspected: 0,
+    performanceEntriesInspected: 0,
+    domAttributesInspected: 0,
+    urlLikeValuesFound: 0,
+    hostsExtracted: hosts.size,
+    hostsRejected: extensionRejectedHosts,
+    bridgeEventsRejected: 0,
+    droppedPerformanceEntries: 0
+  };
+
+  for (const result of mainResults) {
+    summary.rawEntriesInspected += result.summary.rawEntriesInspected;
+    summary.requestInitiationsInspected += result.summary.requestInitiationsInspected;
+    summary.performanceEntriesInspected += result.summary.performanceEntriesInspected;
+    summary.domAttributesInspected += result.summary.domAttributesInspected;
+    summary.urlLikeValuesFound += result.summary.urlLikeValuesFound;
+    summary.hostsRejected += result.summary.hostsRejected;
+    summary.droppedPerformanceEntries += result.summary.droppedPerformanceEntries;
+  }
+
+  for (const result of stoppedBridgeResults) {
+    summary.hostsRejected += result.summary.hostsRejected;
+    summary.bridgeEventsRejected += result.summary.bridgeEventsRejected;
+  }
+
+  return {
+    status:
+      stoppedBridgeResults.some((result) => result.status === "expired") ||
+      mainResults.some((result) => result.status === "expired")
+        ? "expired"
+        : "stopped",
+    hosts: [...hosts].sort((left, right) => left.localeCompare(right)),
+    pageLooksLikeErrorOrProtection: false,
+    summary
+  };
 }
 
 function sameRecordedDomain(url: string | undefined, currentDomain: string): boolean {
@@ -94,33 +194,55 @@ function sameRecordedDomain(url: string | undefined, currentDomain: string): boo
   return target.ok && target.domain === currentDomain;
 }
 
-async function executeRelatedDomainRecorder(
+async function executeRelatedDomainRecorderBridge(
   tabId: number,
-  action: "start" | "stop" | "cancel"
-): Promise<RelatedDomainRecorderPageResult | null> {
-  const results = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: runRelatedDomainRecorderInPage,
+  action: "start" | "stop" | "cancel",
+  sessionNonce: string
+): Promise<ScriptInjectionResult[]> {
+  return chrome.scripting.executeScript({
+    target: recorderInjectionTarget(tabId),
+    func: runRelatedDomainRecorderBridgeInPage,
     args: [
       action,
       {
+        sessionNonce,
         maxDurationMs: relatedDomainRecordingMaxDurationMs
       }
     ]
   });
+}
 
-  return firstRecorderPageResult(results);
+async function executeRelatedDomainMainWorldRecorder(
+  tabId: number,
+  action: "start" | "stop" | "cancel",
+  sessionNonce: string
+): Promise<ScriptInjectionResult[]> {
+  return chrome.scripting.executeScript({
+    target: recorderInjectionTarget(tabId),
+    world: "MAIN",
+    func: runRelatedDomainMainWorldRecorderInPage,
+    args: [
+      action,
+      {
+        sessionNonce,
+        maxDurationMs: relatedDomainRecordingMaxDurationMs
+      }
+    ]
+  });
 }
 
 async function handleGetRelatedDomainRecordingState(): Promise<RelatedDomainRecordingResponse> {
   const metadata = await readRelatedDomainRecordingSession();
   const state = relatedDomainRecordingSessionState(metadata);
 
-  if (state.status === "expired" && metadata?.status !== "expired") {
-    await writeRelatedDomainRecordingSession(state);
+  if (metadata && state.status === "expired" && metadata.status !== "expired") {
+    await writeRelatedDomainRecordingSession({
+      ...metadata,
+      status: "expired"
+    });
   }
 
-  if (state.status === "idle") {
+  if (!metadata || state.status === "idle") {
     return buildRelatedDomainRecordingResponse("success", "No diagnostic recording is active.", state);
   }
 
@@ -191,12 +313,41 @@ async function handleStartRelatedDomainRecording(
   }
 
   try {
-    const pageResult = await executeRelatedDomainRecorder(tabId, "start");
+    const sessionNonce = createRelatedDomainRecordingNonce();
+    const bridgeInjectionResults = await executeRelatedDomainRecorderBridge(tabId, "start", sessionNonce);
+    const bridgeResults = validBridgeResults(bridgeInjectionResults);
 
-    if (!pageResult || (pageResult.status !== "started" && pageResult.status !== "already_recording")) {
+    if (!hasStartedRecorder(bridgeResults)) {
       return buildRelatedDomainRecordingResponse(
         "collection_unavailable",
-        pageResult?.message ?? "Could not start diagnostic recording on this page.",
+        bridgeResults[0]?.message ?? "Could not start the diagnostic recording bridge on this page.",
+        existingState,
+        {
+          currentDomain: target.domain
+        }
+      );
+    }
+
+    let mainWorldInjectionResults: ScriptInjectionResult[];
+
+    try {
+      mainWorldInjectionResults = await executeRelatedDomainMainWorldRecorder(tabId, "start", sessionNonce);
+    } catch (error) {
+      await executeRelatedDomainRecorderBridge(tabId, "cancel", sessionNonce).catch(() => undefined);
+      throw error;
+    }
+
+    const mainWorldResults = validMainWorldResults(mainWorldInjectionResults);
+
+    if (!hasStartedRecorder(mainWorldResults)) {
+      await Promise.allSettled([
+        executeRelatedDomainMainWorldRecorder(tabId, "cancel", sessionNonce),
+        executeRelatedDomainRecorderBridge(tabId, "cancel", sessionNonce)
+      ]);
+
+      return buildRelatedDomainRecordingResponse(
+        "collection_unavailable",
+        mainWorldResults[0]?.message ?? "Could not start MAIN-world request capture on this page.",
         existingState,
         {
           currentDomain: target.domain
@@ -205,13 +356,17 @@ async function handleStartRelatedDomainRecording(
     }
 
     const now = Date.now();
-    const session: RelatedDomainRecordingSessionMetadata = {
+    const recordingDocumentId =
+      mainFrameDocumentId(mainWorldInjectionResults) ?? mainFrameDocumentId(bridgeInjectionResults);
+    const session: StoredRelatedDomainRecordingSessionMetadata = {
       tabId,
       currentDomain: target.domain,
       startedAt: now,
       expiresAt: now + relatedDomainRecordingMaxDurationMs,
       maxDurationMs: relatedDomainRecordingMaxDurationMs,
-      status: "recording"
+      status: "recording",
+      sessionNonce,
+      ...(recordingDocumentId ? { mainDocumentId: recordingDocumentId } : {})
     };
 
     await writeRelatedDomainRecordingSession(session);
@@ -219,15 +374,15 @@ async function handleStartRelatedDomainRecording(
     return buildRelatedDomainRecordingResponse(
       "success",
       `Diagnostic recording started for ${target.domain}. Perform the action, then reopen the popup and choose Stop and preview. No rules will be saved automatically.`,
-      session,
+      relatedDomainRecordingSessionState(session),
       {
         currentDomain: target.domain
       }
     );
-  } catch (error) {
+  } catch {
     return buildRelatedDomainRecordingResponse(
       "collection_unavailable",
-      error instanceof Error ? error.message : "Could not start diagnostic recording on this page.",
+      "Could not start automatic request recording on this page. Chrome may not allow temporary script access here.",
       existingState,
       {
         currentDomain: target.domain
@@ -242,7 +397,7 @@ async function handleStopRelatedDomainRecording(
   const metadata = await readRelatedDomainRecordingSession();
   const state = relatedDomainRecordingSessionState(metadata);
 
-  if (state.status === "idle") {
+  if (!metadata || state.status === "idle") {
     return buildRelatedDomainRecordingResponse("not_found", "No diagnostic recording is active.", state);
   }
 
@@ -271,11 +426,15 @@ async function handleStopRelatedDomainRecording(
   }
 
   if (!sameRecordedDomain(request.url, state.currentDomain)) {
+    await Promise.allSettled([
+      executeRelatedDomainMainWorldRecorder(state.tabId, "cancel", metadata.sessionNonce),
+      executeRelatedDomainRecorderBridge(state.tabId, "cancel", metadata.sessionNonce)
+    ]);
     await clearRelatedDomainRecordingSession();
 
     return buildRelatedDomainRecordingResponse(
-      "collection_unavailable",
-      `Diagnostic recording for ${state.currentDomain} could not be previewed because the tab changed pages. Start a new recording on the loaded page.`,
+      "expired",
+      `Diagnostic recording for ${state.currentDomain} expired because the tab navigated or reloaded. Start a new recording on the loaded page.`,
       { status: "idle" },
       {
         currentDomain: state.currentDomain
@@ -284,27 +443,32 @@ async function handleStopRelatedDomainRecording(
   }
 
   try {
-    const pageResult = await executeRelatedDomainRecorder(tabId, "stop");
+    const mainWorldInjectionResults = await executeRelatedDomainMainWorldRecorder(
+      tabId,
+      "stop",
+      metadata.sessionNonce
+    );
+    const bridgeInjectionResults = await executeRelatedDomainRecorderBridge(
+      tabId,
+      "stop",
+      metadata.sessionNonce
+    );
+    const currentDocumentId =
+      mainFrameDocumentId(mainWorldInjectionResults) ?? mainFrameDocumentId(bridgeInjectionResults);
+    const documentChanged =
+      Boolean(metadata.mainDocumentId) &&
+      Boolean(currentDocumentId) &&
+      metadata.mainDocumentId !== currentDocumentId;
+    const mainWorldResults = validMainWorldResults(mainWorldInjectionResults);
+    const bridgeResults = validBridgeResults(bridgeInjectionResults);
+    const pageResult = mergeRecorderResults(bridgeResults, mainWorldResults);
 
-    if (!pageResult || pageResult.status === "not_found") {
+    if (documentChanged || !pageResult) {
       await clearRelatedDomainRecordingSession();
 
       return buildRelatedDomainRecordingResponse(
-        "not_found",
-        pageResult?.message ?? "Diagnostic recording was not found. The page may have reloaded.",
-        { status: "idle" },
-        {
-          currentDomain: state.currentDomain
-        }
-      );
-    }
-
-    if (pageResult.status === "error" || pageResult.status === "cancelled") {
-      await clearRelatedDomainRecordingSession();
-
-      return buildRelatedDomainRecordingResponse(
-        "collection_unavailable",
-        pageResult.message ?? "Could not stop diagnostic recording on this page.",
+        "expired",
+        `Diagnostic recording for ${state.currentDomain} expired because the page reloaded, navigated, or replaced the recorded document. Start a new recording on the loaded page.`,
         { status: "idle" },
         {
           currentDomain: state.currentDomain
@@ -335,11 +499,17 @@ async function handleStopRelatedDomainRecording(
         preview
       }
     );
-  } catch (error) {
+  } catch {
+    await Promise.allSettled([
+      executeRelatedDomainMainWorldRecorder(state.tabId, "cancel", metadata.sessionNonce),
+      executeRelatedDomainRecorderBridge(state.tabId, "cancel", metadata.sessionNonce)
+    ]);
+    await clearRelatedDomainRecordingSession();
+
     return buildRelatedDomainRecordingResponse(
       "collection_unavailable",
-      error instanceof Error ? error.message : "Could not stop diagnostic recording on this page.",
-      state,
+      "Could not stop and preview this recording. Temporary hooks were cancelled where the page remained accessible.",
+      { status: "idle" },
       {
         currentDomain: state.currentDomain
       }
@@ -353,17 +523,14 @@ async function handleCancelRelatedDomainRecording(
   const metadata = await readRelatedDomainRecordingSession();
   const state = relatedDomainRecordingSessionState(metadata);
 
-  if (state.status === "idle") {
+  if (!metadata || state.status === "idle") {
     return buildRelatedDomainRecordingResponse("success", "No diagnostic recording is active.", state);
   }
 
-  if (Number.isInteger(request.tabId) && request.tabId === state.tabId) {
-    try {
-      await executeRelatedDomainRecorder(request.tabId, "cancel");
-    } catch {
-      // Metadata cleanup is still safe if the page was reloaded or inaccessible.
-    }
-  }
+  await Promise.allSettled([
+    executeRelatedDomainMainWorldRecorder(state.tabId, "cancel", metadata.sessionNonce),
+    executeRelatedDomainRecorderBridge(state.tabId, "cancel", metadata.sessionNonce)
+  ]);
 
   await clearRelatedDomainRecordingSession();
 
@@ -422,6 +589,29 @@ chrome.tabs.onRemoved.addListener((tabId) => {
       const message = error instanceof Error ? error.message : "Unexpected recording cleanup failure.";
 
       console.warn(`${extensionName} could not clean up diagnostic recording state: ${message}`);
+    });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== "loading") {
+    return;
+  }
+
+  void readRelatedDomainRecordingSession()
+    .then((session) => {
+      if (session?.tabId !== tabId || session.status !== "recording") {
+        return undefined;
+      }
+
+      return writeRelatedDomainRecordingSession({
+        ...session,
+        status: "expired"
+      });
+    })
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "Unexpected recording navigation cleanup failure.";
+
+      console.warn(`${extensionName} could not expire diagnostic recording state after navigation: ${message}`);
     });
 });
 

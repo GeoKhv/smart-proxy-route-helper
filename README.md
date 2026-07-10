@@ -14,12 +14,12 @@ Version `0.1.0` is the first published MVP release. The runtime includes:
 - Fail-closed matched proxy routing.
 - Manual "Check via proxy" diagnostics.
 - User-invoked related-domain preview through `activeTab` plus `scripting`.
-- User-invoked diagnostic recording for action-specific resource hosts.
+- User-invoked automatic diagnostic recording for action-specific request hosts, including page-level requests that later fail.
 - Selectable related-domain suggestions.
 - User classification overrides stored as domain-level preferences.
 - Built-in local domain classification foundation.
 - Public-suffix-aware registrable-domain planning for related-domain route targets.
-- ChatGPT/OpenAI related-domain planning for generated and file-related `*.oaiusercontent.com` hosts through bundled site-scoped hints.
+- Generic public-suffix-aware widening for safe generated subdomains, with bundled site-scoped classification hints where available.
 
 It does not include telemetry, backend calls, host permissions, persistent content scripts, `webRequest`, `webNavigation`, runtime remote list fetching, or remote executable code.
 
@@ -36,6 +36,8 @@ The current public GitHub release is `v0.1.0`:
 Development on `main` continues after the `v0.1.0` Store submission baseline. Current `main` also includes a local
 Backup and restore Options section for versioned settings export/import; the submitted `v0.1.0` tag and release package
 remain the fixed baseline.
+
+On current `main`, action-specific recording is automatic after the user clicks "Start recording". The extension temporarily injects bundled request hooks into the page's MAIN world, listens in all accessible frames, and captures `fetch`, XMLHttpRequest, and beacon hostnames when requests are initiated rather than waiting for completion. A continuous resource observer and safe resource-element error listener provide additional signals. The hooks are removed on stop, cancel, timeout, navigation, or tab close. No DevTools inspection or manual URL entry is required or recommended.
 
 Chrome Web Store listing, submission, and publication-reference materials are available in:
 
@@ -226,7 +228,7 @@ User-controlled backup files:
 - If the user explicitly selects "Include local proxy config for this device", the export may include the sanitized local proxy scheme, host, port, and enabled state.
 - Import validates the export format/version, sanitizes domains, rejects protected/internal/private domains, shows a preview, and writes storage only after the user clicks "Apply import".
 
-The project does not store, sync, export, or send raw URLs, page paths, query strings, fragments, credentials, browsing history, collected resource host lists, or diagnostics history. Local proxy configuration stays in local storage, is not synced or sent, and is excluded from settings exports unless the user explicitly includes it. `chrome.storage.session` data is short-lived recording metadata only; it is not used as persistent or synced user storage.
+The project does not store, sync, export, log, render, or send raw request URLs, page paths, query strings, signatures, expiry values, fragments, credentials, headers, bodies, cookies, response contents, browsing history, collected resource host lists, or diagnostics history. Request URLs are reduced immediately to hostnames before crossing the page/extension bridge. Local proxy configuration stays in local storage, is not synced or sent, and is excluded from settings exports unless the user explicitly includes it. `chrome.storage.session` data is short-lived recording metadata only; it is not used as persistent or synced user storage.
 
 A local stable-ID unpacked build can use a public manifest key in `dist-local/` so Chrome Sync can associate synced route rules and classification overrides with the same extension identity across local installs. This is local setup data, not runtime product data, and it does not sync local proxy configuration.
 
@@ -244,6 +246,7 @@ The project is designed around a simple privacy promise:
 - Chrome Sync may sync domain rules if the user has sync enabled in Chrome.
 - Related-domain preview is user-invoked and transient.
 - Diagnostic recording is user-invoked, bounded, and transient.
+- Diagnostic recording retains hostnames only and never saves a route automatically.
 - Local proxy configuration stays on the local device.
 
 See [PRIVACY.md](PRIVACY.md).
@@ -252,7 +255,8 @@ See [PRIVACY.md](PRIVACY.md).
 
 - Local proxy availability depends on software configured outside this extension.
 - Chrome proxy settings may be controlled by enterprise policy, another extension, or user settings.
-- Related-domain preview and recording can be noisy because they are based on resource references visible to the loaded page.
+- Related-domain preview and recording can be noisy because they are based on signals visible to the loaded page.
+- Some worker, service-worker, extension, or browser-level requests may remain outside the privacy-preserving page recorder. The UI reports this limitation without asking the user to inspect DevTools or paste a URL.
 - The built-in classification data is intentionally small and curated.
 - Proxy authentication management is not included in the MVP.
 

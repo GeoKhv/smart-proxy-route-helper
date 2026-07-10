@@ -203,6 +203,7 @@ const relatedDomainRouteTargetReasonLabels: Record<RelatedDomainRouteTargetReaso
   "same-site-resources": "same site resources",
   "known-related-domain": "known related domain",
   "multiple-sibling-hosts": "multiple sibling hosts",
+  "generated-subdomain": "generated subdomain family",
   "exact-observed-host": "resource on current page",
   "unsafe-shared-infrastructure": "shared infrastructure"
 };
@@ -735,14 +736,18 @@ function previewSummary(preview: CurrentPageResourceHostsResponse): CurrentPageR
 function formatPreviewDiagnosticSummary(summary: RelatedDomainPopupSummary): string {
   const parts = [
     `${summary.rawEntriesInspected} inspected`,
+    `${summary.requestInitiationsInspected ?? 0} request initiations`,
     `${summary.performanceEntriesInspected ?? 0} performance`,
-    `${summary.domAttributesInspected ?? 0} DOM attributes`,
+    `${summary.domAttributesInspected ?? 0} DOM resource attributes`,
     `${summary.urlLikeValuesFound ?? summary.hostsExtracted} URL-like values`,
     `${summary.hostsAfterSanitization} sanitized hosts`,
     `${summary.hostsIgnoredOrInternal} ignored or internal`,
     `${summary.alreadyCoveredCandidates} already covered`,
     `${summary.saveableCandidates} saveable`
   ];
+  if ((summary.droppedPerformanceEntries ?? 0) > 0) {
+    parts.push(`${summary.droppedPerformanceEntries} dropped performance entries reported by the browser`);
+  }
   const hostSample =
     summary.sampleHosts && summary.sampleHosts.length > 0 ? ` Hosts: ${summary.sampleHosts.slice(0, 5).join(", ")}.` : "";
 
@@ -771,7 +776,10 @@ export function getRelatedDomainPreviewActionStatus(
     (summary.rawEntriesInspected === 0 && summary.hostsAfterSanitization === 0)
   ) {
     return {
-      message: "No page resource hosts were found. Try reloading the page, then preview again.",
+      message:
+        preview.captureMode === "recording"
+          ? "No request hostnames were captured during this session. Some worker, service-worker, or browser-level requests may be outside this privacy-preserving recorder."
+          : "No page resource hosts were found. Try reloading the page, then preview again.",
       kind: "neutral"
     };
   }

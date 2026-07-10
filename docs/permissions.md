@@ -76,17 +76,20 @@ The current-page related-domain preview is allowed to use `scripting` only for a
 
 Diagnostic recording is allowed to use `scripting` only after explicit popup clicks for "Start recording", "Stop and preview", or "Cancel recording". The recorder must be temporary and must not be declared as a persistent content script.
 
+On Start, the extension uses `chrome.scripting.executeScript` with `world: "MAIN"` and `allFrames: true` so bundled temporary hooks can observe page-level `fetch`, XMLHttpRequest, and beacon initiation in every frame allowed by the existing `activeTab` grant. Chrome's default script world is isolated, so MAIN world is required for these page-owned functions. Frames that Chrome does not make accessible are not bypassed, and no permission is added to reach them.
+
 These flows must:
 
 - Rely on `activeTab` for temporary access to the active tab.
 - Avoid `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, notifications, backend calls, telemetry, and remote executable code.
-- Collect only resource hostnames where possible from bounded current-page resource references, not raw resource URLs or page text.
-- Sanitize hostnames immediately by dropping URL paths, query strings, fragments, and credentials, rejecting unsupported schemes and local/private/internal hosts, deduplicating, and capping results.
+- Collect only hostnames from page-level request initiation, continuous resource timing, and safe failed-resource attributes, not raw resource URLs or page text.
+- Sanitize immediately in MAIN world by reducing each request value to a hostname before bridge dispatch, then validate and normalize again on the extension side. Drop schemes, paths, query strings, signatures, expiry values, fragments, credentials, headers, bodies, cookies, and response contents; reject unsupported schemes and local/private/internal hosts; deduplicate and cap results.
 - Avoid collecting form values, uploaded file contents, screenshots, cookies, auth/session data, or page text.
 - Treat obvious analytics/adtech/shared-infrastructure/local-helper hosts as ignored, non-saveable candidates through local logic only.
 - Show a neutral warning instead of normal candidates when the active tab appears to be an error page, protection page, or interstitial.
 - Store no collected hosts or transient diagnostic summary counts in `chrome.storage.sync` or `chrome.storage.local`.
 - Store only short-lived diagnostic recording metadata in `chrome.storage.session` when a recording is active.
+- Restore original request functions and remove temporary observers/listeners on stop, cancel, timeout, navigation, or tab close.
 - Never create or save related-domain rules automatically.
 - Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
 - Store classification overrides as normalized domain-level preferences only.
@@ -125,6 +128,7 @@ Mitigations:
 - Use it only for explicit diagnostic recording start/stop/cancel actions.
 - Pair it with `activeTab`, not required host permissions.
 - Keep injected functions bundled in the extension package and narrowly limited to current-page resource host collection.
+- Use MAIN-world hooks only during an explicit active recording and a nonce-bound isolated bridge that accepts hostname-only payloads.
 - Do not persist the collected hosts or turn suggestions into rules without a separate explicit confirmation.
 
 ### Remote Executable Code

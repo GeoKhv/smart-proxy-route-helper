@@ -94,9 +94,12 @@ Candidate scope:
 
 - Pure related-domain candidate engine that categorizes caller-provided observed hosts or URLs through a local bundled classification layer.
 - Small built-in classification data for high-confidence noise and site-scoped related hints.
-- Future local user overrides for personal classification preferences, after storage defaults and migrations are designed.
+- Local user overrides for personal classification preferences.
 - Future GitHub issue or pull-request workflow for sanitized domain-level community proposals.
 - User-initiated reachability check for the current site or an explicitly selected domain.
+- User-invoked temporary MAIN-world recording for page-level action-specific request hostnames, using only the existing `activeTab` and `scripting` permissions.
+- Automatic capture of page `fetch`, XMLHttpRequest, and beacon initiation before completion, plus continuous resource timing and safe failed-resource signals.
+- A nonce-bound hostname-only bridge, explicit candidate preview, and a separate explicit save action.
 - Clear explanation before any additional permission request, if a future design needs one.
 - Recommendation UI that suggests a domain rule only when appropriate.
 - Explicit confirmation before adding a suggested rule.
@@ -111,8 +114,10 @@ Permissions:
 Out of scope:
 
 - Automatic rule creation.
-- Browser resource collection until a separate explicit opt-in design is reviewed.
-- Continuous page monitoring.
+- Persistent or background browser traffic monitoring.
+- Manual failed-URL or hostname input as a fallback for automatic discovery.
+- Worker/service-worker/browser-level deep diagnostics without a separate future opt-in design.
+- Required host permissions, `<all_urls>`, `webRequest`, `webNavigation`, `chrome.debugger`, or persistent content scripts.
 - Uploading diagnostic results.
 - Remote diagnostic services.
 - Required diagnostics permissions.
@@ -129,6 +134,8 @@ Exit criteria:
 - Unknown or suspicious related-domain candidates remain manual review by default.
 - Classification data is bundled locally or provided explicitly by the user.
 - Privacy and Chrome Web Store disclosures are updated before release.
+
+The published `v0.1.0` tag and package remain immutable. These post-release diagnostics changes continue on `main` and require a future versioned release before they can replace the published baseline.
 
 ## Chrome Web Store Submission Checklist
 
