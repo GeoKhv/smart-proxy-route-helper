@@ -10,15 +10,25 @@ import {
   buildRelatedDomainPopupView,
   getCurrentTabDomain,
   getDiagnosticActionStatus,
+  getPopupRouteStatusView,
   getPopupRuleStatus,
   getRelatedDomainSaveActionStatus,
   getRelatedDomainPreviewActionStatus,
   groupRelatedDomainCandidateViews,
   removeCurrentSiteRule
 } from "../src/popup/popup";
+import { getRuleStableId, replaceRuleAtomically } from "../src/rules/ruleEditing";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
 const createdAt = "2026-06-24T00:00:00.000Z";
+const availableLocalProxy = {
+  enabled: true,
+  config: {
+    scheme: "socks5" as const,
+    host: "127.0.0.1",
+    port: 10808
+  }
+};
 
 function manualRule(domain: string, includeSubdomains = true): DomainRule {
   return {
@@ -125,6 +135,112 @@ describe("popup rule status helpers", () => {
       state: "blocked"
     });
   });
+
+  it("maps exact, parent, direct, and default matches to distinct prominent route states", () => {
+    expect(
+      getPopupRouteStatusView(
+        "child.example.com",
+        { rules: [manualRule("child.example.com", false)], denylist: [] },
+        availableLocalProxy
+      )
+    ).toEqual({
+      routeState: "proxy_exact",
+      appearance: "proxy",
+      label: "Through proxy",
+      explanation: "Exact rule for child.example.com",
+      ariaLabel: "Through proxy. Exact rule for child.example.com"
+    });
+    expect(
+      getPopupRouteStatusView(
+        "child.example.com",
+        { rules: [manualRule("example.com", true)], denylist: [] },
+        availableLocalProxy
+      )
+    ).toMatchObject({
+      routeState: "proxy_parent",
+      label: "Through proxy",
+      explanation: "Covered by parent rule example.com"
+    });
+    expect(
+      getPopupRouteStatusView(
+        "child.example.com",
+        { rules: [directRule("child.example.com", false)], denylist: [] },
+        availableLocalProxy
+      )
+    ).toMatchObject({
+      routeState: "direct_exact",
+      appearance: "direct",
+      label: "Direct",
+      explanation: "Exact direct rule for child.example.com"
+    });
+    expect(
+      getPopupRouteStatusView(
+        "child.example.com",
+        { rules: [directRule("example.com", true)], denylist: [] },
+        availableLocalProxy
+      )
+    ).toMatchObject({
+      routeState: "direct_parent",
+      label: "Direct",
+      explanation: "Direct through parent rule example.com"
+    });
+    expect(
+      getPopupRouteStatusView("child.example.com", { rules: [], denylist: [] }, availableLocalProxy)
+    ).toEqual({
+      routeState: "default_direct",
+      appearance: "not-configured",
+      label: "Not configured",
+      explanation: "No matching rule. Default route is direct.",
+      ariaLabel: "Not configured. No matching rule. Default route is direct."
+    });
+  });
+
+  it("shows a warning instead of a healthy proxy state when local proxy settings are unavailable", () => {
+    expect(
+      getPopupRouteStatusView(
+        "child.example.com",
+        { rules: [manualRule("example.com", true)], denylist: [] },
+        { enabled: false, config: null }
+      )
+    ).toEqual({
+      routeState: "proxy_parent",
+      appearance: "warning",
+      label: "Proxy unavailable",
+      explanation: "Covered by parent rule example.com. Local proxy is disabled or invalid on this device.",
+      ariaLabel:
+        "Warning: Proxy unavailable. Covered by parent rule example.com. Local proxy is disabled or invalid on this device."
+    });
+  });
+
+  it("refreshes from exact Proxy to parent-covered Proxy immediately after atomic scope expansion", () => {
+    const exactRule = {
+      ...manualRule("child.example.com", false),
+      id: "popup-scope-rule"
+    };
+    const replacement = replaceRuleAtomically([exactRule], getRuleStableId(exactRule), {
+      domain: "example.com",
+      includeSubdomains: true,
+      action: "proxy"
+    });
+
+    expect(replacement).toMatchObject({ ok: true });
+
+    if (!replacement.ok) {
+      throw new Error(replacement.error);
+    }
+
+    expect(
+      getPopupRouteStatusView(
+        "child.example.com",
+        { rules: replacement.rules, denylist: [] },
+        availableLocalProxy
+      )
+    ).toMatchObject({
+      routeState: "proxy_parent",
+      label: "Through proxy",
+      explanation: "Covered by parent rule example.com"
+    });
+  });
 });
 
 describe("popup add current site rule helper", () => {
@@ -139,14 +255,14 @@ describe("popup add current site rule helper", () => {
     });
   });
 
-  it("suggests base domain includeSubdomains for www hosts", () => {
+  it("keeps www quick actions exact-host-only without automatic broadening", () => {
     expect(addCurrentSiteRule([], "https://www.linkedin.com/feed", createdAt)).toEqual({
       ok: true,
       status: "added",
-      domain: "linkedin.com",
+      domain: "www.linkedin.com",
       action: "proxy",
-      includeSubdomains: true,
-      rules: [manualRule("linkedin.com", true)]
+      includeSubdomains: false,
+      rules: [manualRule("www.linkedin.com", false)]
     });
   });
 
@@ -154,10 +270,10 @@ describe("popup add current site rule helper", () => {
     expect(addCurrentSiteRule([manualRule("linkedin.com", true)], "https://www.linkedin.com/feed", createdAt, "manual", "direct")).toEqual({
       ok: true,
       status: "added",
-      domain: "linkedin.com",
+      domain: "www.linkedin.com",
       action: "direct",
-      includeSubdomains: true,
-      rules: [manualRule("linkedin.com", true), directRule("linkedin.com", true)]
+      includeSubdomains: false,
+      rules: [manualRule("linkedin.com", true), directRule("www.linkedin.com", false)]
     });
   });
 
@@ -1599,6 +1715,23 @@ describe("popup runtime boundaries", () => {
     expect(popupHtml).toContain('.candidate-row[data-selected="true"]');
     expect(popupHtml).toContain(".candidate-action");
     expect(popupHtml).toContain("accent-color: Highlight");
+  });
+
+  it("exposes text, aria status, exact-host microcopy, and explicit scope confirmation controls", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+    const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
+
+    expect(popupHtml).toContain("Proxy this hostname");
+    expect(popupHtml).toContain("Route this hostname directly");
+    expect(popupHtml).toContain("Applies to this exact hostname only.");
+    expect(popupHtml).toContain('id="change-current-site-scope"');
+    expect(popupHtml).toContain('id="confirm-scope-change"');
+    expect(popupHtml).toContain('role="status"');
+    expect(popupHtml).toContain("route-status-indicator");
+    expect(popupSource).toContain('container.setAttribute("aria-label", view.ariaLabel)');
+    expect(popupSource).toContain('routeStatus.setAttribute("aria-label", result.message)');
+    expect(popupSource).toContain("updateSyncRule(plan.ruleId, plan.proposedRule)");
+    expect(popupSource).toContain("renderSupported(currentDomain.domain, updateResult.settings)");
   });
 });
 

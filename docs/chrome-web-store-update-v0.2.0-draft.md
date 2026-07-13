@@ -4,13 +4,16 @@ Draft only. This file is repository preparation, not Dashboard state. Do not upl
 
 ## Draft What's New
 
-Version 0.2.0 adds proxy and direct route actions with deterministic precedence, safe redundant-rule cleanup suggestions, local settings backup and restore, a stable-ID local build workflow, and improved automatic action-specific hostname recording. Recording remains user-invoked, temporary, hostname-only, and unable to create rules automatically.
+Version 0.2.0 adds prominent current-route status, exact-host Popup actions, editable proxy/direct rules with confirmed PSL-aware scope expansion, deterministic precedence, safe redundant-rule cleanup suggestions, local settings backup and restore, a stable-ID local build workflow, and improved automatic action-specific hostname recording. Recording remains user-invoked, temporary, hostname-only, and unable to create rules automatically.
 
 ## Store Listing Changes Needed
 
 Keep the current name and short description. Update the detailed description's feature and privacy bullets to include:
 
 - Proxy and direct route rules.
+- Prominent Proxy, explicit Direct, and unconfigured default-Direct Popup states with exact/parent explanations and accessible text labels.
+- Exact-host-only Popup quick actions plus explicit Change scope confirmation.
+- In-place rule editing and safe PSL-aware parent-domain expansion with coverage/conflict preview.
 - Exact-over-parent and most-specific-parent precedence.
 - Explicit redundant-rule cleanup suggestions with no automatic removal.
 - Versioned local settings export/import with preview before apply.
@@ -26,6 +29,8 @@ Remove or replace wording that describes routing rules as proxy-only, treats rec
 New in version 0.2.0:
 
 - Choose proxy or direct routing for each domain rule.
+- See the effective route at a glance while keeping explicit Direct distinct from the unconfigured default direct route.
+- Edit an existing rule or broaden its scope after reviewing exactly which hostnames will be covered.
 - Use deterministic exact and parent-rule precedence for predictable exceptions.
 - Find redundant same-action rules and remove them only after confirmation.
 - Export a versioned local settings backup and preview sanitized changes before importing.
@@ -83,10 +88,10 @@ Official review references:
 
 Recapture only after the candidate UI and copy are frozen, using the documented clean-profile and sanitized-demo workflow.
 
-- Replace `02-options-route-rules`: the existing image predates the route-action selector and labels rules as `mode: proxy`.
+- Replace `02-options-route-rules`: show Edit controls and, if legible, a sanitized current/proposed scope preview with the confirmation button visible.
 - Add or replace an Options image that shows `Optimize rules` and a safe suggestion state without implying automatic deletion.
 - Add or replace an Options image that shows `Backup and restore`, with local proxy inclusion visibly off by default and no real proxy details.
-- Review `03-popup-current-site`: show the direct-route action or a direct exception state if it remains legible.
+- Replace `03-popup-current-site`: show the prominent text-and-icon route state, exact/parent explanation, exact-host microcopy, and Change scope action using sanitized demo data.
 - Replace or refresh `05-popup-recording`: use final v0.2 copy and show the user-invoked automatic recording state without sensitive real domains or data.
 - Keep every screenshot at `1280x800`, use only sanitized demo data, and do not capture the owner's main Chrome profile.
 

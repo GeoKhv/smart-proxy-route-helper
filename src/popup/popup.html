@@ -72,6 +72,27 @@
         margin-top: 8px;
       }
 
+      label,
+      select {
+        font: inherit;
+        font-size: 13px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+      }
+
+      select {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid color-mix(in srgb, CanvasText 24%, Canvas);
+        border-radius: 6px;
+        padding: 7px 8px;
+        background: Canvas;
+        color: CanvasText;
+      }
+
       .domain {
         margin-top: 8px;
         padding: 8px;
@@ -101,6 +122,83 @@
       .status[data-kind="error"] {
         border-color: #a33a3a;
         color: #8d2e2e;
+      }
+
+      .route-status-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .route-status-indicator {
+        width: 12px;
+        height: 12px;
+        flex: 0 0 12px;
+        border: 2px solid color-mix(in srgb, CanvasText 52%, Canvas);
+        border-radius: 50%;
+        background: transparent;
+      }
+
+      .route-status-label {
+        color: CanvasText;
+        font-size: 15px;
+      }
+
+      .route-status-explanation {
+        margin-top: 5px;
+      }
+
+      .route-status[data-appearance="proxy"] .route-status-indicator {
+        border-color: #16803d;
+        background: #16803d;
+      }
+
+      .route-status[data-appearance="direct"] .route-status-indicator {
+        border-color: #2563b8;
+        background: #2563b8;
+      }
+
+      .route-status[data-appearance="warning"] .route-status-indicator,
+      .route-status[data-appearance="blocked"] .route-status-indicator {
+        border-color: #b54708;
+        background: #b54708;
+      }
+
+      .microcopy {
+        margin-top: 8px;
+        font-size: 12px;
+      }
+
+      .scope-editor {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+        border-radius: 6px;
+      }
+
+      .scope-editor[hidden] {
+        display: none;
+      }
+
+      .scope-preview {
+        margin-top: 0;
+        white-space: normal;
+      }
+
+      .scope-preview p + p {
+        margin-top: 6px;
+      }
+
+      .scope-preview-list {
+        margin: 5px 0 0;
+        padding-left: 20px;
+      }
+
+      .scope-warning {
+        color: color-mix(in srgb, CanvasText 82%, Canvas);
+        font-weight: 600;
       }
 
       .actions {
@@ -214,14 +312,29 @@
 
       <section aria-labelledby="route-status-title">
         <h2 id="route-status-title">Route status</h2>
-        <div class="status" id="route-status" aria-live="polite">Checking current site...</div>
+        <div class="status route-status" id="route-status" role="status" aria-live="polite" aria-label="Checking current site">
+          Checking current site...
+        </div>
       </section>
 
       <section class="actions" aria-labelledby="actions-title">
         <h2 id="actions-title">Actions</h2>
-        <button type="button" id="add-current-site" hidden>Route this site through proxy</button>
-        <button type="button" id="add-current-site-direct" hidden>Route this site directly</button>
-        <button type="button" id="remove-current-site" hidden>Remove current site rule</button>
+        <button type="button" id="add-current-site" hidden>Proxy this hostname</button>
+        <button type="button" id="add-current-site-direct" hidden>Route this hostname directly</button>
+        <p class="microcopy" id="quick-action-scope-copy">Applies to this exact hostname only.</p>
+        <button type="button" id="change-current-site-scope" hidden>Change scope</button>
+        <button type="button" id="remove-current-site" hidden>Remove exact rule</button>
+        <div class="scope-editor" id="scope-change-editor" hidden>
+          <strong>Change scope</strong>
+          <p id="scope-change-action"></p>
+          <label>
+            Rule scope
+            <select id="scope-change-select"></select>
+          </label>
+          <div class="status scope-preview" id="scope-change-preview" aria-live="polite"></div>
+          <button type="button" id="confirm-scope-change" disabled>Confirm scope change</button>
+          <button type="button" id="cancel-scope-change">Cancel</button>
+        </div>
         <button type="button" id="check-via-proxy" hidden>Check via proxy</button>
         <button type="button" id="preview-related-domains" hidden>Preview related domains</button>
         <button type="button" id="start-related-domain-recording" hidden>Start recording</button>

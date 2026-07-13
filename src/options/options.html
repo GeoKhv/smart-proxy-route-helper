@@ -196,6 +196,12 @@
         font-weight: 700;
       }
 
+      .rule-item-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
       .metadata {
         display: flex;
         flex-wrap: wrap;
@@ -220,6 +226,35 @@
         padding-left: 20px;
         font-size: 14px;
         line-height: 1.45;
+      }
+
+      .rule-editor {
+        display: grid;
+        gap: 14px;
+        margin-top: 18px;
+        padding: 16px;
+        border: 1px solid color-mix(in srgb, Highlight 46%, Canvas);
+        border-radius: 8px;
+        background: color-mix(in srgb, Highlight 5%, Canvas);
+      }
+
+      .rule-editor[hidden] {
+        display: none;
+      }
+
+      .rule-edit-preview {
+        margin-top: 0;
+        padding: 12px;
+        border: 1px solid color-mix(in srgb, CanvasText 16%, Canvas);
+        border-radius: 6px;
+      }
+
+      .rule-edit-preview p + p {
+        margin-top: 8px;
+      }
+
+      .edit-warning {
+        font-weight: 600;
       }
 
       @media (max-width: 720px) {
@@ -299,9 +334,13 @@
             </select>
           </label>
 
-          <label class="checkbox-row">
-            <input id="rule-subdomains" name="includeSubdomains" type="checkbox" checked />
-            Include subdomains
+          <label>
+            Rule scope
+            <select id="rule-scope" name="scope">
+              <option value="exact">Exact hostname only</option>
+              <option value="hostname-and-subdomains">This hostname and its subdomains</option>
+            </select>
+            <span class="hint">Choose the exact coverage explicitly; no parent domain is inferred.</span>
           </label>
 
           <div>
@@ -310,6 +349,33 @@
         </form>
         <p class="status" id="rule-status" aria-live="polite"></p>
         <ul class="rule-list" id="rule-list"></ul>
+
+        <div class="rule-editor" id="rule-editor" aria-labelledby="rule-editor-title" hidden>
+          <h3 id="rule-editor-title">Edit route rule</h3>
+          <label>
+            Hostname or domain
+            <input id="rule-edit-domain" type="text" autocomplete="off" />
+            <span class="error" id="rule-edit-domain-error" aria-live="polite"></span>
+          </label>
+          <label>
+            Route action
+            <select id="rule-edit-action">
+              <option value="proxy">Proxy</option>
+              <option value="direct">Direct</option>
+            </select>
+          </label>
+          <label>
+            Rule scope
+            <select id="rule-edit-scope"></select>
+            <span class="hint">A safe parent-domain option appears only when PSL-aware planning permits it.</span>
+          </label>
+          <div class="actions">
+            <button id="preview-rule-edit" type="button">Preview changes</button>
+            <button id="save-rule-edit" type="button" disabled>Save changes</button>
+            <button id="cancel-rule-edit" type="button">Cancel</button>
+          </div>
+          <div class="rule-edit-preview" id="rule-edit-preview" aria-live="polite">Preview the edit before saving.</div>
+        </div>
       </section>
 
       <section aria-labelledby="rule-cleanup-title">

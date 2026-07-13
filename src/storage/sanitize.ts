@@ -74,7 +74,10 @@ function sanitizeDomainRule(input: unknown): DomainRule | null {
     return null;
   }
 
+  const id = typeof input.id === "string" && input.id.trim().length > 0 ? input.id.trim() : undefined;
+
   return {
+    ...(id ? { id } : {}),
     domain: normalized.domain,
     includeSubdomains: input.includeSubdomains,
     action: input.action === "direct" ? "direct" : "proxy",

@@ -5,6 +5,7 @@ export type RuleAction = "proxy" | "direct";
 export type RuleSource = "manual" | "diagnostic" | "import";
 
 export type DomainRule = {
+  id?: string;
   domain: string;
   includeSubdomains: boolean;
   action: RuleAction;

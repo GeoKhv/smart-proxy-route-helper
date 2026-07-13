@@ -8,8 +8,8 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 Version `0.1.0` is the first published MVP release. The runtime includes:
 
-- Options UI for device-specific local proxy configuration, synced proxy rules, direct exceptions, and redundant-rule cleanup suggestions.
-- Popup UI for current-site effective route status and explicit proxy/direct route management.
+- Options UI for device-specific local proxy configuration, synced editable proxy/direct rules, explicit scope previews, and redundant-rule cleanup suggestions.
+- Popup UI with a prominent effective-route status and explicit exact-host proxy/direct actions.
 - Background PAC runtime application through `chrome.proxy`.
 - Fail-closed matched proxy routing.
 - Manual "Check via proxy" diagnostics.
@@ -36,6 +36,11 @@ The current public GitHub release is `v0.1.0`:
 Development on `main` continues after the `v0.1.0` Store submission baseline. Current `main` also includes a local
 Backup and restore Options section for versioned settings export/import; the submitted `v0.1.0` tag and release package
 remain the fixed baseline.
+
+Current `main` also distinguishes healthy Proxy, explicit Direct, and unconfigured default-Direct states in the Popup.
+Popup quick actions always create exact-host rules. Existing rules can be edited in Options, and an exact rule can be
+expanded to the same hostname's subdomains or to a safe PSL-aware registrable parent only after a visible coverage and
+conflict preview plus explicit confirmation. The existing rule is replaced atomically; it is not deleted and recreated.
 
 On current `main`, action-specific recording is automatic after the user clicks "Start recording". The extension temporarily injects bundled request hooks into the page's MAIN world, listens in all accessible frames, and captures `fetch`, XMLHttpRequest, and beacon hostnames when requests are initiated rather than waiting for completion. A continuous resource observer and safe resource-element error listener provide additional signals. The hooks are removed on stop, cancel, timeout, navigation, or tab close. No DevTools inspection or manual URL entry is required or recommended.
 
@@ -94,10 +99,11 @@ Configure and use the MVP:
 2. Configure the local proxy scheme, host, and port for this device.
 3. Open a supported `http` or `https` site.
 4. Open the extension popup.
-5. Add the current site as a synced proxy route or direct exception, or run "Check via proxy" first.
-6. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions, or click "Start recording" before a page action and "Stop and preview" afterward.
-7. Select only the related domains you want and click the separate add action.
-8. Use Options > Backup and restore to export or import a local settings backup when moving between unpacked/local installations.
+5. Use "Proxy this hostname" or "Route this hostname directly" to add an exact-host rule, or run "Check via proxy" first.
+6. Use "Change scope" on an exact rule or Edit in Options to preview and confirm a broader safe scope without delete/re-add.
+7. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions, or click "Start recording" before a page action and "Stop and preview" afterward.
+8. Select only the related domains you want and click the separate add action.
+9. Use Options > Backup and restore to export or import a local settings backup when moving between unpacked/local installations.
 
 ### Local Stable-ID Build
 
@@ -150,6 +156,10 @@ Runtime domain parsing uses `tldts` for public-suffix-aware registrable-domain d
 The MVP runtime provides a small manual PAC manager:
 
 - Add, edit, disable, and remove proxy rules and direct exceptions manually.
+- Show Proxy exact/parent, Direct exact/parent, and unconfigured default-Direct states without relying on color alone.
+- Keep Popup quick actions exact-host-only, including for `www.*` hostnames.
+- Preview safe PSL-aware scope expansion, conflicts, preserved child exceptions, and potential redundancy before saving.
+- Replace an edited rule atomically in one synced-settings write while preserving its stable identity, source, and creation time.
 - Sync domain rules with `chrome.storage.sync`.
 - Store local proxy configuration with `chrome.storage.local`.
 - Generate a PAC script locally from the user's rules and local proxy settings.
@@ -209,7 +219,7 @@ Synced across the user's Chrome profile:
 - Domain routing rules, including whether each rule routes through proxy or directly.
 - Domain-level classification overrides for related-domain preview.
 - Domain-level ignored domains and denylist entries.
-- Rule metadata such as source and creation timestamps.
+- Rule metadata such as stable identity where assigned, source, and creation timestamps.
 
 Device-specific:
 

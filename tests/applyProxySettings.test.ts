@@ -8,6 +8,7 @@ import {
 } from "../src/proxy/applyProxySettings";
 import type { DomainRule } from "../src/rules/ruleTypes";
 import type { StorageAreaAdapter } from "../src/storage/storageTypes";
+import { updateSyncRule } from "../src/storage/syncStore";
 
 type MemoryStorageArea = StorageAreaAdapter & {
   dump(): Record<string, unknown>;
@@ -366,5 +367,57 @@ describe("proxy settings storage change handling", () => {
     expect(proxySettings.calls[2]).toEqual({
       type: "clear"
     });
+  });
+
+  it("applies proxy settings once after one confirmed atomic rule update", async () => {
+    const currentRule = {
+      ...manualRule("child.example.com", false),
+      id: "rule-atomic-apply"
+    };
+    const syncStorage = createMemoryStorage({ rules: [currentRule] });
+    const proxySettings = createProxySettingsRecorder();
+    const controller = createProxySettingsController({
+      proxySettings: proxySettings.adapter,
+      syncStorage,
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      logger: silentLogger
+    });
+    const update = await updateSyncRule(
+      currentRule.id,
+      {
+        domain: "example.com",
+        includeSubdomains: true,
+        action: "proxy"
+      },
+      syncStorage
+    );
+
+    expect(update).toMatchObject({ ok: true });
+
+    if (!update.ok) {
+      throw new Error(update.error);
+    }
+
+    const result = await controller.handleStorageChange(
+      {
+        rules: {
+          oldValue: [currentRule],
+          newValue: update.settings.rules
+        }
+      },
+      "sync"
+    );
+
+    expect(result).toMatchObject({ ok: true, status: "applied-pac" });
+    expect(proxySettings.calls).toHaveLength(1);
+
+    const call = proxySettings.calls[0];
+    expect(call.type).toBe("apply-pac");
+
+    if (call.type !== "apply-pac") {
+      throw new Error("Expected one PAC application call.");
+    }
+
+    expect(runPac(call.pacScript, "child.example.com")).toBe("SOCKS5 127.0.0.1:10808");
   });
 });

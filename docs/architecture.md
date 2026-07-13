@@ -23,9 +23,11 @@ Popup:
 
 - Detect the active tab URL after the user opens the popup.
 - Show the normalized current domain for supported `http` and `https` pages.
-- Show whether the current domain uses proxy or direct routing by an exact rule, inherits proxy or direct routing from a parent `includeSubdomains` rule, is blocked by internal protection or synced denylist, or uses the default direct route.
+- Show a prominent text-and-icon state for exact Proxy, parent Proxy, exact Direct, parent Direct, blocked, or unconfigured default Direct.
+- Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy is disabled or invalid.
 - Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
-- For `www.*` hosts, suggest the base registrable domain with subdomains included; for other subdomains, keep the current host exact by default.
+- Keep every Popup quick action exact-host-only, including `www.*` and other subdomains.
+- Offer `Change scope` for an exact rule, preserve its action, show safe PSL-aware scope choices and a coverage/conflict preview, and require confirmation before one atomic update.
 - Remove exact current-domain rules only; parent inherited rules must be edited from Options.
 - Start a current-site diagnostic only after the user clicks "Check via proxy".
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
@@ -40,7 +42,10 @@ The popup does not inspect page content on open, add rules automatically, reques
 Options page:
 
 - Configure local proxy settings.
-- Manage proxy rules and direct exceptions.
+- Add, edit, and remove proxy rules and direct exceptions.
+- Edit hostname/domain, proxy/direct action, and explicit scope without delete/re-add.
+- Offer exact-host, hostname-plus-subdomains, and safe PSL-aware registrable-parent scope choices; omit the parent option for unsafe shared infrastructure.
+- Preview broader coverage, duplicate/conflict blockers, preserved opposite-action child exceptions, and same-action redundancy before Save.
 - Scan for redundant same-action child rules and show cleanup suggestions without deleting anything automatically.
 - Show and remove synced personal classification overrides.
 - Show which settings are local to this device and which domain rules are synced.
@@ -167,6 +172,9 @@ The MVP keeps rule semantics simple:
 - If multiple rules have the same specificity, the most recently created rule wins; if timestamps tie, the later stored entry wins.
 - No match means the default direct route.
 - Same-action child rules already covered by broader same-action parents can be suggested for cleanup. Different-action children are not redundant because they override broader parents.
+- Rule edits preserve source and creation time plus an existing stable ID. Legacy rules without an explicit ID receive a deterministic stable identity when first edited.
+- A rule edit replaces exactly one stored array entry and performs one synced-settings write. It never deletes first, creates a temporary duplicate, or silently removes other rules.
+- Identical edited targets and same-target opposite-action conflicts block Save. Broader parents, preserved child exceptions, and newly redundant child rules are shown as preview warnings.
 - Invalid input should be rejected before storage.
 
 Examples of invalid input:
@@ -355,6 +363,7 @@ The runtime boundary remains narrow:
 
 - The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
+- Popup and Options rule edits use the shared pure scope/conflict planner and the storage-level atomic update helper. One `chrome.storage.sync.set` triggers the existing background listener, so proxy settings are applied once per confirmed edit.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
 - Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
 - Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`, a temporary MAIN-world request recorder, and a nonce-bound isolated bridge. Recorded hostnames stay in the injected bridge until stop/cancel/expiry and are not written to sync or local storage.

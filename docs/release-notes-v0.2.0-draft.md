@@ -7,6 +7,10 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 ## Highlights
 
 - Added explicit proxy and direct route actions.
+- Added a prominent Popup route indicator that distinguishes healthy Proxy, explicit Direct, and unconfigured default Direct, with exact/parent explanations and an unavailable-proxy warning.
+- Kept Popup quick actions exact-host-only and added an explicit Change scope flow.
+- Added in-place rule editing for hostname/domain, action, and scope without delete/re-add.
+- Added confirmed, PSL-aware scope expansion with coverage/conflict preview and atomic replacement of the existing rule.
 - Added deterministic routing precedence: exact rules beat parent rules, and the most-specific parent rule wins.
 - Added redundant same-action rule suggestions with no automatic deletion.
 - Added versioned local settings backup and restore with preview before apply.
@@ -22,6 +26,19 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 - Local proxy configuration remains device-local and is not synced.
 - The manifest permission list is unchanged: `proxy`, `storage`, `activeTab`, and `scripting`.
 - No host permissions, `<all_urls>`, `webRequest`, `webNavigation`, `debugger`, or persistent content scripts were added.
+
+## Route Status and Rule Editing
+
+- Popup status uses text plus a filled or outlined indicator and accessible labels; color is not the only signal.
+- Proxy exact, Proxy parent, Direct exact, Direct parent, and no-match default Direct remain separate states.
+- A matching Proxy rule shows a warning when the device-local proxy is disabled or invalid.
+- "Proxy this hostname" and "Route this hostname directly" always create an exact-host rule, including on `www.*` hosts.
+- Existing rules can be edited in Options. Exact rules also expose Change scope in Popup.
+- Scope choices are Exact hostname only, This hostname and its subdomains, and—only when safe—Parent domain and all subdomains.
+- Registrable-parent planning uses bundled PSL-aware logic and does not broaden known shared-infrastructure targets.
+- Broadening shows current/proposed rules, coverage, preserved child exceptions, existing parent coverage, and newly redundant child rules before confirmation.
+- Identical edited targets and same-target opposite-action conflicts block Save. No other rules are silently deleted.
+- A confirmed edit replaces one rule in one synced-settings write while preserving stable identity, source, and creation time; the background listener reapplies proxy settings once.
 
 ## Backup and Restore
 

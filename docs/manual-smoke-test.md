@@ -15,6 +15,8 @@ Record each result as `PASS`, `FAIL`, or `NOT RUN`, with the Chrome version, ope
 - [ ] Existing proxy rule: confirm an existing proxy rule still routes through the configured local proxy and remains fail-closed when that proxy is unavailable.
 - [ ] Direct exception: add an exact direct rule below a broader proxy parent and confirm the exact host returns `DIRECT` while the parent domain still uses the proxy.
 - [ ] Rule precedence: confirm an exact rule wins over a parent rule, the most-specific matching parent wins, and an unmatched host remains `DIRECT`.
+- [ ] Popup route status: confirm Proxy exact/parent, Direct exact/parent, unconfigured default Direct, and unavailable-proxy warning states are textually distinct and have accessible labels.
+- [ ] Atomic rule editing: edit action and scope without delete/re-add, confirm broader coverage is previewed, conflicts are handled, child exceptions remain, and one confirmed edit causes one storage change/proxy apply.
 - [ ] Redundant-rule cleanup: run the scan, confirm it only suggests same-action covered rules, confirm the scan removes nothing, then remove one suggestion explicitly.
 - [ ] Export without proxy config: confirm the default JSON excludes `localSettings`, proxy host/port, recording metadata, collected hosts, and raw URL components.
 - [ ] Export with proxy config: explicitly enable the option and confirm only the sanitized device proxy configuration is additionally present.
@@ -138,9 +140,15 @@ await chrome.storage.sync.get(["rules"]);
 15. Confirm no rule is removed by the scan alone.
 16. Click the suggestion's remove button and confirm only that suggested redundant rule is removed after the explicit click.
 17. Confirm a direct child under a proxy parent and a proxy child under a direct parent are not suggested as redundant.
-18. Confirm the Options page does not call `chrome.proxy.settings` directly; proxy application should happen through the background storage listener.
-19. If classification overrides exist, confirm they appear in the "Classification overrides" section.
-20. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
+18. Click Edit on an exact rule and confirm hostname/domain, Proxy/Direct action, and explicit scope choices are editable without removing the stored rule first.
+19. Confirm the scope list offers Exact hostname only and This hostname and its subdomains, plus Parent domain and all subdomains only for a safe PSL-aware child target.
+20. Preview an exact `child.example.com` Proxy rule as `example.com` plus subdomains. Confirm Current rule, Proposed rule, coverage examples, and "This rule will apply to more hostnames" appear before Save changes is enabled.
+21. Keep a Direct child exception under the proposed broader Proxy rule. Confirm the preview says the Direct exception will continue to win and does not offer to delete it.
+22. Create a same-target duplicate or opposite-action conflict in disposable data and confirm Save is blocked. Confirm same-action children that would become redundant are previewed but not removed.
+23. Save a valid edit and confirm the rule keeps its source and creation timestamp, remains one rule at the same list position, and the UI refreshes without a page reload.
+24. Confirm the Options page does not call `chrome.proxy.settings` directly; one synced storage update should cause one background proxy application.
+25. If classification overrides exist, confirm they appear in the "Classification overrides" section.
+26. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
 
 ## Backup and Restore Checks
 
@@ -218,34 +226,38 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
 
 ## Popup Current-Site Checks
 
-1. Open `https://letterboxd.com/`.
-2. Open the extension popup and confirm it shows `letterboxd.com`.
-3. Confirm the popup reports the direct route when no matching rule exists.
-4. Click "Route this site through proxy".
-5. Confirm a success message appears and the rule is stored in `chrome.storage.sync` with:
+Use a clean profile or disposable test rules. Do not modify unrelated real rules.
 
-- `domain: "letterboxd.com"`.
+1. Open `https://child.routing-test.test/` and open the extension popup.
+2. With no matching rule, confirm the primary state is "Not configured" and the explanation is "No matching rule. Default route is direct."
+3. Confirm the exact-host quick-action text is "Proxy this hostname" / "Route this hostname directly" and the microcopy says "Applies to this exact hostname only."
+4. Click "Proxy this hostname".
+5. Confirm the primary state updates immediately to "Through proxy" with "Exact rule for child.routing-test.test" and the rule is stored with:
+
+- `domain: "child.routing-test.test"`.
 - `includeSubdomains: false`.
 - `action: "proxy"`.
 - `mode: "proxy"`.
 - `source: "manual"`.
 
-6. Reopen the popup and confirm it reports an exact synced rule.
-7. Click "Route this site directly" and confirm an exact direct rule is added only after that explicit click.
-8. Confirm the popup reports `direct via exact rule` behavior for the current site.
-9. Click "Remove current site rule".
-10. Confirm exact current-site rules are removed from `chrome.storage.sync`.
-11. Add a parent rule such as `example.com` with subdomains included, then open a subdomain like `https://www.example.com/`.
-12. Confirm the popup explains that routing is inherited from the parent rule and does not remove the parent rule silently.
-13. Open `https://www.linkedin.com/` in a safe clean-profile/demo context, click "Route this site through proxy", and confirm the stored rule defaults to `linkedin.com` with `includeSubdomains: true`.
-14. Open unsupported pages such as `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
-15. Confirm the popup can open Options through the "Open Options" button.
-16. Confirm the popup shows a "Check via proxy" button on supported sites.
-17. Confirm the popup shows a "Preview related domains" button on supported sites.
-18. Confirm the popup shows "Start recording" on supported sites when no recording is active.
-19. Confirm the popup shows "Stop and preview" and "Cancel recording" when a recording is active for the current tab.
-20. Confirm the popup explains when a recording belongs to another tab and does not offer stop-and-preview from the wrong tab.
-21. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
+6. Click "Change scope", choose Parent domain and all subdomains, and confirm the preview proposes `routing-test.test` plus subdomains while preserving Proxy.
+7. Confirm the change. Verify no duplicate `child.routing-test.test` rule remains and the popup immediately shows "Through proxy" with "Covered by parent rule routing-test.test".
+8. Open Options and edit that same rule to Direct. Preview and Save; confirm the popup then shows "Direct" with "Direct through parent rule routing-test.test".
+9. Edit the parent back to Proxy.
+10. On `child.routing-test.test`, use "Route this hostname directly" to add an exact Direct exception. Confirm "Direct" / "Exact direct rule for child.routing-test.test" wins.
+11. Click "Remove exact rule" and confirm the status immediately returns to "Through proxy" / "Covered by parent rule routing-test.test".
+12. Disable or invalidate the local proxy while the Proxy parent still matches. Confirm the popup shows a warning state such as "Proxy unavailable", not a healthy "Through proxy" state.
+13. In a clean-profile/demo context, open `https://www.linkedin.com/`, use a Popup quick action, and confirm the stored rule remains exact `www.linkedin.com` with `includeSubdomains: false` until Change scope is explicitly confirmed.
+14. Confirm the popup status uses visible text as well as the colored/outlined indicator and exposes an accessible status label.
+15. Remove only the disposable `routing-test.test` rules created by this smoke.
+16. Open unsupported pages such as `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.
+17. Confirm the popup can open Options through the "Open Options" button.
+18. Confirm the popup shows a "Check via proxy" button on supported sites.
+19. Confirm the popup shows a "Preview related domains" button on supported sites.
+20. Confirm the popup shows "Start recording" on supported sites when no recording is active.
+21. Confirm the popup shows "Stop and preview" and "Cancel recording" when a recording is active for the current tab.
+22. Confirm the popup explains when a recording belongs to another tab and does not offer stop-and-preview from the wrong tab.
+23. Confirm the popup does not call `chrome.proxy.settings` directly; proxy application should happen through the background service worker.
 
 ## Manual Current-Site Diagnostics Checks
 
@@ -261,7 +273,8 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
 6. If the check appears reachable, confirm the popup offers a separate "Add checked site as rule" action and does not add a rule automatically.
 7. Click "Add checked site as rule" and confirm the rule is stored in `chrome.storage.sync` with:
 
-- `includeSubdomains: false` for a non-`www` current host, or base-domain `includeSubdomains: true` for a `www.*` current host.
+- `domain` equal to the current hostname, including the `www.*` label when present.
+- `includeSubdomains: false` for every current hostname unless scope is changed later through the separate preview-and-confirm flow.
 - `action: "proxy"`.
 - `mode: "proxy"`.
 - `source: "diagnostic"`.

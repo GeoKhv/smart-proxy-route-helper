@@ -29,6 +29,8 @@ No private proxy/provider/account information, private pages, credentials, perso
 
 Popup screenshots `04` and `05` were replaced on 2026-06-28 from clean full-window Chrome screenshots saved under `../store-assets/screenshots/source/`. Their final canvases should still be reviewed during the manual Dashboard upload flow, but the previous cursor-highlight blocker is resolved.
 
+The current `02-options-route-rules.png` and `03-popup-current-site.png` canvases predate the v0.2 rule editor and prominent route-status UI. They remain historical/fallback drafts only and must be recaptured from the frozen v0.2 candidate before a Store update. This documentation update does not modify Dashboard state or claim that v0.2.0 is released.
+
 ## Current Promotional Draft Assets
 
 Prepared on 2026-06-28 under [../store-assets/promotional/](../store-assets/promotional/):
@@ -108,10 +110,11 @@ Show the popup on a neutral sample site.
 Recommended visible state:
 
 - Current domain shown at hostname level.
-- Button or state for adding/removing the current site rule.
+- Prominent "Through proxy", "Direct", or "Not configured" label with the exact/parent explanation and visible indicator.
+- Exact-host-only quick-action microcopy or the explicit "Change scope" action.
 - No private URL path, query string, or account data.
 
-Message to convey: current-site routing is explicit and controlled from the popup.
+Message to convey: the effective route is visible at a glance, explicit Direct differs from default Direct, and broader scope always requires confirmation.
 
 ### 3. Popup: Related-Domain Preview
 
@@ -161,10 +164,11 @@ Recommended visible state:
 
 - A short list of sample domains.
 - Suggested demo domains: `example.com`, `chatgpt.com`, `oaiusercontent.com`, `linkedin.com`, `licdn.com`, and `2ip.io`.
-- Include-subdomains setting where available.
-- Clear rule enable/edit/remove controls.
+- Clear Edit and Remove controls.
+- If readable, a sanitized Edit preview showing Current rule, Proposed rule, broader coverage, and explicit Save changes.
+- Scope labels such as Exact hostname only and This domain and all subdomains rather than an ambiguous checkbox.
 
-Message to convey: users manually manage domain-level proxy routes.
+Message to convey: users edit rules in place and review broader coverage before an atomic confirmed update.
 
 ### Popup: Check via Proxy
 

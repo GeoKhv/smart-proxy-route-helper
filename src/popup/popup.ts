@@ -2,7 +2,14 @@ import { checkDenylistedHost } from "../rules/denylist";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
-import { getBaseDomain } from "../rules/baseDomain";
+import {
+  getRuleScopeOptions,
+  getRuleStableId,
+  planRuleEdit,
+  type RuleEditPlan,
+  type RuleScope
+} from "../rules/ruleEditing";
+import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainCandidateUserOverrideAction } from "../domainClassification/domainClassificationTypes";
 import {
   isDomainCandidateUserOverrideAction,
@@ -36,8 +43,9 @@ import type {
   RelatedDomainRouteTargetConfidence,
   RelatedDomainRouteTargetReason
 } from "../diagnostics/relatedDomainCandidates";
-import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
-import type { SyncSettings } from "../storage/storageTypes";
+import { getLocalSettings } from "../storage/localStore";
+import { getSyncSettings, updateSyncRule, updateSyncSettings } from "../storage/syncStore";
+import type { DeviceProxySettings, SyncSettings } from "../storage/storageTypes";
 
 type MessageKind = "success" | "error" | "neutral";
 
@@ -72,6 +80,22 @@ export type PopupRuleStatus =
       state: "none";
       message: string;
     };
+
+export type PopupRouteState =
+  | "proxy_exact"
+  | "proxy_parent"
+  | "direct_exact"
+  | "direct_parent"
+  | "default_direct"
+  | "blocked";
+
+export type PopupRouteStatusView = {
+  routeState: PopupRouteState;
+  appearance: "proxy" | "direct" | "not-configured" | "warning" | "blocked";
+  label: "Through proxy" | "Direct" | "Not configured" | "Proxy unavailable" | "Unavailable";
+  explanation: string;
+  ariaLabel: string;
+};
 
 export type AddCurrentSiteRuleResult =
   | {
@@ -184,6 +208,13 @@ export type AddRelatedDomainClassificationOverrideResult = UpsertUserClassificat
 let checkedReachableDomain: string | null = null;
 let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
 let relatedDomainPreviewDomain: string | null = null;
+let currentSyncSettingsSnapshot: SyncSettings | null = null;
+let currentDeviceProxySettings: DeviceProxySettings = {
+  enabled: false,
+  config: null
+};
+let pendingPopupScopePlan: Extract<RuleEditPlan, { ok: true }> | null = null;
+let popupScopeRuleId: string | null = null;
 
 const relatedDomainSaveableCandidateLimit = 12;
 const relatedDomainAlreadyCoveredCandidateLimit = 6;
@@ -316,16 +347,11 @@ function ruleActionLabel(action: RuleAction): string {
   return action === "direct" ? "direct" : "proxy";
 }
 
+function ruleActionDisplayLabel(action: RuleAction): string {
+  return action === "direct" ? "Direct" : "Proxy";
+}
+
 function suggestedCurrentSiteRuleTarget(domain: string): { domain: string; includeSubdomains: boolean } {
-  const baseDomain = getBaseDomain(domain);
-
-  if (domain.startsWith("www.") && baseDomain !== domain) {
-    return {
-      domain: baseDomain,
-      includeSubdomains: true
-    };
-  }
-
   return {
     domain,
     includeSubdomains: false
@@ -531,6 +557,85 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
   return {
     state: "none",
     message: `${domain} uses the default direct route.`
+  };
+}
+
+function localProxyIsAvailable(deviceProxy: DeviceProxySettings): boolean {
+  return deviceProxy.enabled && deviceProxy.config !== null && validateLocalProxyConfig(deviceProxy.config).ok;
+}
+
+export function getPopupRouteStatusView(
+  domain: string,
+  settings: Pick<SyncSettings, "rules" | "denylist">,
+  deviceProxy: DeviceProxySettings
+): PopupRouteStatusView {
+  const status = getPopupRuleStatus(domain, settings);
+
+  if (status.state === "blocked") {
+    const label = "Unavailable" as const;
+
+    return {
+      routeState: "blocked",
+      appearance: "blocked",
+      label,
+      explanation: status.message,
+      ariaLabel: `${label}. ${status.message}`
+    };
+  }
+
+  if (status.state === "none") {
+    const label = "Not configured" as const;
+    const explanation = "No matching rule. Default route is direct.";
+
+    return {
+      routeState: "default_direct",
+      appearance: "not-configured",
+      label,
+      explanation,
+      ariaLabel: `${label}. ${explanation}`
+    };
+  }
+
+  const isExact = status.state === "exact";
+  const rule = isExact ? status.exactRule : status.parentRule;
+  const routeState: PopupRouteState =
+    status.action === "proxy"
+      ? isExact
+        ? "proxy_exact"
+        : "proxy_parent"
+      : isExact
+        ? "direct_exact"
+        : "direct_parent";
+  const explanation =
+    status.action === "proxy"
+      ? isExact
+        ? `Exact rule for ${domain}`
+        : `Covered by parent rule ${rule.domain}`
+      : isExact
+        ? `Exact direct rule for ${domain}`
+        : `Direct through parent rule ${rule.domain}`;
+
+  if (status.action === "proxy" && !localProxyIsAvailable(deviceProxy)) {
+    const label = "Proxy unavailable" as const;
+    const warningExplanation = `${explanation}. Local proxy is disabled or invalid on this device.`;
+
+    return {
+      routeState,
+      appearance: "warning",
+      label,
+      explanation: warningExplanation,
+      ariaLabel: `Warning: ${label}. ${warningExplanation}`
+    };
+  }
+
+  const label = status.action === "proxy" ? ("Through proxy" as const) : ("Direct" as const);
+
+  return {
+    routeState,
+    appearance: status.action,
+    label,
+    explanation,
+    ariaLabel: `${label}. ${explanation}`
   };
 }
 
@@ -1083,6 +1188,169 @@ function setStatus(element: HTMLElement, message: string, kind: MessageKind = "n
   element.dataset.kind = kind;
 }
 
+function renderRouteStatus(view: PopupRouteStatusView): void {
+  const container = getElement<HTMLElement>("#route-status");
+  const summary = document.createElement("div");
+  const indicator = document.createElement("span");
+  const label = document.createElement("strong");
+  const explanation = document.createElement("div");
+
+  summary.className = "route-status-summary";
+  indicator.className = "route-status-indicator";
+  indicator.setAttribute("aria-hidden", "true");
+  label.className = "route-status-label";
+  label.textContent = view.label;
+  explanation.className = "route-status-explanation";
+  explanation.textContent = view.explanation;
+  summary.append(indicator, label);
+  container.replaceChildren(summary, explanation);
+  container.dataset.kind = view.appearance === "warning" || view.appearance === "blocked" ? "error" : "neutral";
+  container.dataset.appearance = view.appearance;
+  container.dataset.routeState = view.routeState;
+  container.setAttribute("role", "status");
+  container.setAttribute("aria-label", view.ariaLabel);
+}
+
+function scopeLabel(rule: Pick<DomainRule, "includeSubdomains">): string {
+  return rule.includeSubdomains ? "This domain and all subdomains" : "Exact hostname only";
+}
+
+function appendScopePreviewLine(container: HTMLElement, label: string, value: string): void {
+  const row = document.createElement("p");
+  const heading = document.createElement("strong");
+
+  heading.textContent = `${label}: `;
+  row.append(heading, value);
+  container.append(row);
+}
+
+function renderPopupScopePlan(plan: RuleEditPlan): void {
+  const preview = getElement<HTMLElement>("#scope-change-preview");
+  const confirmButton = getElement<HTMLButtonElement>("#confirm-scope-change");
+
+  preview.replaceChildren();
+  pendingPopupScopePlan = null;
+  confirmButton.disabled = true;
+
+  if (!plan.ok) {
+    setStatus(preview, plan.error, plan.reason === "no-change" ? "neutral" : "error");
+    return;
+  }
+
+  pendingPopupScopePlan = plan;
+  preview.dataset.kind = "neutral";
+  appendScopePreviewLine(
+    preview,
+    "Current rule",
+    `${plan.currentRule.domain} · ${scopeLabel(plan.currentRule)} · ${ruleActionDisplayLabel(plan.currentRule.action)}`
+  );
+  appendScopePreviewLine(
+    preview,
+    "Proposed rule",
+    `${plan.proposedRule.domain} · ${scopeLabel(plan.proposedRule)} · ${ruleActionDisplayLabel(plan.proposedRule.action)}`
+  );
+
+  if (plan.coverage.length > 0) {
+    const coverageHeading = document.createElement("strong");
+    const coverageList = document.createElement("ul");
+
+    coverageHeading.textContent = "Coverage:";
+    coverageList.className = "scope-preview-list";
+    plan.coverage.forEach((entry) => {
+      const item = document.createElement("li");
+      item.textContent = entry;
+      coverageList.append(item);
+    });
+    preview.append(coverageHeading, coverageList);
+  }
+
+  plan.warnings.forEach((warning) => {
+    const note = document.createElement("p");
+    note.className = "scope-warning";
+    note.textContent = warning.message;
+    preview.append(note);
+  });
+  confirmButton.disabled = false;
+}
+
+function refreshPopupScopePlan(): void {
+  if (!popupScopeRuleId || !currentSyncSettingsSnapshot) {
+    return;
+  }
+
+  const currentRule = currentSyncSettingsSnapshot.rules.find(
+    (rule) => getRuleStableId(rule) === popupScopeRuleId
+  );
+
+  if (!currentRule) {
+    renderPopupScopePlan({
+      ok: false,
+      reason: "rule-not-found",
+      error: "The exact rule is no longer available. Reopen the popup and try again."
+    });
+    return;
+  }
+
+  const scope = getElement<HTMLSelectElement>("#scope-change-select").value as RuleScope;
+  renderPopupScopePlan(
+    planRuleEdit(
+      currentSyncSettingsSnapshot.rules,
+      popupScopeRuleId,
+      {
+        domain: currentRule.domain,
+        action: currentRule.action,
+        scope
+      },
+      currentSyncSettingsSnapshot.denylist
+    )
+  );
+}
+
+function resetPopupScopeEditor(): void {
+  const editor = getElement<HTMLElement>("#scope-change-editor");
+  const select = getElement<HTMLSelectElement>("#scope-change-select");
+
+  pendingPopupScopePlan = null;
+  popupScopeRuleId = null;
+  editor.hidden = true;
+  select.replaceChildren();
+  getElement<HTMLElement>("#scope-change-preview").replaceChildren();
+  getElement<HTMLButtonElement>("#confirm-scope-change").disabled = true;
+}
+
+function openPopupScopeEditor(): void {
+  if (!currentSyncSettingsSnapshot) {
+    return;
+  }
+
+  const domain = getElement<HTMLElement>("#current-domain").textContent ?? "";
+  const status = getPopupRuleStatus(domain, currentSyncSettingsSnapshot);
+
+  if (status.state !== "exact") {
+    setStatus(getElement<HTMLElement>("#action-status"), "Only an exact rule can be expanded here.", "error");
+    return;
+  }
+
+  const editor = getElement<HTMLElement>("#scope-change-editor");
+  const select = getElement<HTMLSelectElement>("#scope-change-select");
+  const options = getRuleScopeOptions(status.exactRule.domain, currentSyncSettingsSnapshot.denylist);
+  const currentScope: RuleScope = status.exactRule.includeSubdomains ? "hostname-and-subdomains" : "exact";
+
+  popupScopeRuleId = getRuleStableId(status.exactRule);
+  select.replaceChildren(
+    ...options.map((scopeOption) => {
+      const option = document.createElement("option");
+      option.value = scopeOption.scope;
+      option.textContent = `${scopeOption.label} — ${scopeOption.coverage.join(", ")}`;
+      option.selected = scopeOption.scope === currentScope;
+      return option;
+    })
+  );
+  getElement<HTMLElement>("#scope-change-action").textContent = `${ruleActionDisplayLabel(status.action)} action will be preserved.`;
+  editor.hidden = false;
+  refreshPopupScopePlan();
+}
+
 function setButtonVisible(button: HTMLButtonElement, visible: boolean): void {
   button.hidden = !visible;
 }
@@ -1326,6 +1594,8 @@ async function getActiveTabUrl(): Promise<string | undefined> {
 function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }>): void {
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
+  resetPopupScopeEditor();
+  currentSyncSettingsSnapshot = null;
   setRelatedDomainRecordingButtonVisibility({
     startVisible: false,
     stopVisible: false,
@@ -1333,11 +1603,18 @@ function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }
     kind: "neutral"
   });
   getElement<HTMLElement>("#current-domain").textContent = "Not available";
-  setStatus(getElement<HTMLElement>("#route-status"), result.message, "error");
+  const routeStatus = getElement<HTMLElement>("#route-status");
+  setStatus(routeStatus, result.message, "error");
+  routeStatus.dataset.appearance = "blocked";
+  routeStatus.dataset.routeState = "blocked";
+  routeStatus.setAttribute("role", "status");
+  routeStatus.setAttribute("aria-label", result.message);
   setStatus(getElement<HTMLElement>("#action-status"), "Open a regular website tab to add a proxy route.", "neutral");
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), false);
+  setButtonVisible(getElement<HTMLButtonElement>("#change-current-site-scope"), false);
+  getElement<HTMLElement>("#quick-action-scope-copy").hidden = true;
   setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), false);
 }
@@ -1345,15 +1622,24 @@ function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }
 function renderSupported(domain: string, settings: SyncSettings): void {
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
+  resetPopupScopeEditor();
+  currentSyncSettingsSnapshot = settings;
   const status = getPopupRuleStatus(domain, settings);
+  const routeStatus = getPopupRouteStatusView(domain, settings, currentDeviceProxySettings);
+  const showProxyAction =
+    status.state === "none" || (status.state === "inherited" && status.action === "direct");
+  const showDirectAction =
+    status.state === "none" || (status.state === "inherited" && status.action === "proxy");
 
   getElement<HTMLElement>("#current-domain").textContent = domain;
-  setStatus(getElement<HTMLElement>("#route-status"), status.message, status.state === "blocked" ? "error" : "neutral");
+  renderRouteStatus(routeStatus);
   setStatus(getElement<HTMLElement>("#action-status"), "Use explicit controls to update synced site rules.", "neutral");
 
-  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), status.state !== "blocked");
-  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), status.state !== "blocked");
+  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), showProxyAction);
+  setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), showDirectAction);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), status.state === "exact");
+  setButtonVisible(getElement<HTMLButtonElement>("#change-current-site-scope"), status.state === "exact");
+  getElement<HTMLElement>("#quick-action-scope-copy").hidden = !showProxyAction && !showDirectAction;
   setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), status.state !== "blocked");
   setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), status.state !== "blocked");
 }
@@ -1367,7 +1653,8 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
     return result;
   }
 
-  const settings = await getSyncSettings();
+  const [settings, localSettings] = await Promise.all([getSyncSettings(), getLocalSettings()]);
+  currentDeviceProxySettings = localSettings.deviceProxy;
   renderSupported(result.domain, settings);
   await refreshRelatedDomainRecordingControls(activeTab);
   return result;
@@ -1452,6 +1739,38 @@ async function handleRemoveCurrentSite(): Promise<void> {
 
   renderSupported(result.domain, updated);
   setStatus(actionStatus, `Removed exact synced rule for ${removeResult.domain}.`, "success");
+}
+
+async function handleConfirmScopeChange(): Promise<void> {
+  const plan = pendingPopupScopePlan;
+  const actionStatus = getElement<HTMLElement>("#action-status");
+
+  if (!plan) {
+    setStatus(actionStatus, "Choose a broader scope and review the preview before confirming.", "error");
+    return;
+  }
+
+  const currentDomain = getCurrentTabDomain(await getActiveTabUrl());
+
+  if (!currentDomain.ok) {
+    renderUnsupported(currentDomain);
+    return;
+  }
+
+  const updateResult = await updateSyncRule(plan.ruleId, plan.proposedRule);
+
+  if (!updateResult.ok) {
+    currentSyncSettingsSnapshot = updateResult.settings;
+    setStatus(actionStatus, updateResult.error, "error");
+    return;
+  }
+
+  renderSupported(currentDomain.domain, updateResult.settings);
+  setStatus(
+    actionStatus,
+    `Updated the existing ${ruleActionLabel(plan.proposedRule.action)} rule to ${plan.proposedRule.domain} without deleting it first.`,
+    "success"
+  );
 }
 
 async function requestCurrentSiteDiagnostic(url: string): Promise<CurrentSiteDiagnosticResponse> {
@@ -1961,6 +2280,29 @@ async function handleSaveDiagnosticRule(): Promise<void> {
 }
 
 function initPopupPage(): void {
+  getElement<HTMLButtonElement>("#change-current-site-scope").addEventListener("click", () => {
+    openPopupScopeEditor();
+  });
+
+  getElement<HTMLSelectElement>("#scope-change-select").addEventListener("change", () => {
+    refreshPopupScopePlan();
+  });
+
+  getElement<HTMLButtonElement>("#confirm-scope-change").addEventListener("click", () => {
+    void handleConfirmScopeChange().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#action-status"),
+        error instanceof Error ? error.message : "Could not update the rule scope.",
+        "error"
+      );
+    });
+  });
+
+  getElement<HTMLButtonElement>("#cancel-scope-change").addEventListener("click", () => {
+    resetPopupScopeEditor();
+    setStatus(getElement<HTMLElement>("#action-status"), "Scope change cancelled. No rule was changed.", "neutral");
+  });
+
   getElement<HTMLButtonElement>("#add-current-site").addEventListener("click", () => {
     void handleAddCurrentSite("proxy").catch((error: unknown) => {
       setStatus(

@@ -149,6 +149,12 @@ describe("options classification override UI boundary", () => {
     expect(optionsHtml).toContain("Backup and restore");
     expect(optionsHtml).toContain("Route through proxy");
     expect(optionsHtml).toContain("Route directly");
+    expect(optionsHtml).toContain("Exact hostname only");
+    expect(optionsHtml).toContain("This hostname and its subdomains");
+    expect(optionsHtml).toContain("Edit route rule");
+    expect(optionsHtml).toContain("Preview changes");
+    expect(optionsHtml).toContain("Save changes");
+    expect(optionsHtml).toContain("PSL-aware planning");
     expect(optionsHtml).toContain("Find redundant rules");
     expect(optionsHtml).toContain("backup-include-local-proxy");
     expect(optionsHtml).toContain("preview-import-button");
@@ -157,6 +163,8 @@ describe("options classification override UI boundary", () => {
     expect(optionsSource).toContain("classificationOverrides: removeUserClassificationOverride");
     expect(optionsSource).toContain("previewSettingsImport");
     expect(optionsSource).toContain("applySettingsImportPreview");
+    expect(optionsSource).toContain("planRuleEdit");
+    expect(optionsSource).toContain("updateSyncRule(plan.ruleId, plan.proposedRule)");
     expect(optionsSource).not.toContain("chrome.proxy");
   });
 });

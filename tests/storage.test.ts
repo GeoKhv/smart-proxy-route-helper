@@ -1,18 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import { getLocalSettings, setLocalSettings, updateLocalSettings } from "../src/storage/localStore";
-import { getSyncSettings, setSyncSettings, updateSyncSettings } from "../src/storage/syncStore";
+import { getSyncSettings, setSyncSettings, updateSyncRule, updateSyncSettings } from "../src/storage/syncStore";
 import type { StorageAreaAdapter } from "../src/storage/storageTypes";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
 type MemoryStorageArea = StorageAreaAdapter & {
   dump(): Record<string, unknown>;
+  setCount(): number;
 };
 
 const createdAt = "2026-06-24T00:00:00.000Z";
 
 function createMemoryStorage(initialState: Record<string, unknown> = {}): MemoryStorageArea {
   let state = { ...initialState };
+  let writes = 0;
 
   return {
     async get(keys?: string | string[] | Record<string, unknown> | null) {
@@ -34,6 +36,7 @@ function createMemoryStorage(initialState: Record<string, unknown> = {}): Memory
       };
     },
     async set(items: Record<string, unknown>) {
+      writes += 1;
       state = {
         ...state,
         ...items
@@ -41,6 +44,9 @@ function createMemoryStorage(initialState: Record<string, unknown> = {}): Memory
     },
     dump() {
       return { ...state };
+    },
+    setCount() {
+      return writes;
     }
   };
 }
@@ -239,6 +245,58 @@ describe("sync storage settings", () => {
       }
     });
     expect(storage.dump()).toEqual(updatedSettings);
+  });
+
+  it("updates a rule atomically with one storage write and preserves its stable metadata", async () => {
+    const currentRule = {
+      ...manualRule("child.example.com", false),
+      id: "rule-atomic"
+    };
+    const childException = {
+      ...manualRule("login.example.com", false),
+      id: "rule-exception",
+      action: "direct" as const,
+      createdAt: "2026-06-24T00:00:01.000Z"
+    };
+    const storage = createMemoryStorage({
+      rules: [currentRule, childException]
+    });
+    const result = await updateSyncRule(
+      "rule-atomic",
+      {
+        domain: "example.com",
+        includeSubdomains: true,
+        action: "proxy"
+      },
+      storage
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      updatedRule: {
+        id: "rule-atomic",
+        domain: "example.com",
+        includeSubdomains: true,
+        action: "proxy",
+        source: "manual",
+        createdAt
+      },
+      settings: {
+        rules: [
+          {
+            id: "rule-atomic",
+            domain: "example.com"
+          },
+          {
+            id: "rule-exception",
+            domain: "login.example.com",
+            action: "direct"
+          }
+        ]
+      }
+    });
+    expect(storage.setCount()).toBe(1);
+    expect(result.settings.rules).toHaveLength(2);
   });
 });
 

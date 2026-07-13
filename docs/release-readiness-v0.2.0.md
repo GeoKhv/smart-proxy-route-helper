@@ -6,12 +6,12 @@ This document prepares a later explicit release task. It does not bump a version
 
 ## Audit Snapshot
 
-- Audit date: 2026-07-10.
+- Audit refreshed: 2026-07-13.
 - Published baseline: annotated tag `v0.1.0` (`50903f7058d04a142dbf316f3ae71a19de9d71ed`) pointing to commit `696bf08f847cf0952a938c2d06456f38e4d25e9e`.
-- Audited candidate: `main` at `8b1cf2d62f10731861f5b9fed7f54f30e73cd312`, equal to `origin/main` at audit start.
+- Candidate base before this feature slice: `main` at `d3fdf80`, equal to `origin/main`; the final feature commit is recorded in Git history rather than self-referenced here.
 - Source and package versions: still `0.1.0` in `manifest.json` and `package.json`.
 - Published `v0.1.0` tag, GitHub release, package, and Store item: unchanged.
-- Candidate diff: 66 files changed, with 6,855 insertions and 1,117 deletions from the tagged baseline.
+- Candidate diff: use the final release task's live `v0.1.0..main` diff; this document intentionally avoids a stale self-referential count.
 
 ## Candidate Scope
 
@@ -20,7 +20,11 @@ The v0.2.0 candidate is the complete current `main` delta from `v0.1.0`, limited
 ### User-Facing Features
 
 - Proxy and direct route actions in Options and Popup.
-- Clear exact, inherited parent, and default-direct route status.
+- Prominent Proxy exact/parent, Direct exact/parent, and unconfigured default-Direct Popup status with text, icon treatment, accessible labels, and an unavailable-proxy warning.
+- Exact-host-only Popup quick actions, including for `www.*`, plus explicit Change scope confirmation.
+- In-place Options rule editing for hostname/domain, action, and scope without delete/re-add.
+- PSL-aware exact/hostname/registrable-parent scope choices with current/proposed coverage and conflict previews.
+- Atomic replacement of one existing rule with stable metadata preserved and one background proxy re-application.
 - Explicit removal of the effective exact rule; parent rules are not silently removed from Popup.
 - Redundant same-action rule suggestions with a separate explicit removal click.
 - Versioned local settings export/import with preview before apply.
@@ -28,7 +32,7 @@ The v0.2.0 candidate is the complete current `main` delta from `v0.1.0`, limited
 - Local stable-ID build workflow for unpacked installations that need a consistent extension identity.
 - Improved action-specific diagnostic recorder that detects page-level request hostnames automatically.
 
-New primary UI strings include `Route action`, `Route through proxy`, `Route directly`, `Optimize rules`, `Find redundant rules`, `Backup and restore`, `Export settings`, `Preview import`, `Apply import`, and `Route this site directly`, plus updated exact/inherited/default route status and recorder lifecycle messages.
+New primary UI strings include `Through proxy`, `Direct`, `Not configured`, `Proxy unavailable`, `Proxy this hostname`, `Route this hostname directly`, `Applies to this exact hostname only`, `Change scope`, `Edit`, `Preview changes`, `Save changes`, `Exact hostname only`, `This hostname and its subdomains`, and `Parent domain and all subdomains`, plus the existing route-action, cleanup, backup, and recorder strings.
 
 ### Routing and PAC Behavior
 
@@ -50,6 +54,8 @@ New primary UI strings include `Route action`, `Route through proxy`, `Route dir
 - Device proxy configuration and diagnostics preferences remain in `chrome.storage.local`.
 - Recorder session metadata uses `chrome.storage.session`; collected hostnames are not stored there.
 - Settings export format remains version `1`. Import treats a missing rule `action` as proxy, so earlier export-shaped documents remain importable.
+- Edited rules preserve an existing stable `id`; legacy rules without one use a deterministic identity and receive that ID on first confirmed edit. `source` and `createdAt` remain unchanged.
+- A confirmed edit replaces one array entry and performs one sync storage write. It never deletes first or creates a temporary duplicate.
 
 ### Diagnostics and Recording
 
@@ -95,7 +101,7 @@ Potentially observable behavior changes are intentional:
 
 - Conflicting overlapping rules no longer depend on first-array-match behavior; exact and most-specific rules now win deterministically.
 - Two rules with the same domain and subdomain scope may coexist only when their actions differ; the newest/later effective rule wins.
-- Popup actions for a `www.` host may suggest the registrable base domain with subdomains included rather than a one-host-only rule.
+- Popup quick actions for `www.` and every other hostname now remain exact-host-only. A safe registrable-parent scope is available only through explicit Change scope or Options Edit preview and confirmation.
 - Diagnostic recording now installs temporary page-world wrappers during an explicit session. This is a data-handling and disclosure change, not a stored-data migration.
 
 Existing v0.1.0 rules were proxy-only, so the new precedence does not change their route result unless the user later creates a conflicting direct rule.
@@ -173,11 +179,11 @@ The user-invoked recorder uses `activeTab` plus `scripting`; `chrome.scripting` 
 
 ## Automated Checks and Coverage Review
 
-Results on audited `main` before documentation edits:
+Results on the final feature working tree before commit:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | Pass: 18 files, 214 tests. |
+| `npm test` | Pass: 19 files, 231 tests, including focused route-status, scope-planning, conflict, atomic-update, one-write, and one-proxy-apply coverage. |
 | `npm run build` | Pass. |
 | `npm run typecheck --if-present` | Pass. |
 | `git diff --check` | Pass. |
@@ -187,11 +193,12 @@ Coverage inspection:
 
 - Storage migrations: explicit stored-rule missing-action test; malformed sync/local data and local-only proxy tests.
 - PAC precedence: executable PAC tests for exact direct exception, specific parent, default direct, fail-closed proxy string, and invalid config; pure matcher also covers equal-specificity recency.
+- Rule editing: exact/parent scope choices, generic PSL planning, unsafe shared-infrastructure rejection, action changes, action preservation, duplicate/opposite-action blockers, parent coverage, child exceptions, redundancy warnings, stable identity, atomic replacement, one storage write, and immediate Popup status recomputation.
 - Export/import: 14 tests for version, default/explicit local proxy inclusion, URL sanitization, duplicates, missing/direct/invalid actions, preview-only behavior, and explicit apply.
 - Recorder cleanup/privacy: 14 recorder tests for fetch/XHR/beacon/resource/error capture, hostile inputs, hostname bridge limits, Stop/Cancel/timeout restoration, and exact manifest assertions.
 - Manifest assertions: exact permission array and explicit absence of host permissions, content scripts, `<all_urls>`, `webRequest`, `webNavigation`, and `debugger`.
 
-No focused regression test was added because the requested release-critical behaviors already have direct or equivalent coverage and all tests pass. The main remaining gap is browser-level end-to-end service-worker/session behavior, which is covered by the manual gate rather than a new feature or broad test harness in this audit.
+Focused regression coverage was added for this feature slice and all tests pass. The remaining gap is the full browser-level release gate across routing, migration, recorder lifecycle, backup/restore, and final frozen UI; the focused Popup/rule-editing Computer Use result is recorded separately below after execution.
 
 The audit finding is not a release blocker: the advisory affects the Windows Vite development server in `esbuild`; the extension package does not include or run the Vite dev server, `node_modules`, or `esbuild`. Do not run `npm audit fix` as release-closeout churn without a separate dependency-maintenance decision.
 
@@ -253,10 +260,12 @@ No implemented feature was found unsuitable for v0.2.0 if the remaining manual a
 ## Manual Smoke Status
 
 - Automated checks: **PASS**.
+- Focused Computer Use read-only smoke on the already open Chrome profile: **PASS** for toolbar popup rendering, text/indicator/ARIA route status, exact rule explanation, Change scope action preservation/no-change guard, Options Edit controls, editable action/scope fields, preview-before-save, existing-parent warning, and Cancel-without-save.
+- State-changing Computer Use steps (add, confirmed scope/action Save, Remove exact rule, and cleanup): **NOT RUN** because changing or deleting local proxy-routing settings requires separate action-time confirmation. Existing `routing-test.test` and `child.routing-test.test` test rules were observed but left unchanged.
 - Confirmed supplied manual evidence: improved recorder on real ChatGPT automatically detected a generated `*.oaiusercontent.com` request after a harmless attachment and suggested `oaiusercontent.com`, `includeSubdomains: true`, `action: proxy` without DevTools or manual URL entry.
 - Full v0.2.0 must-pass checklist: **NOT RUN in this audit**.
 - Optional checklist: **NOT RUN in this audit**.
-- Main Chrome profile: not modified.
+- Main Chrome routing/storage data: not modified by this focused smoke; only a disposable test tab and Options view were opened.
 
 Use `docs/manual-smoke-test.md` for the release gate and detailed evidence steps.
 

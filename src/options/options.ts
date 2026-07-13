@@ -15,13 +15,20 @@ import { findRedundantDomainRules } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import {
+  getRuleScopeOptions,
+  getRuleStableId,
+  planRuleEdit,
+  type RuleEditPlan,
+  type RuleScope
+} from "../rules/ruleEditing";
+import {
   applySettingsImportPreview,
   previewSettingsImport,
   serializeSettingsExport,
   type SettingsImportPreview
 } from "../settingsBackup/settingsBackup";
 import { getLocalSettings, updateLocalSettings } from "../storage/localStore";
-import { getSyncSettings, updateSyncSettings } from "../storage/syncStore";
+import { getSyncSettings, updateSyncRule, updateSyncSettings } from "../storage/syncStore";
 import type { DeviceProxySettings, LocalSettings, SyncSettings } from "../storage/storageTypes";
 
 const suggestedLocalProxyConfig: LocalProxyConfig = {
@@ -34,6 +41,9 @@ type ReadySettingsImportPreview = Extract<SettingsImportPreview, { ok: true }>;
 type FieldErrors = Partial<Record<"scheme" | "host" | "port" | "domain", string>>;
 
 let pendingImportPreview: ReadySettingsImportPreview | null = null;
+let currentSyncSettingsSnapshot: SyncSettings | null = null;
+let editingRuleId: string | null = null;
+let pendingRuleEditPlan: Extract<RuleEditPlan, { ok: true }> | null = null;
 
 export type LocalProxyFormInput = {
   enabled: boolean;
@@ -243,6 +253,7 @@ function localProxyFormInput(): LocalProxyFormInput {
 
 function renderRules(settings: SyncSettings): void {
   const list = getElement<HTMLUListElement>("#rule-list");
+  currentSyncSettingsSnapshot = settings;
   list.replaceChildren();
 
   if (settings.rules.length === 0) {
@@ -270,16 +281,140 @@ function renderRules(settings: SyncSettings): void {
       rule.includeSubdomains ? "includes subdomains" : "exact domain only"
     ].join(" · ");
 
+    const actions = document.createElement("div");
+    const editButton = document.createElement("button");
     const removeButton = document.createElement("button");
+    actions.className = "rule-item-actions";
+    editButton.type = "button";
+    editButton.textContent = "Edit";
+    editButton.dataset.editRuleId = getRuleStableId(rule);
+    editButton.setAttribute("aria-label", `Edit route rule for ${rule.domain}`);
     removeButton.type = "button";
     removeButton.textContent = "Remove";
     removeButton.dataset.ruleIndex = String(index);
-    removeButton.setAttribute("aria-label", `Remove ${rule.domain}`);
+    removeButton.setAttribute("aria-label", `Remove route rule for ${rule.domain}`);
 
+    actions.append(editButton, removeButton);
     summary.append(domain, metadata);
-    item.append(summary, removeButton);
+    item.append(summary, actions);
     list.append(item);
   });
+}
+
+function displayAction(action: RuleAction): string {
+  return action === "proxy" ? "Proxy" : "Direct";
+}
+
+function displayScope(rule: Pick<DomainRule, "includeSubdomains">): string {
+  return rule.includeSubdomains ? "This domain and all subdomains" : "Exact hostname only";
+}
+
+function resetRuleEditPreview(message = "Preview the edit before saving."): void {
+  pendingRuleEditPlan = null;
+  getElement<HTMLButtonElement>("#save-rule-edit").disabled = true;
+  setStatus(getElement<HTMLElement>("#rule-edit-preview"), message, "neutral");
+}
+
+function closeRuleEditor(): void {
+  editingRuleId = null;
+  pendingRuleEditPlan = null;
+  getElement<HTMLElement>("#rule-editor").hidden = true;
+  getElement<HTMLButtonElement>("#save-rule-edit").disabled = true;
+  getElement<HTMLElement>("#rule-edit-preview").replaceChildren();
+  setError("#rule-edit-domain-error");
+}
+
+function renderRuleEditorScopeOptions(domainInput: string, preferredScope?: RuleScope): void {
+  const select = getElement<HTMLSelectElement>("#rule-edit-scope");
+  const denylist = currentSyncSettingsSnapshot?.denylist ?? [];
+  const options = getRuleScopeOptions(domainInput, denylist);
+  const currentValue = preferredScope ?? (select.value as RuleScope);
+
+  select.replaceChildren(
+    ...options.map((scopeOption) => {
+      const option = document.createElement("option");
+      option.value = scopeOption.scope;
+      option.textContent = `${scopeOption.label} — ${scopeOption.coverage.join(", ")}`;
+      option.selected = scopeOption.scope === currentValue;
+      return option;
+    })
+  );
+
+  if (options.length > 0 && !options.some((scopeOption) => scopeOption.scope === currentValue)) {
+    select.value = options[0].scope;
+  }
+}
+
+function openRuleEditor(rule: DomainRule, settings: SyncSettings): void {
+  const editor = getElement<HTMLElement>("#rule-editor");
+  const currentScope: RuleScope = rule.includeSubdomains ? "hostname-and-subdomains" : "exact";
+
+  currentSyncSettingsSnapshot = settings;
+  editingRuleId = getRuleStableId(rule);
+  getElement<HTMLInputElement>("#rule-edit-domain").value = rule.domain;
+  getElement<HTMLSelectElement>("#rule-edit-action").value = rule.action;
+  renderRuleEditorScopeOptions(rule.domain, currentScope);
+  editor.hidden = false;
+  setError("#rule-edit-domain-error");
+  resetRuleEditPreview();
+  getElement<HTMLInputElement>("#rule-edit-domain").focus();
+}
+
+function appendRuleEditPreviewLine(container: HTMLElement, label: string, value: string): void {
+  const row = document.createElement("p");
+  const heading = document.createElement("strong");
+
+  heading.textContent = `${label}: `;
+  row.append(heading, value);
+  container.append(row);
+}
+
+function renderRuleEditPlan(plan: RuleEditPlan): void {
+  const preview = getElement<HTMLElement>("#rule-edit-preview");
+  const saveButton = getElement<HTMLButtonElement>("#save-rule-edit");
+
+  preview.replaceChildren();
+  pendingRuleEditPlan = null;
+  saveButton.disabled = true;
+
+  if (!plan.ok) {
+    setStatus(preview, plan.error, plan.reason === "no-change" ? "neutral" : "error");
+    return;
+  }
+
+  pendingRuleEditPlan = plan;
+  preview.dataset.kind = "neutral";
+  appendRuleEditPreviewLine(
+    preview,
+    "Current rule",
+    `${plan.currentRule.domain} · ${displayScope(plan.currentRule)} · ${displayAction(plan.currentRule.action)}`
+  );
+  appendRuleEditPreviewLine(
+    preview,
+    "Proposed rule",
+    `${plan.proposedRule.domain} · ${displayScope(plan.proposedRule)} · ${displayAction(plan.proposedRule.action)}`
+  );
+
+  if (plan.coverage.length > 0) {
+    const coverageHeading = document.createElement("strong");
+    const coverageList = document.createElement("ul");
+    coverageHeading.textContent = "Coverage:";
+    coverageList.className = "preview-list";
+    plan.coverage.forEach((entry) => {
+      const item = document.createElement("li");
+      item.textContent = entry;
+      coverageList.append(item);
+    });
+    preview.append(coverageHeading, coverageList);
+  }
+
+  plan.warnings.forEach((warning) => {
+    const note = document.createElement("p");
+    note.className = "edit-warning";
+    note.textContent = warning.message;
+    preview.append(note);
+  });
+  saveButton.disabled = false;
 }
 
 function renderRuleCleanupSuggestions(settings: SyncSettings): void {
@@ -528,7 +663,7 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
 
   const status = getElement<HTMLElement>("#rule-status");
   const input = getElement<HTMLInputElement>("#rule-domain");
-  const includeSubdomains = getElement<HTMLInputElement>("#rule-subdomains").checked;
+  const includeSubdomains = getElement<HTMLSelectElement>("#rule-scope").value === "hostname-and-subdomains";
   const action = getElement<HTMLSelectElement>("#rule-action").value === "direct" ? "direct" : "proxy";
   const current = await getSyncSettings();
   const addResult = addDomainRule(current.rules, input.value, includeSubdomains, new Date().toISOString(), action);
@@ -563,7 +698,94 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
   setStatus(status, `Added synced ${action} rule for ${addResult.normalizedDomain}.`, "success");
 }
 
+function handleRuleEditorInput(event: Event): void {
+  setError("#rule-edit-domain-error");
+
+  if ((event.target as HTMLElement | null)?.id === "rule-edit-domain") {
+    renderRuleEditorScopeOptions(getElement<HTMLInputElement>("#rule-edit-domain").value);
+  }
+
+  resetRuleEditPreview("Changes are not saved yet. Preview the edit to continue.");
+}
+
+async function handleRuleEditPreview(): Promise<void> {
+  if (!editingRuleId) {
+    setStatus(getElement<HTMLElement>("#rule-edit-preview"), "Choose a rule to edit first.", "error");
+    return;
+  }
+
+  const settings = await getSyncSettings();
+  currentSyncSettingsSnapshot = settings;
+  const plan = planRuleEdit(
+    settings.rules,
+    editingRuleId,
+    {
+      domain: getElement<HTMLInputElement>("#rule-edit-domain").value,
+      action: getElement<HTMLSelectElement>("#rule-edit-action").value === "direct" ? "direct" : "proxy",
+      scope: getElement<HTMLSelectElement>("#rule-edit-scope").value as RuleScope
+    },
+    settings.denylist
+  );
+
+  if (!plan.ok && plan.reason === "invalid-domain") {
+    setError("#rule-edit-domain-error", plan.error);
+  }
+
+  renderRuleEditPlan(plan);
+}
+
+async function handleRuleEditSave(): Promise<void> {
+  const plan = pendingRuleEditPlan;
+  const status = getElement<HTMLElement>("#rule-status");
+
+  if (!plan) {
+    setStatus(status, "Preview a valid rule edit before saving.", "error");
+    return;
+  }
+
+  const updateResult = await updateSyncRule(plan.ruleId, plan.proposedRule);
+
+  if (!updateResult.ok) {
+    currentSyncSettingsSnapshot = updateResult.settings;
+    renderRuleEditPlan({
+      ok: false,
+      reason: "conflict",
+      error: updateResult.error
+    });
+    setStatus(status, updateResult.error, "error");
+    return;
+  }
+
+  renderRules(updateResult.settings);
+  renderStoredLists(updateResult.settings);
+  renderClassificationOverrides(updateResult.settings);
+  renderRuleCleanupSuggestions(updateResult.settings);
+  closeRuleEditor();
+  setStatus(
+    status,
+    `Updated ${updateResult.updatedRule.domain} atomically. The existing rule identity and metadata were preserved.`,
+    "success"
+  );
+}
+
 async function handleRuleListClick(event: MouseEvent): Promise<void> {
+  const editButton = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-edit-rule-id]");
+
+  if (editButton?.dataset.editRuleId) {
+    const settings = await getSyncSettings();
+    const rule = settings.rules.find((candidate) => getRuleStableId(candidate) === editButton.dataset.editRuleId);
+
+    if (!rule) {
+      setStatus(getElement<HTMLElement>("#rule-status"), "That rule is no longer available. Refresh and try again.", "error");
+      renderRules(settings);
+      return;
+    }
+
+    openRuleEditor(rule, settings);
+    setStatus(getElement<HTMLElement>("#rule-status"), `Editing ${rule.domain}. Nothing changes until Save changes.`, "neutral");
+    return;
+  }
+
   const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-rule-index]");
 
   if (!button) {
@@ -579,6 +801,7 @@ async function handleRuleListClick(event: MouseEvent): Promise<void> {
   renderRules(updated);
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
+  closeRuleEditor();
   setStatus(getElement<HTMLElement>("#rule-status"), "Synced rule removed.", "success");
   renderRuleCleanupSuggestions(updated);
 }
@@ -746,6 +969,31 @@ async function initOptionsPage(): Promise<void> {
   });
   getElement<HTMLUListElement>("#rule-list").addEventListener("click", (event) => {
     void handleRuleListClick(event);
+  });
+  getElement<HTMLInputElement>("#rule-edit-domain").addEventListener("input", handleRuleEditorInput);
+  getElement<HTMLSelectElement>("#rule-edit-action").addEventListener("change", handleRuleEditorInput);
+  getElement<HTMLSelectElement>("#rule-edit-scope").addEventListener("change", handleRuleEditorInput);
+  getElement<HTMLButtonElement>("#preview-rule-edit").addEventListener("click", () => {
+    void handleRuleEditPreview().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#rule-edit-preview"),
+        error instanceof Error ? error.message : "Could not preview the rule edit.",
+        "error"
+      );
+    });
+  });
+  getElement<HTMLButtonElement>("#save-rule-edit").addEventListener("click", () => {
+    void handleRuleEditSave().catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#rule-status"),
+        error instanceof Error ? error.message : "Could not save the rule edit.",
+        "error"
+      );
+    });
+  });
+  getElement<HTMLButtonElement>("#cancel-rule-edit").addEventListener("click", () => {
+    closeRuleEditor();
+    setStatus(getElement<HTMLElement>("#rule-status"), "Rule edit cancelled. No rule was changed.", "neutral");
   });
   getElement<HTMLButtonElement>("#find-redundant-rules").addEventListener("click", () => {
     void handleFindRedundantRulesClick();
