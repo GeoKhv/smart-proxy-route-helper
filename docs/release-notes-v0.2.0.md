@@ -1,6 +1,4 @@
-# Smart Proxy Route Helper v0.2.0 Release Notes — Draft
-
-Draft only. Do not publish these notes until the version bump, final smoke, verified package build, tag, and release are explicitly approved and completed.
+# Smart Proxy Route Helper v0.2.0 Release Notes
 
 Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the published v0.1.0 local proxy routing extension.
 
@@ -23,7 +21,7 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 ## Compatibility
 
 - Existing v0.1.0 rules without an `action` continue as proxy rules.
-- Earlier settings exports with rules that omit `action` import as proxy rules.
+- Existing version 1 settings exports with rules that omit `action` remain importable and treat those rules as proxy rules.
 - Synced route rules and classification overrides remain domain-level Chrome Sync data.
 - Local proxy configuration remains device-local and is not synced.
 - The manifest permission list is unchanged: `proxy`, `storage`, `activeTab`, and `scripting`.
@@ -57,15 +55,15 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 ## Diagnostic Recording
 
 - Recording remains user-invoked, temporary, bounded, and local.
-- Temporary page hooks observe page-level request initiations and resource signals only during an active session.
+- Temporary MAIN-world hooks observe page-level `fetch`, XMLHttpRequest, and beacon initiations only during an active session, while continuous resource observation and safe failed-resource signals add coverage for requests that start or fail after recording begins.
 - URL-like values are reduced to hostnames before they cross into the extension context.
-- Closing the Popup does not stop the session; Stop, Cancel, timeout, reload, and navigation have explicit lifecycle handling.
+- Closing the Popup does not stop the session; Stop, Cancel, and timeout clean up temporary hooks, while reload or navigation marks the recorded session expired instead of returning stale results.
 - Recording never creates route rules automatically. Candidates still require separate selection and confirmation.
 
 ## Privacy and Security
 
 - No telemetry, analytics, ads, backend, user account, runtime remote list, or remote executable code.
-- No raw request URL, page content, upload content, cookie, header, body, or authentication data is retained by the recorder.
+- No raw request URL, path, query, signature, page content, upload content, cookie, header, body, or authentication data is retained by the recorder.
 - Settings export/import runs locally and does not upload backup data.
 
 ## Known Limitations

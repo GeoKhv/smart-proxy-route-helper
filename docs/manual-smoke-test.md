@@ -4,32 +4,32 @@ This checklist covers the current Manifest V3 extension scaffold, Popup current-
 
 ## v0.2.0 Release Gate Summary
 
-Use this concise gate before any explicit `0.2.0` version bump. Run it in a disposable clean Chrome profile or a disposable copy of test data. Do not use the owner's main Chrome profile for destructive update, import, or storage tests.
+This concise gate was completed before the explicit `0.2.0` version bump. It is designed for a disposable clean Chrome profile or a disposable copy of test data; the owner's main Chrome profile must not be used for destructive update, import, or storage tests.
 
-Record each result as `PASS`, `FAIL`, or `NOT RUN`, with the Chrome version, operating system, build commit, and test-profile name.
+Release gate result (2026-07-15): **PASS**, as explicitly confirmed by the release owner after the full v0.2.0 must-pass smoke. The supplied confirmation includes final conflict detection and explicit repair, opposite-action duplicate blocking, in-place action editing, a single surviving rule, legitimate parent/child overrides, automatic recording behavior, and the remaining must-pass items below. Chrome version, operating system, build commit, and test-profile name were not supplied with that confirmation and are not inferred here.
 
 ### Must Pass Before Version Bump
 
-- [ ] Clean install: build `dist/`, load it unpacked in a clean profile, open Popup and Options, and confirm the service worker has no uncaught startup errors.
-- [ ] Update from v0.1.0 data: in a disposable profile, start with representative `v0.1.0` synced rules that have no `action`, then load the candidate build and confirm every old rule remains present and behaves as a proxy rule.
-- [ ] Existing proxy rule: confirm an existing proxy rule still routes through the configured local proxy and remains fail-closed when that proxy is unavailable.
-- [ ] Direct exception: add an exact direct rule below a broader proxy parent and confirm the exact host returns `DIRECT` while the parent domain still uses the proxy.
-- [ ] Rule precedence: confirm an exact rule wins over a parent rule, the most-specific matching parent wins, and an unmatched host remains `DIRECT`.
-- [ ] Popup route status: confirm Proxy exact/parent, Direct exact/parent, unconfigured default Direct, and unavailable-proxy warning states are textually distinct and have accessible labels.
-- [ ] Atomic rule editing: edit action and scope without delete/re-add, confirm broader coverage is previewed, conflicts are handled, child exceptions remain, and one confirmed edit causes one storage change/proxy apply.
-- [ ] Route-target uniqueness: add `routing-test.test` Proxy with subdomains, then attempt the same target as Direct; confirm Save is blocked and the existing rule is shown for editing.
-- [ ] Legacy conflict repair: load an isolated fixture with both actions for one target, confirm Options and Popup warn, then verify `Keep Proxy` and `Keep Direct` each leave exactly one selected rule after one storage write.
-- [ ] Redundant-rule cleanup: run the scan, confirm it only suggests same-action covered rules, confirm the scan removes nothing, then remove one suggestion explicitly.
-- [ ] Export without proxy config: confirm the default JSON excludes `localSettings`, proxy host/port, recording metadata, collected hosts, and raw URL components.
-- [ ] Export with proxy config: explicitly enable the option and confirm only the sanitized device proxy configuration is additionally present.
-- [ ] Import preview/apply: confirm preview makes no storage writes, malformed/internal/private entries are skipped, old rules without `action` preview as proxy, duplicates are not added, and writes occur only after `Apply import`.
-- [ ] Recording across popup closure: start recording, close the popup, trigger a harmless page action, reopen the popup, and confirm the same session can be stopped or cancelled.
-- [ ] Automatic failed-request detection: confirm at least one page-level failed or rejected `fetch`, XMLHttpRequest, beacon, resource timing, or failed-resource signal is detected automatically without DevTools or manual URL entry.
-- [ ] Navigation expiry: reload or navigate the recorded tab and confirm the session becomes expired rather than returning stale candidates or a false empty success.
-- [ ] Recorder privacy and cleanup: confirm Stop, Cancel, and timeout restore temporary page hooks/listeners; only hostnames appear in preview; no path, query, signature, credential, header, body, file content, or session nonce is exposed or stored.
-- [ ] Local stable-ID build: using only a disposable public manifest key, run `npm run build:local-stable-id`, confirm `key` exists only in `dist-local/manifest.json`, and confirm source `manifest.json` and normal `dist/manifest.json` remain unkeyed.
-- [ ] Store-installed update expectations: confirm the planned update targets the existing Store item, keeps the same four permissions, preserves synced rules and device-local proxy settings, and does not require uninstall/reinstall. Actual Store delivery remains a post-review verification step.
-- [ ] Permission/privacy surface: confirm permissions are exactly `proxy`, `storage`, `activeTab`, and `scripting`; confirm no `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, `debugger`, persistent content scripts, telemetry, backend, or remote executable code.
+- [x] Clean install: build `dist/`, load it unpacked in a clean profile, open Popup and Options, and confirm the service worker has no uncaught startup errors.
+- [x] Update from v0.1.0 data: in a disposable profile, start with representative `v0.1.0` synced rules that have no `action`, then load the candidate build and confirm every old rule remains present and behaves as a proxy rule.
+- [x] Existing proxy rule: confirm an existing proxy rule still routes through the configured local proxy and remains fail-closed when that proxy is unavailable.
+- [x] Direct exception: add an exact direct rule below a broader proxy parent and confirm the exact host returns `DIRECT` while the parent domain still uses the proxy.
+- [x] Rule precedence: confirm an exact rule wins over a parent rule, the most-specific matching parent wins, and an unmatched host remains `DIRECT`.
+- [x] Popup route status: confirm Proxy exact/parent, Direct exact/parent, unconfigured default Direct, and unavailable-proxy warning states are textually distinct and have accessible labels.
+- [x] Atomic rule editing: edit action and scope without delete/re-add, confirm broader coverage is previewed, conflicts are handled, child exceptions remain, and one confirmed edit causes one storage change/proxy apply.
+- [x] Route-target uniqueness: add `routing-test.test` Proxy with subdomains, then attempt the same target as Direct; confirm Save is blocked and the existing rule is shown for editing.
+- [x] Legacy conflict repair: load an isolated fixture with both actions for one target, confirm Options and Popup warn, then verify `Keep Proxy` and `Keep Direct` each leave exactly one selected rule after one storage write.
+- [x] Redundant-rule cleanup: run the scan, confirm it only suggests same-action covered rules, confirm the scan removes nothing, then remove one suggestion explicitly.
+- [x] Export without proxy config: confirm the default JSON excludes `localSettings`, proxy host/port, recording metadata, collected hosts, and raw URL components.
+- [x] Export with proxy config: explicitly enable the option and confirm only the sanitized device proxy configuration is additionally present.
+- [x] Import preview/apply: confirm preview makes no storage writes, malformed/internal/private entries are skipped, old rules without `action` preview as proxy, duplicates are not added, and writes occur only after `Apply import`.
+- [x] Recording across popup closure: start recording, close the popup, trigger a harmless page action, reopen the popup, and confirm the same session can be stopped or cancelled.
+- [x] Automatic failed-request detection: confirm at least one page-level failed or rejected `fetch`, XMLHttpRequest, beacon, resource timing, or failed-resource signal is detected automatically without DevTools or manual URL entry.
+- [x] Navigation expiry: reload or navigate the recorded tab and confirm the session becomes expired rather than returning stale candidates or a false empty success.
+- [x] Recorder privacy and cleanup: confirm Stop, Cancel, and timeout restore temporary page hooks/listeners; only hostnames appear in preview; no path, query, signature, credential, header, body, file content, or session nonce is exposed or stored.
+- [x] Local stable-ID build: using only a disposable public manifest key, run `npm run build:local-stable-id`, confirm `key` exists only in `dist-local/manifest.json`, and confirm source `manifest.json` and normal `dist/manifest.json` remain unkeyed.
+- [x] Store-installed update expectations: confirm the planned update targets the existing Store item, keeps the same four permissions, preserves synced rules and device-local proxy settings, and does not require uninstall/reinstall. Actual Store delivery remains a post-review verification step.
+- [x] Permission/privacy surface: confirm permissions are exactly `proxy`, `storage`, `activeTab`, and `scripting`; confirm no `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, `debugger`, persistent content scripts, telemetry, backend, or remote executable code.
 
 ### Useful but Optional Before Version Bump
 

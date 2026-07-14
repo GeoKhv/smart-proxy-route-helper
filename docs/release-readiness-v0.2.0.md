@@ -1,15 +1,15 @@
 # v0.2.0 Release Readiness Audit
 
-Status: **not ready for version bump**. The automated implementation audit passes, but the full manual smoke gate, Store disclosure review, and refreshed screenshots remain open.
+Status: **ready for the GitHub v0.2.0 release**. The automated implementation audit and the full must-pass manual smoke gate pass. Chrome Web Store submission remains a separate later task with its own Dashboard, privacy, asset, review, and publication steps.
 
-This document prepares a later explicit release task. It does not bump a version, create a tag or release, build a Store package, upload to Chrome Web Store, or change the published `v0.1.0` artifact.
+This document records the explicit GitHub release task. It covers the version bump, verified release package, release commit, tag, and GitHub release preparation. It does not upload to Chrome Web Store, change Dashboard declarations, or modify any published `v0.1.0` artifact.
 
 ## Audit Snapshot
 
-- Audit refreshed: 2026-07-13.
+- Audit refreshed: 2026-07-15.
 - Published baseline: annotated tag `v0.1.0` (`50903f7058d04a142dbf316f3ae71a19de9d71ed`) pointing to commit `696bf08f847cf0952a938c2d06456f38e4d25e9e`.
-- Candidate base before this feature slice: `main` at `d3fdf80`, equal to `origin/main`; the final feature commit is recorded in Git history rather than self-referenced here.
-- Source and package versions: still `0.1.0` in `manifest.json` and `package.json`.
+- Release-task starting point: `main` at `b3252e2e32c6be53f7c7403105c81f1f3165a5c6`, equal to `origin/main` after `git fetch --tags origin` and `git pull --ff-only origin main`; the final release commit is recorded in Git history rather than self-referenced here.
+- Source and package versions: `0.2.0` in `manifest.json`, `package.json`, and `package-lock.json` for this release.
 - Published `v0.1.0` tag, GitHub release, package, and Store item: unchanged.
 - Candidate diff: use the final release task's live `v0.1.0..main` diff; this document intentionally avoids a stale self-referential count.
 
@@ -185,15 +185,26 @@ The user-invoked recorder uses `activeTab` plus `scripting`; `chrome.scripting` 
 
 ## Automated Checks and Coverage Review
 
-Results on the final feature working tree before commit:
+Results on the final v0.2.0 release working tree before commit:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | Pass: 20 files, 256 tests, including canonical route-target identity, all add paths, stored-conflict detection/repair, import blocking, deterministic PAC/Popup safety, parent/child overrides, stale final validation, atomic update, and one-write coverage. |
-| `npm run build` | Pass. |
+| `npm test` | Pass: 20 files, 256 tests, including the updated `0.2.0` release-version assertion, canonical route-target identity, stored-conflict detection/repair, import blocking, deterministic PAC/Popup safety, parent/child overrides, stale final validation, atomic update, and one-write coverage. |
+| `npm run build` | Pass: clean production output reports manifest version `0.2.0`. |
 | `npm run typecheck --if-present` | Pass. |
 | `git diff --check` | Pass. |
-| `npm audit` | Completed: one low-severity `esbuild` advisory, `GHSA-g7r4-m6w7-qqqr`. |
+| `npm audit` | Completed: one low-severity `esbuild` advisory, `GHSA-g7r4-m6w7-qqqr`; no dependency change applied during release closeout. |
+| `npm run package` | Pass: 13 files packaged into `release/smart-proxy-route-helper-v0.2.0.zip`. |
+
+## Release Package Verification
+
+- Asset: `smart-proxy-route-helper-v0.2.0.zip` (`293375` bytes).
+- SHA-256: `786a8287309797cf933853989f8e3c2d6d226fd131fa1663c03bf646c8090cb9`.
+- `manifest.json` is at the archive root and reports version `0.2.0` with permissions exactly `proxy`, `storage`, `activeTab`, and `scripting`.
+- The archive contains the compiled background service worker, Popup, Options, shared chunks, and four icon sizes directly at the root layout expected by Chrome. It has no extra `dist/` level.
+- The archive contains no `src/`, tests, docs, `.git/`, `node_modules/`, `.local/`, `dist-local/`, source maps, temporary files, local stable-ID key material, or v0.1.0 release files. The packaged manifest has no `key`, `host_permissions`, or `content_scripts`.
+- Extracted archive files match current `dist/` byte-for-byte, and packaging the unchanged `dist/` twice produced the same SHA-256.
+- Reproducibility limitation: the existing package workflow preserves build-output modification timestamps in ZIP metadata. A clean build at a different time may therefore produce a different ZIP checksum even when extracted file bytes are identical. The hash above identifies the exact published asset; extracted-content comparison is the semantic reproducibility check.
 
 Coverage inspection:
 
@@ -204,7 +215,7 @@ Coverage inspection:
 - Recorder cleanup/privacy: 14 recorder tests for fetch/XHR/beacon/resource/error capture, hostile inputs, hostname bridge limits, Stop/Cancel/timeout restoration, and exact manifest assertions.
 - Manifest assertions: exact permission array and explicit absence of host permissions, content scripts, `<all_urls>`, `webRequest`, `webNavigation`, and `debugger`.
 
-Focused regression coverage was added for this feature slice and all tests pass. The remaining gap is the full browser-level release gate across routing, migration, recorder lifecycle, backup/restore, and final frozen UI; the focused Popup/rule-editing Computer Use result is recorded separately below after execution.
+Focused regression coverage was added for this feature slice and all tests pass. The full browser-level must-pass release gate across routing, migration, recorder lifecycle, backup/restore, and the final frozen UI is recorded as passed from the release owner's explicit confirmation.
 
 The audit finding is not a release blocker: the advisory affects the Windows Vite development server in `esbuild`; the extension package does not include or run the Vite dev server, `node_modules`, or `esbuild`. Do not run `npm audit fix` as release-closeout churn without a separate dependency-maintenance decision.
 
@@ -241,56 +252,42 @@ Official references reviewed for this audit:
 
 ## Known Issues and Open Blockers
 
-### Blocks Version Bump
+### GitHub Release Gate
 
-- Full must-pass manual smoke in `docs/manual-smoke-test.md` is not yet completed or recorded.
-- A disposable-profile update test from representative v0.1.0 storage is not yet recorded.
-- Real local stable-ID build smoke with the owner's public manifest key is not yet recorded; fixture automation passes.
-- Browser-level recorder lifecycle smoke for popup closure, failed request detection, navigation expiry, Cancel, and timeout is not yet fully recorded for the frozen candidate. The supplied real ChatGPT upload result covers the core automatic-detection scenario only.
+- No manual-smoke blocker remains. The release owner explicitly confirmed that the full v0.2.0 must-pass checklist passed.
+- The final automated rerun and package verification are part of this release task and must pass before the release commit is tagged.
 
 ### Blocks Store Submission, Not the Code Candidate
 
 - Store detailed description, `scripting` justification, Privacy practices data-use declarations, and privacy copy have not been updated in the Dashboard.
 - Store screenshots do not yet represent the final v0.2 Options and Popup UI.
-- Candidate ZIP content and permissions cannot be finalized until the later version bump and reproducible package build.
+- The verified v0.2.0 ZIP produced here is not uploaded to Chrome Web Store during this task.
 
 ### Accepted Non-Blockers / Limitations
 
 - Low-severity `esbuild` development-server advisory described above.
 - The recorder cannot see every worker, service-worker, extension, or browser-level request.
 - Rule search/filter and a full accessibility pass were prior roadmap ideas but are not implemented and are explicitly deferred from v0.2.0.
-- Actual Store-installed delivery/preservation can only be verified after the Store accepts and publishes the later package; the pre-bump gate verifies the expectations and migration behavior without altering the main Chrome profile.
+- Actual Store-installed delivery/preservation can only be verified after the Store accepts and publishes the later package; the completed manual gate verifies the expectations and migration behavior without altering the main Chrome profile.
 
-No implemented feature was found unsuitable for v0.2.0 if the remaining manual and disclosure gates pass.
+No implemented feature or confirmed manual-smoke result blocks the GitHub v0.2.0 release. Chrome Web Store disclosure and submission work remains separate.
 
 ## Manual Smoke Status
 
-- Automated checks: **PASS**.
-- Focused Computer Use smoke on the already open Chrome profile: **BLOCKED by a stale installed build**. The toolbar popup and Options page opened, but attempting to add `routing-test.test` Direct with the same include-subdomains target as an existing Proxy rule was accepted by the installed build instead of showing the new blocker. The local source and automated tests contain the blocker; Chrome must reload the new unpacked build before this behavior can be verified manually.
-- The attempted smoke changed synced data by adding one `routing-test.test` Direct include-subdomains rule beside the pre-existing Proxy rule. Further state-changing steps and cleanup were stopped because deleting or choosing a winner requires explicit action-time confirmation. The pair is suitable for verifying the new `Conflicting route rules` repair UI after the build is reloaded, but it remains unresolved in this Chrome profile.
-- Confirmed supplied manual evidence: improved recorder on real ChatGPT automatically detected a generated `*.oaiusercontent.com` request after a harmless attachment and suggested `oaiusercontent.com`, `includeSubdomains: true`, `action: proxy` without DevTools or manual URL entry.
-- Full v0.2.0 must-pass checklist: **NOT RUN in this audit**.
+- Automated implementation audit: **PASS**.
+- Full v0.2.0 must-pass checklist: **PASS**, explicitly confirmed by the release owner on 2026-07-15. The confirmation covers the complete checklist; environment fields not supplied with that confirmation are not inferred.
+- Confirmed final conflict behavior: an existing Proxy/Direct pair is detected; Popup shows `Conflicting rules`; `Keep Proxy` and `Keep Direct` resolve the pair explicitly; opposite-action duplicate creation is blocked; editing changes the existing rule action in place; exactly one rule remains; legitimate parent/child overrides continue to work.
+- Confirmed recorder behavior: improved recording automatically detects page-level request hostnames, continues across Popup closure, reports navigation expiry, and keeps collected data hostname-only.
 - Optional checklist: **NOT RUN in this audit**.
-- No unrelated synced rules were edited or removed during this focused smoke.
 
 Use `docs/manual-smoke-test.md` for the release gate and detailed evidence steps.
 
-## Exact Future Release Sequence
+## Release Execution Sequence
 
-Execute these only in a later explicit release task:
+This explicit release task performs the version bump, final automated checks, normal package workflow, release commit and push, annotated `v0.2.0` tag, and normal GitHub release with the verified ZIP asset. Tagging and publication stop if any release-blocking check fails.
 
-1. Complete and record the remaining manual smoke checks in a disposable profile.
-2. Resolve every code, compatibility, disclosure, or screenshot blocker found by smoke.
-3. Bump `manifest.json` and `package.json` to `0.2.0` in one focused change.
-4. Run `npm test`, `npm run build`, `npm run typecheck --if-present`, `git diff --check`, and `npm audit` again.
-5. Build the reproducible Store ZIP with the normal package workflow; do not use `dist-local/` or add `manifest.key` to the Store package.
-6. Verify ZIP contents, version, permissions, hashes, absence of source maps/secrets/source files, and absence of remote executable code.
-7. Finalize and commit the version bump, release notes, Store update docs, smoke evidence, and package provenance.
-8. Create and push annotated tag `v0.2.0` at the verified release commit.
-9. Create the GitHub `v0.2.0` release and attach the verified Store ZIP with finalized release notes.
-10. Manually upload the same verified package to the existing Chrome Web Store item, update listing/privacy fields and screenshots, and submit it for review.
-11. Verify the Store review result, published version, update delivery, preserved user settings, unchanged permission surface, and public listing metadata.
+Chrome Web Store Dashboard access, package upload, privacy-declaration changes, review submission, and publication verification remain a separate later task.
 
 ## Readiness Decision
 
-Current recommendation: **automated implementation audit passed; not ready for version bump until the must-pass manual smoke gate is complete. Not ready for Store submission until disclosures and screenshots are updated and the later versioned ZIP is verified.**
+Current recommendation: **automated implementation audit passed and the full must-pass manual smoke gate passed; proceed with the verified GitHub v0.2.0 release. Do not treat this as Chrome Web Store v0.2.0 publication.**

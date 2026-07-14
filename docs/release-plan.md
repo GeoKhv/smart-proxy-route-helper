@@ -49,7 +49,7 @@ Exit criteria:
 
 Goal: improve user confidence and release readiness without expanding the permission surface by default.
 
-Candidate scope:
+Release scope:
 
 - Better status and error messages.
 - Versioned settings export/import for local backups and unpacked/local installation migration.
@@ -133,7 +133,7 @@ Exit criteria:
 - Classification data is bundled locally or provided explicitly by the user.
 - Privacy and Chrome Web Store disclosures are updated before release.
 
-The published `v0.1.0` tag and package remain immutable. The implemented v0.2 candidate changes continue on `main` and require a later explicit version-bump/release task before they can replace the published baseline.
+The published `v0.1.0` tag, release, and package remain immutable. Smart Proxy Route Helper v0.2.0 is released separately on GitHub from the verified release commit. Chrome Web Store remains on v0.1.0 until a later manual Dashboard update, review, and publication step is completed.
 
 ## Chrome Web Store Submission Checklist
 

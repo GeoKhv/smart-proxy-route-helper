@@ -29,9 +29,9 @@ Smart Proxy Route Helper `v0.1.0` is published in Chrome Web Store:
 
 - https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
-The current public GitHub release is `v0.1.0`:
+The current public GitHub release is `v0.2.0`:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.2.0
 
 Development on `main` continues after the `v0.1.0` Store submission baseline. Current `main` also includes a local
 Backup and restore Options section for versioned settings export/import; the submitted `v0.1.0` tag and release package
@@ -145,7 +145,7 @@ Package the current build for local release testing:
 npm run package
 ```
 
-The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.1.0.zip`. Run `npm run build` first.
+The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.2.0.zip`. Run `npm run build` first.
 
 ## Dependency Notes
 
@@ -291,8 +291,8 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/permissions.md](docs/permissions.md): MVP and future permission strategy.
 - [docs/release-checklist.md](docs/release-checklist.md): release verification checklist.
 - [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): release notes for v0.1.0.
-- [docs/release-readiness-v0.2.0.md](docs/release-readiness-v0.2.0.md): v0.1.0-to-main inventory, compatibility/privacy audit, blockers, and later release sequence.
-- [docs/release-notes-v0.2.0-draft.md](docs/release-notes-v0.2.0-draft.md): unpublished candidate release notes for v0.2.0.
+- [docs/release-readiness-v0.2.0.md](docs/release-readiness-v0.2.0.md): v0.1.0-to-v0.2.0 inventory, compatibility/privacy audit, passed gates, and release-package verification.
+- [docs/release-notes-v0.2.0.md](docs/release-notes-v0.2.0.md): final GitHub release notes for v0.2.0.
 - [docs/chrome-web-store-update-v0.2.0-draft.md](docs/chrome-web-store-update-v0.2.0-draft.md): unpublished Store update copy, disclosure changes, and screenshot plan.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.

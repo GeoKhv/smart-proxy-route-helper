@@ -1,6 +1,6 @@
 # Chrome Web Store v0.2.0 Update — Draft
 
-Draft only. This file is repository preparation, not Dashboard state. Do not upload, submit, or publish it until the later explicit v0.2.0 release task.
+Draft only. This file is repository preparation, not Dashboard state. The GitHub v0.2.0 release does not authorize a Store upload; use this draft only in a separate later Chrome Web Store Dashboard task.
 
 ## Draft What's New
 
@@ -98,7 +98,7 @@ Recapture only after the candidate UI and copy are frozen, using the documented 
 - Replace or refresh `05-popup-recording`: use final v0.2 copy and show the user-invoked automatic recording state without sensitive real domains or data.
 - Keep every screenshot at `1280x800`, use only sanitized demo data, and do not capture the owner's main Chrome profile.
 
-## Submission Notes for the Later Release Task
+## Submission Notes for the Later Chrome Web Store Task
 
 - Upload the new package to the existing Store item, not a new item.
 - Verify the package version is greater than the published version and the permission list is unchanged.
