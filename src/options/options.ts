@@ -11,8 +11,14 @@ import type {
   UserClassificationSiteOverride
 } from "../domainClassification/userClassificationOverrides";
 import { checkDenylistedHost } from "../rules/denylist";
-import { findRedundantDomainRules } from "../rules/domainMatcher";
+import { findEffectiveDomainRule, findRedundantDomainRules } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
+import {
+  checkRouteTargetAddition,
+  describeRouteTarget,
+  findRouteTargetConflicts,
+  getRouteTargetKey
+} from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import {
   getRuleScopeOptions,
@@ -28,7 +34,13 @@ import {
   type SettingsImportPreview
 } from "../settingsBackup/settingsBackup";
 import { getLocalSettings, updateLocalSettings } from "../storage/localStore";
-import { getSyncSettings, updateSyncRule, updateSyncSettings } from "../storage/syncStore";
+import {
+  addSyncRules,
+  getSyncSettings,
+  resolveSyncRouteTargetConflict,
+  updateSyncRule,
+  updateSyncSettings
+} from "../storage/syncStore";
 import type { DeviceProxySettings, LocalSettings, SyncSettings } from "../storage/storageTypes";
 
 const suggestedLocalProxyConfig: LocalProxyConfig = {
@@ -72,6 +84,8 @@ export type AddRuleResult =
   | {
       ok: false;
       error: string;
+      reason?: "conflict";
+      existingRule?: DomainRule;
     };
 
 function isLocalProxyScheme(input: string): input is LocalProxyScheme {
@@ -169,11 +183,26 @@ export function addDomainRule(
     };
   }
 
-  const duplicate = currentRules.some(
-    (rule) => rule.domain === normalized.domain && rule.includeSubdomains === includeSubdomains && rule.action === action
-  );
+  const proposedRule: DomainRule = {
+    domain: normalized.domain,
+    includeSubdomains,
+    action,
+    mode: "proxy",
+    source: "manual",
+    createdAt
+  };
+  const targetCheck = checkRouteTargetAddition(currentRules, proposedRule);
 
-  if (duplicate) {
+  if (targetCheck.status === "conflict") {
+    return {
+      ok: false,
+      reason: "conflict",
+      existingRule: targetCheck.existingRule,
+      error: `A ${displayAction(targetCheck.existingRule.action)} rule already exists for this hostname and scope. Edit existing rule instead.`
+    };
+  }
+
+  if (targetCheck.status === "duplicate") {
     return {
       ok: true,
       rules: [...currentRules],
@@ -186,14 +215,7 @@ export function addDomainRule(
     ok: true,
     rules: [
       ...currentRules,
-      {
-        domain: normalized.domain,
-        includeSubdomains,
-        action,
-        mode: "proxy",
-        source: "manual",
-        createdAt
-      }
+      proposedRule
     ],
     normalizedDomain: normalized.domain,
     status: "added"
@@ -253,18 +275,26 @@ function localProxyFormInput(): LocalProxyFormInput {
 
 function renderRules(settings: SyncSettings): void {
   const list = getElement<HTMLUListElement>("#rule-list");
+  const conflicts = findRouteTargetConflicts(settings.rules);
+  const conflictKeys = new Set(conflicts.map((conflict) => conflict.key));
+  const visibleRules = settings.rules
+    .map((rule, index) => ({ rule, index }))
+    .filter(({ rule }) => !conflictKeys.has(getRouteTargetKey(rule)));
+
   currentSyncSettingsSnapshot = settings;
+  renderRouteTargetConflicts(settings);
   list.replaceChildren();
 
-  if (settings.rules.length === 0) {
+  if (visibleRules.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No synced route rules yet.";
+    empty.textContent =
+      conflicts.length > 0 ? "Resolve the conflicting route targets above to return to a normal rule list." : "No synced route rules yet.";
     list.append(empty);
     return;
   }
 
-  settings.rules.forEach((rule, index) => {
+  visibleRules.forEach(({ rule, index }) => {
     const item = document.createElement("li");
     item.className = "rule-item";
 
@@ -299,6 +329,54 @@ function renderRules(settings: SyncSettings): void {
     item.append(summary, actions);
     list.append(item);
   });
+}
+
+function renderRouteTargetConflicts(settings: SyncSettings): void {
+  const container = getElement<HTMLElement>("#route-rule-conflicts");
+  const list = getElement<HTMLUListElement>("#route-rule-conflict-list");
+  const conflicts = findRouteTargetConflicts(settings.rules);
+
+  list.replaceChildren();
+  container.hidden = conflicts.length === 0;
+
+  for (const conflict of conflicts) {
+    const item = document.createElement("li");
+    const summary = document.createElement("div");
+    const heading = document.createElement("div");
+    const detail = document.createElement("div");
+    const actions = document.createElement("div");
+    const keepProxy = document.createElement("button");
+    const keepDirect = document.createElement("button");
+    const effectiveRule = findEffectiveDomainRule(conflict.domain, conflict.rules)?.rule;
+
+    item.className = "rule-item conflict-item";
+    heading.className = "rule-domain";
+    heading.textContent = describeRouteTarget(conflict);
+    detail.className = "metadata";
+    detail.textContent = `Both Proxy and Direct are configured. ${
+      effectiveRule
+        ? `${displayAction(effectiveRule.action)} is temporarily effective because the newest createdAt wins, then the later stored position breaks a tie.`
+        : "The runtime still uses its deterministic tie-breaker."
+    }`;
+    actions.className = "rule-item-actions";
+
+    keepProxy.type = "button";
+    keepProxy.textContent = "Keep Proxy";
+    keepProxy.dataset.conflictTargetKey = conflict.key;
+    keepProxy.dataset.keepAction = "proxy";
+    keepProxy.setAttribute("aria-label", `Keep Proxy for ${describeRouteTarget(conflict)} and remove the Direct sibling`);
+
+    keepDirect.type = "button";
+    keepDirect.textContent = "Keep Direct";
+    keepDirect.dataset.conflictTargetKey = conflict.key;
+    keepDirect.dataset.keepAction = "direct";
+    keepDirect.setAttribute("aria-label", `Keep Direct for ${describeRouteTarget(conflict)} and remove the Proxy sibling`);
+
+    summary.append(heading, detail);
+    actions.append(keepProxy, keepDirect);
+    item.append(summary, actions);
+    list.append(item);
+  }
 }
 
 function displayAction(action: RuleAction): string {
@@ -674,28 +752,75 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
     setStatus(status, message, "error");
     renderRules(current);
     renderStoredLists(current);
+    renderClassificationOverrides(current);
     return;
   }
 
-  const updated =
-    addResult.status === "duplicate"
-      ? current
-      : await updateSyncSettings({
-          rules: addResult.rules
-        });
+  if (addResult.status === "duplicate") {
+    renderRules(current);
+    renderStoredLists(current);
+    renderClassificationOverrides(current);
+    renderRuleCleanupSuggestions(current);
+    setStatus(status, `${addResult.normalizedDomain} already has that synced route rule.`, "neutral");
+    return;
+  }
+
+  const proposedRule = addResult.rules[current.rules.length];
+  const finalAdd = await addSyncRules([proposedRule]);
+
+  if (!finalAdd.ok) {
+    renderRules(finalAdd.settings);
+    renderStoredLists(finalAdd.settings);
+    renderClassificationOverrides(finalAdd.settings);
+    setError("#rule-domain-error", finalAdd.error);
+    setStatus(status, finalAdd.error, "error");
+    return;
+  }
+
+  const updated = finalAdd.settings;
 
   renderRules(updated);
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
   renderRuleCleanupSuggestions(updated);
 
-  if (addResult.status === "duplicate") {
+  if (finalAdd.addedRules.length === 0) {
     setStatus(status, `${addResult.normalizedDomain} already has that synced route rule.`, "neutral");
     return;
   }
 
   input.value = "";
   setStatus(status, `Added synced ${action} rule for ${addResult.normalizedDomain}.`, "success");
+}
+
+async function handleRouteTargetConflictClick(event: MouseEvent): Promise<void> {
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>(
+    "button[data-conflict-target-key][data-keep-action]"
+  );
+
+  if (!button?.dataset.conflictTargetKey) {
+    return;
+  }
+
+  const keepAction = button.dataset.keepAction === "direct" ? "direct" : "proxy";
+  const result = await resolveSyncRouteTargetConflict(button.dataset.conflictTargetKey, keepAction);
+  const status = getElement<HTMLElement>("#route-rule-conflict-status");
+
+  renderRules(result.settings);
+  renderStoredLists(result.settings);
+  renderClassificationOverrides(result.settings);
+  renderRuleCleanupSuggestions(result.settings);
+
+  if (!result.ok) {
+    setStatus(status, result.error, "error");
+    return;
+  }
+
+  setStatus(
+    status,
+    `${displayAction(result.keptRule.action)} will remain for ${describeRouteTarget(result.keptRule)}. ${result.removedRules.length} contradictory sibling rule${result.removedRules.length === 1 ? " was" : "s were"} removed in one synced write.`,
+    "success"
+  );
 }
 
 function handleRuleEditorInput(event: Event): void {
@@ -969,6 +1094,9 @@ async function initOptionsPage(): Promise<void> {
   });
   getElement<HTMLUListElement>("#rule-list").addEventListener("click", (event) => {
     void handleRuleListClick(event);
+  });
+  getElement<HTMLUListElement>("#route-rule-conflict-list").addEventListener("click", (event) => {
+    void handleRouteTargetConflictClick(event);
   });
   getElement<HTMLInputElement>("#rule-edit-domain").addEventListener("input", handleRuleEditorInput);
   getElement<HTMLSelectElement>("#rule-edit-action").addEventListener("change", handleRuleEditorInput);

@@ -25,6 +25,7 @@ Popup:
 - Show the normalized current domain for supported `http` and `https` pages.
 - Show a prominent text-and-icon state for exact Proxy, parent Proxy, exact Direct, parent Direct, blocked, or unconfigured default Direct.
 - Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy is disabled or invalid.
+- Show `Conflicting rules` when legacy synced data contains both actions for the effective hostname/scope target, state which deterministic action is temporarily effective, and direct the user to Options for repair.
 - Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
 - Keep every Popup quick action exact-host-only, including `www.*` and other subdomains.
 - Offer `Change scope` for an exact rule, preserve its action, show safe PSL-aware scope choices and a coverage/conflict preview, and require confirmation before one atomic update.
@@ -47,6 +48,7 @@ Options page:
 - Offer exact-host, hostname-plus-subdomains, and safe PSL-aware registrable-parent scope choices; omit the parent option for unsafe shared infrastructure.
 - Preview broader coverage, duplicate/conflict blockers, preserved opposite-action child exceptions, and same-action redundancy before Save.
 - Scan for redundant same-action child rules and show cleanup suggestions without deleting anything automatically.
+- Separate legacy same-target Proxy/Direct pairs from the normal rule list, show each affected target prominently, and require `Keep Proxy` or `Keep Direct` before removing a contradictory sibling.
 - Show and remove synced personal classification overrides.
 - Show which settings are local to this device and which domain rules are synced.
 - Show storage status for saves, additions, removals, exports, import previews, and import apply actions.
@@ -77,6 +79,7 @@ Core logic is isolated from Chrome APIs where practical:
 - Domain normalization and validation.
 - Proxy configuration validation.
 - Domain rule model and migrations.
+- Canonical normalized route-target identity and stored-conflict detection/resolution.
 - PAC generation.
 - Storage serialization and migration helpers.
 - Diagnostic decision helpers for current-site target validation, temporary probe planning, and conservative result mapping.
@@ -135,9 +138,10 @@ Import behavior:
 
 - Parses JSON locally and validates the export format/version before preview.
 - Sanitizes imported domains with the same domain normalization and protected-host guards used elsewhere.
-- Rejects malformed rules, duplicate imported entries, invalid domains, localhost, private/internal IPs, browser/internal pages, and internal local suffixes.
+- Rejects malformed rules, invalid domains, localhost, private/internal IPs, browser/internal pages, and internal local suffixes; reports same-action duplicates without retaining both.
 - Shows a preview summary before applying changes, including route rule counts, classification override counts, local proxy inclusion, warnings, and errors.
-- Merges imported synced settings with existing settings by default and avoids duplicate route rules by domain, subdomain scope, and action.
+- Merges imported synced settings with existing settings by default. Route-target identity is normalized domain plus subdomain scope; action is not part of identity. Same-action duplicates are skipped, while opposite-action pairs inside the file or against stored rules block Apply until the input is resolved.
+- Re-reads current synced settings at Apply time and rejects a stale preview if intervening changes would alter the reviewed result or create a route-target conflict.
 - Writes to `chrome.storage.sync` and, only when local proxy config is present in the import, `chrome.storage.local` after the user clicks "Apply import".
 - Does not call `chrome.proxy.settings` from Options; the background storage listener remains responsible for proxy re-application.
 - Ignores unknown extra JSON fields and never evaluates imported data as executable logic.
@@ -166,15 +170,19 @@ The MVP keeps rule semantics simple:
 - User enters a domain, not a full URL.
 - The extension normalizes hostnames before storage and PAC generation.
 - A domain rule stores `action: "proxy" | "direct"` and whether subdomains are included. Older stored rules without `action` migrate as `action: "proxy"`.
+- A route target is uniquely identified by normalized domain plus exact/include-subdomains scope. Action is a mutable property of that target, so a healthy settings array contains at most one rule per route target.
 - Proxy rules route matching hosts through the configured local proxy. Direct rules are explicit direct exceptions.
 - Exact host rules have the highest precedence.
 - If no exact host rule exists, the most specific matching parent `includeSubdomains` rule wins.
 - If multiple rules have the same specificity, the most recently created rule wins; if timestamps tie, the later stored entry wins.
+- Legacy contradictory same-target pairs are preserved during sanitization and use the same newest-`createdAt`, then later-position tie-breaker until the user resolves them. Popup and PAC use this same temporary winner; detection alone never changes routing.
 - No match means the default direct route.
 - Same-action child rules already covered by broader same-action parents can be suggested for cleanup. Different-action children are not redundant because they override broader parents.
 - Rule edits preserve source and creation time plus an existing stable ID. Legacy rules without an explicit ID receive a deterministic stable identity when first edited.
 - A rule edit replaces exactly one stored array entry and performs one synced-settings write. It never deletes first, creates a temporary duplicate, or silently removes other rules.
 - Identical edited targets and same-target opposite-action conflicts block Save. Broader parents, preserved child exceptions, and newly redundant child rules are shown as preview warnings.
+- Adding rules from Options, Popup quick actions, related-domain confirmation, diagnostic confirmation, or import uses the same route-target identity and validates again against the latest synced array immediately before writing.
+- Exact and include-subdomains scopes on the same domain remain distinct targets. Parent Proxy/child Direct and parent Direct/child Proxy overrides remain valid because their normalized domain/scope targets differ.
 - Invalid input should be rejected before storage.
 
 Examples of invalid input:
@@ -364,6 +372,8 @@ The runtime boundary remains narrow:
 - The Options UI updates storage only. It does not call `chrome.proxy.settings` directly.
 - The Popup UI reads the active tab URL after the popup opens, updates synced domain rules only after explicit user clicks, requests current-site diagnostics only after an explicit user click, and does not call `chrome.proxy.settings` directly.
 - Popup and Options rule edits use the shared pure scope/conflict planner and the storage-level atomic update helper. One `chrome.storage.sync.set` triggers the existing background listener, so proxy settings are applied once per confirmed edit.
+- Popup and Options additions use a shared final-write helper that re-reads current sync state, rejects same-target opposite actions, skips same-action duplicates, and performs one storage write. Chrome storage does not provide a cross-view transaction, so this narrows stale-view races without claiming transactional guarantees.
+- Explicit legacy-conflict resolution re-reads current sync state, preserves the chosen rule and its metadata, removes only contradictory siblings for that target, and performs one storage write; other conflict groups are not silently changed.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
 - Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
 - Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`, a temporary MAIN-world request recorder, and a nonce-bound isolated bridge. Recorded hostnames stay in the injected bridge until stop/cancel/expiry and are not written to sync or local storage.

@@ -17,6 +17,8 @@ Record each result as `PASS`, `FAIL`, or `NOT RUN`, with the Chrome version, ope
 - [ ] Rule precedence: confirm an exact rule wins over a parent rule, the most-specific matching parent wins, and an unmatched host remains `DIRECT`.
 - [ ] Popup route status: confirm Proxy exact/parent, Direct exact/parent, unconfigured default Direct, and unavailable-proxy warning states are textually distinct and have accessible labels.
 - [ ] Atomic rule editing: edit action and scope without delete/re-add, confirm broader coverage is previewed, conflicts are handled, child exceptions remain, and one confirmed edit causes one storage change/proxy apply.
+- [ ] Route-target uniqueness: add `routing-test.test` Proxy with subdomains, then attempt the same target as Direct; confirm Save is blocked and the existing rule is shown for editing.
+- [ ] Legacy conflict repair: load an isolated fixture with both actions for one target, confirm Options and Popup warn, then verify `Keep Proxy` and `Keep Direct` each leave exactly one selected rule after one storage write.
 - [ ] Redundant-rule cleanup: run the scan, confirm it only suggests same-action covered rules, confirm the scan removes nothing, then remove one suggestion explicitly.
 - [ ] Export without proxy config: confirm the default JSON excludes `localSettings`, proxy host/port, recording metadata, collected hosts, and raw URL components.
 - [ ] Export with proxy config: explicitly enable the option and confirm only the sanitized device proxy configuration is additionally present.
@@ -150,6 +152,35 @@ await chrome.storage.sync.get(["rules"]);
 25. If classification overrides exist, confirm they appear in the "Classification overrides" section.
 26. Remove one classification override and confirm it is removed from `chrome.storage.sync.classificationOverrides` without changing synced routing rules.
 
+## Route-Target Uniqueness and Legacy Repair — Must Pass
+
+Use only a disposable Chrome profile or isolated fixture data. Do not inject a contradictory pair into real synced settings.
+
+### A. Existing Target
+
+1. In Options, add `routing-test.test` as Proxy with `This hostname and its subdomains`.
+2. Attempt to add `routing-test.test` as Direct with the same scope.
+3. Confirm Save is blocked with `A Proxy rule already exists for this hostname and scope.` and an `Edit existing rule` path.
+4. Confirm exactly one `routing-test.test` include-subdomains rule remains.
+
+### B. Edit in Place
+
+1. Click Edit on the existing Proxy rule.
+2. Change only its action to Direct, preview, and Save.
+3. Confirm the same rule is updated in place: one rule remains, its stable ID/source/createdAt are preserved, and action is Direct.
+4. Reopen the Popup for `child.routing-test.test` and confirm it shows `Direct` through the parent rule.
+5. Repeat Direct to Proxy and confirm the same one-rule invariant.
+
+### C. Legacy Conflict Repair
+
+1. In an isolated fixture, load both Proxy and Direct rules for `routing-test.test` with `includeSubdomains: true`.
+2. Confirm Options shows `Conflicting route rules`, both actions, the temporary effective action, and explicit `Keep Proxy` / `Keep Direct` buttons instead of two healthy independent list entries.
+3. Confirm the Popup shows `Conflicting rules`, states the currently effective action, and does not present it as a healthy Proxy/Direct state.
+4. Click `Keep Proxy`. Confirm one Proxy rule remains, the Direct sibling is removed in one sync write, and normal Popup state returns.
+5. Restore the isolated fixture, click `Keep Direct`, and confirm the symmetric one-write result.
+6. Confirm neither sanitization nor load deleted either action before explicit resolution.
+7. Confirm a parent Proxy plus child Direct and a parent Direct plus child Proxy remain valid and are not reported as same-target conflicts.
+
 ## Backup and Restore Checks
 
 Use a clean Chrome profile or sanitized demo data for import apply checks. Do not overwrite real user settings. If a clean profile or safe demo state is unavailable, stop before applying import and record the blocker.
@@ -219,10 +250,14 @@ Use a clean Chrome profile or sanitized demo data for import apply checks. Do no
 16. Confirm `chrome.storage.sync` and `chrome.storage.local` are unchanged after preview alone.
 17. In a clean profile or safe demo state only, click "Apply import".
 18. Confirm imported route rules and classification overrides are written to `chrome.storage.sync` only after apply.
-19. Confirm old imports without `action` are treated as proxy rules, direct imports keep `action: "direct"`, invalid action values are skipped, and duplicate existing route rules are not added twice when domain, subdomain scope, and action all match.
-20. Confirm local proxy config is not changed unless the import JSON contains `data.localSettings.deviceProxy` and the user explicitly applies that preview.
-21. Confirm Options still does not call `chrome.proxy.settings` directly; proxy re-application should happen through the background storage listener after storage changes.
-22. Confirm export/import does not add permissions, host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, backend calls, telemetry, remote list fetching, or remote executable code.
+19. Confirm old imports without `action` are treated as proxy rules, direct imports keep `action: "direct"`, invalid action values are skipped, and same-action duplicate targets are reported without being added twice.
+20. Preview a file containing Proxy and Direct for the same normalized domain/scope; confirm both actions are listed as a conflict and Apply remains disabled.
+21. Preview a rule whose target has the opposite action in current storage; confirm the conflict is listed and Apply remains disabled.
+22. Change synced rules after a valid preview, then attempt Apply; confirm stale final validation blocks the write and requires a new preview.
+23. Confirm local proxy config is not changed unless the import JSON contains `data.localSettings.deviceProxy` and the user explicitly applies that preview.
+24. Confirm Options still does not call `chrome.proxy.settings` directly; proxy re-application should happen through the background storage listener after storage changes.
+25. Confirm export is blocked with an explicit warning while a legacy route-target conflict remains unresolved.
+26. Confirm export/import does not add permissions, host permissions, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, backend calls, telemetry, remote list fetching, or remote executable code.
 
 ## Popup Current-Site Checks
 

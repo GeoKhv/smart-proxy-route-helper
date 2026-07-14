@@ -112,21 +112,15 @@ describe("options synced rule helpers", () => {
     });
   });
 
-  it("allows proxy and direct rules for the same domain scope", () => {
+  it("blocks proxy and direct rules for the same normalized domain scope", () => {
     const currentRules = [manualRule("example.com", false)];
-    const result = addDomainRule(currentRules, "example.com", false, createdAt, "direct");
+    const result = addDomainRule(currentRules, "HTTPS://EXAMPLE.COM./path", false, createdAt, "direct");
 
-    expect(result).toEqual({
-      ok: true,
-      status: "added",
-      normalizedDomain: "example.com",
-      rules: [
-        manualRule("example.com", false),
-        {
-          ...manualRule("example.com", false),
-          action: "direct"
-        }
-      ]
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "conflict",
+      existingRule: currentRules[0],
+      error: "A Proxy rule already exists for this hostname and scope. Edit existing rule instead."
     });
   });
 
@@ -156,6 +150,9 @@ describe("options classification override UI boundary", () => {
     expect(optionsHtml).toContain("Save changes");
     expect(optionsHtml).toContain("PSL-aware planning");
     expect(optionsHtml).toContain("Find redundant rules");
+    expect(optionsHtml).toContain("Conflicting route rules");
+    expect(optionsSource).toContain('keepProxy.textContent = "Keep Proxy"');
+    expect(optionsSource).toContain('keepDirect.textContent = "Keep Direct"');
     expect(optionsHtml).toContain("backup-include-local-proxy");
     expect(optionsHtml).toContain("preview-import-button");
     expect(optionsHtml).toContain("apply-import-button");
@@ -165,6 +162,7 @@ describe("options classification override UI boundary", () => {
     expect(optionsSource).toContain("applySettingsImportPreview");
     expect(optionsSource).toContain("planRuleEdit");
     expect(optionsSource).toContain("updateSyncRule(plan.ruleId, plan.proposedRule)");
+    expect(optionsSource).toContain("resolveSyncRouteTargetConflict");
     expect(optionsSource).not.toContain("chrome.proxy");
   });
 });

@@ -25,6 +25,8 @@ The v0.2.0 candidate is the complete current `main` delta from `v0.1.0`, limited
 - In-place Options rule editing for hostname/domain, action, and scope without delete/re-add.
 - PSL-aware exact/hostname/registrable-parent scope choices with current/proposed coverage and conflict previews.
 - Atomic replacement of one existing rule with stable metadata preserved and one background proxy re-application.
+- One normalized hostname/scope route target per rule, with action changes performed in place and same-target contradictory additions blocked across every entry path.
+- Prominent Options repair actions and Popup warnings for contradictory targets stored by the earlier candidate build; no automatic deletion during sanitization.
 - Explicit removal of the effective exact rule; parent rules are not silently removed from Popup.
 - Redundant same-action rule suggestions with a separate explicit removal click.
 - Versioned local settings export/import with preview before apply.
@@ -32,7 +34,7 @@ The v0.2.0 candidate is the complete current `main` delta from `v0.1.0`, limited
 - Local stable-ID build workflow for unpacked installations that need a consistent extension identity.
 - Improved action-specific diagnostic recorder that detects page-level request hostnames automatically.
 
-New primary UI strings include `Through proxy`, `Direct`, `Not configured`, `Proxy unavailable`, `Proxy this hostname`, `Route this hostname directly`, `Applies to this exact hostname only`, `Change scope`, `Edit`, `Preview changes`, `Save changes`, `Exact hostname only`, `This hostname and its subdomains`, and `Parent domain and all subdomains`, plus the existing route-action, cleanup, backup, and recorder strings.
+New primary UI strings include `Through proxy`, `Direct`, `Not configured`, `Proxy unavailable`, `Conflicting rules`, `Conflicting route rules`, `Keep Proxy`, `Keep Direct`, `Proxy this hostname`, `Route this hostname directly`, `Applies to this exact hostname only`, `Change scope`, `Edit`, `Preview changes`, `Save changes`, `Exact hostname only`, `This hostname and its subdomains`, and `Parent domain and all subdomains`, plus the existing route-action, cleanup, backup, and recorder strings.
 
 ### Routing and PAC Behavior
 
@@ -41,7 +43,7 @@ New primary UI strings include `Through proxy`, `Direct`, `Not configured`, `Pro
 - Matching direct rules return `DIRECT`.
 - Exact matches win over parent matches.
 - The most-specific matching parent with `includeSubdomains: true` wins.
-- Equal-specificity conflicts use the newest valid `createdAt`; equal timestamps use the later stored rule.
+- Legitimate equal-specificity overlaps use the newest valid `createdAt`; equal timestamps use the later stored rule. The same deterministic tie-breaker is retained only as temporary runtime safety for unresolved legacy same-target contradictions.
 - Unmatched hosts remain `DIRECT`.
 - PAC generation sanitizes actions, domains, duplicates, and invalid local proxy configuration before producing inline PAC data.
 
@@ -49,7 +51,8 @@ New primary UI strings include `Through proxy`, `Direct`, `Not configured`, `Pro
 
 - Stored v0.1.0 rules without `action` sanitize to `action: "proxy"`.
 - Stored rules with legacy `mode: "proxy"` remain valid; absent `mode` is also accepted and normalized to `proxy`.
-- Dedupe keys now include domain, subdomain scope, and action, allowing an intentional proxy/direct conflict to be resolved by precedence.
+- Canonical route-target identity is normalized domain plus exact/include-subdomains scope. Action is mutable and is excluded from the uniqueness key.
+- Sanitization preserves already-stored opposite-action siblings so the user can choose explicitly; new full writes and add flows cannot create such a pair.
 - Synced data remains rules, ignored domains, denylist entries, and classification overrides.
 - Device proxy configuration and diagnostics preferences remain in `chrome.storage.local`.
 - Recorder session metadata uses `chrome.storage.session`; collected hostnames are not stored there.
@@ -99,12 +102,12 @@ No manifest-permission, extension-ID, package-format, or required user-action br
 
 Potentially observable behavior changes are intentional:
 
-- Conflicting overlapping rules no longer depend on first-array-match behavior; exact and most-specific rules now win deterministically.
-- Two rules with the same domain and subdomain scope may coexist only when their actions differ; the newest/later effective rule wins.
+- Legitimate overlapping parent/child rules no longer depend on first-array-match behavior; exact and most-specific rules win deterministically.
+- Two rules with the same normalized domain and scope may not coexist, regardless of action. Existing contradictory pairs from the earlier candidate build remain visible until `Keep Proxy` or `Keep Direct` resolves them explicitly.
 - Popup quick actions for `www.` and every other hostname now remain exact-host-only. A safe registrable-parent scope is available only through explicit Change scope or Options Edit preview and confirmation.
 - Diagnostic recording now installs temporary page-world wrappers during an explicit session. This is a data-handling and disclosure change, not a stored-data migration.
 
-Existing v0.1.0 rules were proxy-only, so the new precedence does not change their route result unless the user later creates a conflicting direct rule.
+Existing v0.1.0 rules were proxy-only, so the new precedence does not change their route result. New conflicting direct siblings are blocked; legitimate direct child exceptions remain supported.
 
 ### Storage Compatibility Matrix
 
@@ -114,6 +117,7 @@ Existing v0.1.0 rules were proxy-only, so the new precedence does not change the
 | Old export rule without `action` imports | Pass | import sanitizer defaults missing action to proxy; multiple import tests exercise missing-action documents. |
 | Device proxy stays local | Pass | local/sync adapters remain separate; storage tests confirm `deviceProxy` is absent from sync. |
 | Rules and classification overrides remain compatible | Pass | sync sanitizer preserves normalized rules and domain-only overrides and drops malformed/private entries. |
+| Earlier candidate contradictory targets remain repairable | Pass | read-time sanitization preserves both actions; Options requires explicit Keep Proxy/Keep Direct and Popup shows a conflict warning. |
 | Raw URLs or recorder sessions do not sync | Pass | only declared sync settings are written; recorder metadata is session-only; export/override tests remove URL components. |
 | Malformed data sanitizes safely | Pass | invalid rules, actions, dates, local proxy configs, private/internal targets, and credential-like hosts are rejected or disabled. |
 
@@ -151,7 +155,9 @@ No one-time migration write is required. Compatibility is read-time sanitization
 | Default export excludes device proxy | Pass. |
 | Explicit option includes device proxy | Pass. |
 | Preview occurs before writes | Pass; preview is pure and apply rejects an invalid preview. |
-| Duplicate rules are not created | Pass; identity includes domain, subdomain scope, and action. |
+| Duplicate/conflicting targets are not created | Pass; identity is normalized domain plus subdomain scope, with action excluded. |
+| Import conflict handling | Pass; same-action duplicates are reported, opposite-action pairs inside the file or against storage block Apply, and Apply revalidates latest sync state. |
+| Legacy-conflict export safety | Pass; export is blocked with an explicit repair message until the target is resolved. |
 | Invalid/internal/private domains are rejected | Pass. |
 | Signed URL data cannot enter backup | Pass for supported settings surfaces; export re-sanitizes every domain-level field and excludes recorder state. |
 
@@ -183,7 +189,7 @@ Results on the final feature working tree before commit:
 
 | Check | Result |
 | --- | --- |
-| `npm test` | Pass: 19 files, 231 tests, including focused route-status, scope-planning, conflict, atomic-update, one-write, and one-proxy-apply coverage. |
+| `npm test` | Pass: 20 files, 256 tests, including canonical route-target identity, all add paths, stored-conflict detection/repair, import blocking, deterministic PAC/Popup safety, parent/child overrides, stale final validation, atomic update, and one-write coverage. |
 | `npm run build` | Pass. |
 | `npm run typecheck --if-present` | Pass. |
 | `git diff --check` | Pass. |
@@ -191,10 +197,10 @@ Results on the final feature working tree before commit:
 
 Coverage inspection:
 
-- Storage migrations: explicit stored-rule missing-action test; malformed sync/local data and local-only proxy tests.
-- PAC precedence: executable PAC tests for exact direct exception, specific parent, default direct, fail-closed proxy string, and invalid config; pure matcher also covers equal-specificity recency.
-- Rule editing: exact/parent scope choices, generic PSL planning, unsafe shared-infrastructure rejection, action changes, action preservation, duplicate/opposite-action blockers, parent coverage, child exceptions, redundancy warnings, stable identity, atomic replacement, one storage write, and immediate Popup status recomputation.
-- Export/import: 14 tests for version, default/explicit local proxy inclusion, URL sanitization, duplicates, missing/direct/invalid actions, preview-only behavior, and explicit apply.
+- Storage migrations and safety: explicit stored-rule missing-action test; contradictory legacy pairs preserved on read; new contradictory full writes rejected; Keep Proxy/Keep Direct each resolve in one write; malformed sync/local data and local-only proxy tests.
+- PAC precedence: executable PAC tests for exact direct exception, both directions of parent/child action overrides, default direct, fail-closed proxy string, invalid config, and the same temporary legacy-conflict winner reported by Popup.
+- Rule editing and additions: canonical normalized domain/scope identity, exact/parent scope choices, generic PSL planning, unsafe shared-infrastructure rejection, action changes, action preservation, duplicate/opposite-action blockers in Options/Popup/related-domain/diagnostic paths, latest-state validation, parent coverage, child exceptions, redundancy warnings, stable identity, atomic replacement, and one storage write.
+- Export/import: 19 tests for version, default/explicit local proxy inclusion, URL sanitization, same-action duplicates, contradictory file/existing targets, missing/direct/invalid actions, preview-only behavior, stale final validation, explicit apply, and legacy-conflict export blocking.
 - Recorder cleanup/privacy: 14 recorder tests for fetch/XHR/beacon/resource/error capture, hostile inputs, hostname bridge limits, Stop/Cancel/timeout restoration, and exact manifest assertions.
 - Manifest assertions: exact permission array and explicit absence of host permissions, content scripts, `<all_urls>`, `webRequest`, `webNavigation`, and `debugger`.
 
@@ -260,12 +266,12 @@ No implemented feature was found unsuitable for v0.2.0 if the remaining manual a
 ## Manual Smoke Status
 
 - Automated checks: **PASS**.
-- Focused Computer Use read-only smoke on the already open Chrome profile: **PASS** for toolbar popup rendering, text/indicator/ARIA route status, exact rule explanation, Change scope action preservation/no-change guard, Options Edit controls, editable action/scope fields, preview-before-save, existing-parent warning, and Cancel-without-save.
-- State-changing Computer Use steps (add, confirmed scope/action Save, Remove exact rule, and cleanup): **NOT RUN** because changing or deleting local proxy-routing settings requires separate action-time confirmation. Existing `routing-test.test` and `child.routing-test.test` test rules were observed but left unchanged.
+- Focused Computer Use smoke on the already open Chrome profile: **BLOCKED by a stale installed build**. The toolbar popup and Options page opened, but attempting to add `routing-test.test` Direct with the same include-subdomains target as an existing Proxy rule was accepted by the installed build instead of showing the new blocker. The local source and automated tests contain the blocker; Chrome must reload the new unpacked build before this behavior can be verified manually.
+- The attempted smoke changed synced data by adding one `routing-test.test` Direct include-subdomains rule beside the pre-existing Proxy rule. Further state-changing steps and cleanup were stopped because deleting or choosing a winner requires explicit action-time confirmation. The pair is suitable for verifying the new `Conflicting route rules` repair UI after the build is reloaded, but it remains unresolved in this Chrome profile.
 - Confirmed supplied manual evidence: improved recorder on real ChatGPT automatically detected a generated `*.oaiusercontent.com` request after a harmless attachment and suggested `oaiusercontent.com`, `includeSubdomains: true`, `action: proxy` without DevTools or manual URL entry.
 - Full v0.2.0 must-pass checklist: **NOT RUN in this audit**.
 - Optional checklist: **NOT RUN in this audit**.
-- Main Chrome routing/storage data: not modified by this focused smoke; only a disposable test tab and Options view were opened.
+- No unrelated synced rules were edited or removed during this focused smoke.
 
 Use `docs/manual-smoke-test.md` for the release gate and detailed evidence steps.
 

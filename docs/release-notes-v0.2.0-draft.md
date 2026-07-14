@@ -12,6 +12,8 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 - Added in-place rule editing for hostname/domain, action, and scope without delete/re-add.
 - Added confirmed, PSL-aware scope expansion with coverage/conflict preview and atomic replacement of the existing rule.
 - Added deterministic routing precedence: exact rules beat parent rules, and the most-specific parent rule wins.
+- Enforced one rule per normalized hostname/scope route target across Options, Popup, diagnostics, related-domain confirmation, storage writes, and import.
+- Added explicit repair UI for contradictory Proxy/Direct pairs created by an earlier candidate build; no stored action is deleted during load or sanitization.
 - Added redundant same-action rule suggestions with no automatic deletion.
 - Added versioned local settings backup and restore with preview before apply.
 - Added optional device proxy export; it remains excluded by default.
@@ -38,6 +40,9 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 - Registrable-parent planning uses bundled PSL-aware logic and does not broaden known shared-infrastructure targets.
 - Broadening shows current/proposed rules, coverage, preserved child exceptions, existing parent coverage, and newly redundant child rules before confirmation.
 - Identical edited targets and same-target opposite-action conflicts block Save. No other rules are silently deleted.
+- Action is not part of route-target identity. Adding the opposite action is blocked with an Edit-existing path, while changing the action of the currently edited rule remains an in-place update.
+- If legacy synced data already contains both actions for one target, Options shows `Keep Proxy` and `Keep Direct`; Popup shows `Conflicting rules` and the deterministic temporary winner until the user resolves it.
+- Legitimate parent/child overrides remain supported in both directions.
 - A confirmed edit replaces one rule in one synced-settings write while preserving stable identity, source, and creation time; the background listener reapplies proxy settings once.
 
 ## Backup and Restore
@@ -45,6 +50,8 @@ Smart Proxy Route Helper v0.2.0 is a compatibility-focused update to the publish
 - Export includes normalized synced rules, route actions, ignored domains, denylist entries, and classification overrides.
 - Local proxy host, port, scheme, and enabled state are excluded unless the user explicitly includes them.
 - Import validates the format, sanitizes values, rejects protected/internal/private domains, reports duplicates, previews changes, and writes only after explicit confirmation.
+- Import blocks contradictory pairs inside the file or against current storage, and revalidates current synced settings immediately before Apply.
+- Export is blocked with a visible repair message while legacy contradictory route targets remain unresolved.
 - Backups do not contain raw URLs, paths, queries, signatures, credentials, collected resource hosts, or recording sessions.
 
 ## Diagnostic Recording

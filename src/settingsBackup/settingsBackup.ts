@@ -3,10 +3,11 @@ import type { UserClassificationOverrides } from "../domainClassification/userCl
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
+import { findRouteTargetConflicts, getRouteTargetKey } from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import { updateLocalSettings } from "../storage/localStore";
 import { sanitizeLocalSettings, sanitizeSyncSettings } from "../storage/sanitize";
-import { setSyncSettings } from "../storage/syncStore";
+import { getSyncSettings, setSyncSettings } from "../storage/syncStore";
 import type {
   DeviceProxySettings,
   LocalSettings,
@@ -87,6 +88,7 @@ type SanitizedDomainList = {
 type SanitizedRuleList = {
   rules: DomainRule[];
   skipped: number;
+  duplicates: number;
 };
 
 type ImportableDeviceProxyResult =
@@ -241,13 +243,15 @@ function sanitizeImportRules(input: unknown, importedAt: string): SanitizedRuleL
   if (!Array.isArray(input)) {
     return {
       rules: [],
-      skipped: input === undefined ? 0 : 1
+      skipped: input === undefined ? 0 : 1,
+      duplicates: 0
     };
   }
 
   const rules: DomainRule[] = [];
   const seenRules = new Set<string>();
   let skipped = 0;
+  let duplicates = 0;
 
   for (const value of input) {
     const rule = sanitizeImportRule(value, importedAt);
@@ -260,7 +264,7 @@ function sanitizeImportRules(input: unknown, importedAt: string): SanitizedRuleL
     const key = ruleKey(rule);
 
     if (seenRules.has(key)) {
-      skipped += 1;
+      duplicates += 1;
       continue;
     }
 
@@ -270,7 +274,8 @@ function sanitizeImportRules(input: unknown, importedAt: string): SanitizedRuleL
 
   return {
     rules,
-    skipped
+    skipped,
+    duplicates
   };
 }
 
@@ -353,8 +358,10 @@ function sanitizeImportedSyncSettings(
     "routeRules" | "ignoredDomains" | "denylist" | "classificationOverrides"
   >;
   warnings: string[];
+  errors: string[];
 } {
   const warnings: string[] = [];
+  const errors: string[] = [];
   const rules = sanitizeImportRules(rawSyncSettings.rules, importedAt);
   const ignoredDomains = sanitizeDomainListForBackup(rawSyncSettings.ignoredDomains);
   const denylist = sanitizeDomainListForBackup(rawSyncSettings.denylist);
@@ -364,7 +371,19 @@ function sanitizeImportedSyncSettings(
   const classificationSkipped = Math.max(0, rawClassificationCount - sanitizedClassificationCount);
 
   if (rules.skipped > 0) {
-    warnings.push(`${rules.skipped} route rule item(s) were skipped because they were invalid, duplicated, or protected.`);
+    warnings.push(`${rules.skipped} route rule item(s) were skipped because they were invalid or protected.`);
+  }
+
+  if (rules.duplicates > 0) {
+    warnings.push(`${rules.duplicates} same-action route rule duplicate(s) were detected in the imported file.`);
+  }
+
+  for (const conflict of findRouteTargetConflicts(rules.rules)) {
+    errors.push(
+      `Imported rules contain both Proxy and Direct for ${conflict.domain}${
+        conflict.includeSubdomains ? " and its subdomains" : " with exact-host scope"
+      }. Choose one action in the import file before applying.`
+    );
   }
 
   if (ignoredDomains.skipped > 0) {
@@ -392,7 +411,7 @@ function sanitizeImportedSyncSettings(
       routeRules: {
         importable: rules.rules.length,
         added: 0,
-        duplicates: 0,
+        duplicates: rules.duplicates,
         skipped: rules.skipped
       },
       ignoredDomains: {
@@ -413,12 +432,13 @@ function sanitizeImportedSyncSettings(
         skipped: classificationSkipped
       }
     },
-    warnings
+    warnings,
+    errors
   };
 }
 
 function ruleKey(rule: Pick<DomainRule, "domain" | "includeSubdomains" | "action">): string {
-  return `${rule.domain}:${String(rule.includeSubdomains)}:${rule.action}`;
+  return `${getRouteTargetKey(rule)}:${rule.action}`;
 }
 
 function mergeRules(
@@ -428,14 +448,28 @@ function mergeRules(
   rules: DomainRule[];
   added: number;
   duplicates: number;
+  conflicts: string[];
 } {
   const nextRules = [...currentRules];
   const seenRules = new Set(currentRules.map(ruleKey));
   let added = 0;
   let duplicates = 0;
+  const conflicts: string[] = [];
 
   for (const rule of importedRules) {
     const key = ruleKey(rule);
+    const targetKey = getRouteTargetKey(rule);
+    const existingTargetRules = nextRules.filter((candidate) => getRouteTargetKey(candidate) === targetKey);
+    const oppositeRule = existingTargetRules.find((candidate) => candidate.action !== rule.action);
+
+    if (oppositeRule) {
+      conflicts.push(
+        `Imported ${rule.action === "proxy" ? "Proxy" : "Direct"} rule conflicts with the existing ${
+          oppositeRule.action === "proxy" ? "Proxy" : "Direct"
+        } rule for ${rule.domain}${rule.includeSubdomains ? " and its subdomains" : " with exact-host scope"}.`
+      );
+      continue;
+    }
 
     if (seenRules.has(key)) {
       duplicates += 1;
@@ -450,7 +484,8 @@ function mergeRules(
   return {
     rules: nextRules,
     added,
-    duplicates
+    duplicates,
+    conflicts
   };
 }
 
@@ -537,12 +572,18 @@ export function buildSettingsExportDocument(
   options: SettingsExportOptions = {}
 ): SettingsExportDocument {
   const exportedAt = options.exportedAt ?? new Date().toISOString();
+  const sanitizedSyncSettings = sanitizeExportSyncSettings(syncSettings);
+
+  if (findRouteTargetConflicts(sanitizedSyncSettings.rules).length > 0) {
+    throw new Error("Resolve conflicting route rules before exporting settings. No backup was generated.");
+  }
+
   const document: SettingsExportDocument = {
     format: settingsExportFormat,
     version: settingsExportVersion,
     exportedAt,
     data: {
-      syncSettings: sanitizeExportSyncSettings(syncSettings)
+      syncSettings: sanitizedSyncSettings
     }
   };
 
@@ -635,6 +676,14 @@ export function previewSettingsImport(
     importedSync.settings.classificationOverrides
   );
   const warnings = [...importedSync.warnings];
+  const importErrors = [...importedSync.errors];
+  const currentConflicts = findRouteTargetConflicts(currentSync.rules);
+
+  if (currentConflicts.length > 0) {
+    importErrors.push("Resolve the existing conflicting route rules before applying an import.");
+  }
+
+  importErrors.push(...mergedRules.conflicts);
   let nextLocalSettings: LocalSettings | null = null;
 
   if ("localSettings" in parsed.data) {
@@ -659,7 +708,7 @@ export function previewSettingsImport(
   summary.routeRules = {
     ...importedSync.summary.routeRules,
     added: mergedRules.added,
-    duplicates: mergedRules.duplicates
+    duplicates: importedSync.summary.routeRules.duplicates + mergedRules.duplicates
   };
   summary.ignoredDomains = {
     ...importedSync.summary.ignoredDomains,
@@ -675,6 +724,15 @@ export function previewSettingsImport(
     ...importedSync.summary.classificationOverrides,
     addedOrUpdated: mergedClassificationOverrides.addedOrUpdated
   };
+
+  if (importErrors.length > 0) {
+    return {
+      ok: false,
+      summary,
+      warnings,
+      errors: [...new Set(importErrors)]
+    };
+  }
 
   return {
     ok: true,
@@ -703,7 +761,40 @@ export async function applySettingsImportPreview(
     throw new Error("Preview a valid settings import before applying it.");
   }
 
-  const syncSettings = await setSyncSettings(preview.nextSyncSettings, adapters.syncStorage);
+  const currentSyncSettings = await getSyncSettings(adapters.syncStorage);
+  const currentConflicts = findRouteTargetConflicts(currentSyncSettings.rules);
+
+  if (currentConflicts.length > 0) {
+    throw new Error("Resolve the existing conflicting route rules, then preview the import again.");
+  }
+
+  const mergedRules = mergeRules(currentSyncSettings.rules, preview.importedSyncSettings.rules);
+
+  if (mergedRules.conflicts.length > 0) {
+    throw new Error("Synced route rules changed after preview. Preview the import again before applying it.");
+  }
+
+  const mergedIgnoredDomains = mergeDomainLists(
+    currentSyncSettings.ignoredDomains,
+    preview.importedSyncSettings.ignoredDomains
+  );
+  const mergedDenylist = mergeDomainLists(currentSyncSettings.denylist, preview.importedSyncSettings.denylist);
+  const mergedClassificationOverrides = mergeClassificationOverrides(
+    currentSyncSettings.classificationOverrides,
+    preview.importedSyncSettings.classificationOverrides
+  );
+  const finalSyncSettings = sanitizeSyncSettings({
+    rules: mergedRules.rules,
+    ignoredDomains: mergedIgnoredDomains.domains,
+    denylist: mergedDenylist.domains,
+    classificationOverrides: mergedClassificationOverrides.classificationOverrides
+  });
+
+  if (JSON.stringify(finalSyncSettings) !== JSON.stringify(preview.nextSyncSettings)) {
+    throw new Error("Synced settings changed after preview. Preview the import again before applying it.");
+  }
+
+  const syncSettings = await setSyncSettings(finalSyncSettings, adapters.syncStorage);
   const localSettings =
     preview.nextLocalSettings === null
       ? null

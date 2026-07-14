@@ -1,6 +1,10 @@
 import { checkDenylistedHost } from "../rules/denylist";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
+import {
+  checkRouteTargetAddition,
+  findRouteTargetConflictForRule
+} from "../rules/routeTarget";
 import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
 import {
   getRuleScopeOptions,
@@ -44,7 +48,7 @@ import type {
   RelatedDomainRouteTargetReason
 } from "../diagnostics/relatedDomainCandidates";
 import { getLocalSettings } from "../storage/localStore";
-import { getSyncSettings, updateSyncRule, updateSyncSettings } from "../storage/syncStore";
+import { addSyncRules, getSyncSettings, updateSyncRule, updateSyncSettings } from "../storage/syncStore";
 import type { DeviceProxySettings, SyncSettings } from "../storage/storageTypes";
 
 type MessageKind = "success" | "error" | "neutral";
@@ -77,6 +81,13 @@ export type PopupRuleStatus =
       message: string;
     }
   | {
+      state: "conflict";
+      effectiveRule: DomainRule;
+      matchType: "exact" | "parent";
+      action: RuleAction;
+      message: string;
+    }
+  | {
       state: "none";
       message: string;
     };
@@ -87,12 +98,13 @@ export type PopupRouteState =
   | "direct_exact"
   | "direct_parent"
   | "default_direct"
+  | "conflict"
   | "blocked";
 
 export type PopupRouteStatusView = {
   routeState: PopupRouteState;
   appearance: "proxy" | "direct" | "not-configured" | "warning" | "blocked";
-  label: "Through proxy" | "Direct" | "Not configured" | "Proxy unavailable" | "Unavailable";
+  label: "Through proxy" | "Direct" | "Not configured" | "Proxy unavailable" | "Conflicting rules" | "Unavailable";
   explanation: string;
   ariaLabel: string;
 };
@@ -110,6 +122,8 @@ export type AddCurrentSiteRuleResult =
   | {
       ok: false;
       error: string;
+      reason?: "conflict";
+      existingRule?: DomainRule;
     };
 
 export type RemoveCurrentSiteRuleResult = {
@@ -339,10 +353,6 @@ function findCoveringRouteTargetRule(
   return rules.find((rule) => routeTargetCoveredByRule(domain, includeSubdomains, action, rule));
 }
 
-function exactRuleIndexForDomain(domain: string, rules: readonly DomainRule[]): number {
-  return rules.findIndex((rule) => normalizeKnownDomain(rule.domain) === domain);
-}
-
 function ruleActionLabel(action: RuleAction): string {
   return action === "direct" ? "direct" : "proxy";
 }
@@ -526,6 +536,22 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
 
   const effectiveRule = findEffectiveDomainRule(domain, settings.rules);
 
+  if (effectiveRule) {
+    const conflict = findRouteTargetConflictForRule(settings.rules, effectiveRule.rule);
+
+    if (conflict) {
+      const action = effectiveRule.rule.action;
+
+      return {
+        state: "conflict",
+        effectiveRule: effectiveRule.rule,
+        matchType: effectiveRule.type,
+        action,
+        message: `Conflicting rules. ${ruleActionDisplayLabel(action)} is currently effective, but this configuration must be resolved in Options.`
+      };
+    }
+  }
+
   if (effectiveRule?.type === "exact") {
     const action = effectiveRule.rule.action;
 
@@ -593,6 +619,23 @@ export function getPopupRouteStatusView(
       label,
       explanation,
       ariaLabel: `${label}. ${explanation}`
+    };
+  }
+
+  if (status.state === "conflict") {
+    const label = "Conflicting rules" as const;
+    const routeSource =
+      status.matchType === "exact"
+        ? `the exact target ${status.effectiveRule.domain}`
+        : `parent target ${status.effectiveRule.domain}`;
+    const explanation = `${ruleActionDisplayLabel(status.action)} is currently effective through ${routeSource}. Resolve this configuration in Options.`;
+
+    return {
+      routeState: "conflict",
+      appearance: "warning",
+      label,
+      explanation,
+      ariaLabel: `Warning: ${label}. ${explanation}`
     };
   }
 
@@ -666,11 +709,26 @@ export function addCurrentSiteRule(
 
   const target = suggestedCurrentSiteRuleTarget(normalized.domain);
 
-  if (
-    currentRules.some(
-      (rule) => rule.domain === target.domain && rule.includeSubdomains === target.includeSubdomains && rule.action === action
-    )
-  ) {
+  const proposedRule: DomainRule = {
+    domain: target.domain,
+    includeSubdomains: target.includeSubdomains,
+    action,
+    mode: "proxy",
+    source,
+    createdAt
+  };
+  const targetCheck = checkRouteTargetAddition(currentRules, proposedRule);
+
+  if (targetCheck.status === "conflict") {
+    return {
+      ok: false,
+      reason: "conflict",
+      existingRule: targetCheck.existingRule,
+      error: `A ${ruleActionDisplayLabel(targetCheck.existingRule.action)} rule already exists for this hostname and scope. Edit existing rule instead.`
+    };
+  }
+
+  if (targetCheck.status === "duplicate") {
     return {
       ok: true,
       status: "duplicate",
@@ -700,14 +758,7 @@ export function addCurrentSiteRule(
     status: "added",
     rules: [
       ...currentRules,
-      {
-        domain: target.domain,
-        includeSubdomains: target.includeSubdomains,
-        action,
-        mode: "proxy",
-        source,
-        createdAt
-      }
+      proposedRule
     ],
     domain: target.domain,
     action,
@@ -751,6 +802,13 @@ export function getDiagnosticActionStatus(
   domain: string,
   routeStatus: PopupRuleStatus
 ): DiagnosticActionStatus {
+  if (routeStatus.state === "conflict") {
+    return {
+      message: "Resolve the conflicting route rules in Options before adding a diagnostic rule.",
+      kind: "error"
+    };
+  }
+
   if (diagnostic.status === "proxy_reachable") {
     if (
       routeStatus.state === "none" ||
@@ -1110,24 +1168,6 @@ export function addSelectedRelatedDomainRules(
       continue;
     }
 
-    const exactRuleIndex = exactRuleIndexForDomain(domain, rules);
-
-    if (
-      candidate.includeSubdomains &&
-      exactRuleIndex >= 0 &&
-      rules[exactRuleIndex].action === "proxy" &&
-      !rules[exactRuleIndex].includeSubdomains
-    ) {
-      const updatedRule: DomainRule = {
-        ...rules[exactRuleIndex],
-        includeSubdomains: true
-      };
-
-      rules[exactRuleIndex] = updatedRule;
-      addedRules.push(updatedRule);
-      continue;
-    }
-
     const rule: DomainRule = {
       domain,
       includeSubdomains: candidate.includeSubdomains,
@@ -1136,6 +1176,19 @@ export function addSelectedRelatedDomainRules(
       source,
       createdAt
     };
+    const targetCheck = checkRouteTargetAddition(rules, rule);
+
+    if (targetCheck.status === "conflict") {
+      return {
+        ok: false,
+        error: `A ${ruleActionDisplayLabel(targetCheck.existingRule.action)} rule already exists for ${domain} with the same scope. Edit existing rule instead.`
+      };
+    }
+
+    if (targetCheck.status === "duplicate") {
+      skippedDomains.push(domain);
+      continue;
+    }
 
     rules.push(rule);
     addedRules.push(rule);
@@ -1640,8 +1693,14 @@ function renderSupported(domain: string, settings: SyncSettings): void {
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), status.state === "exact");
   setButtonVisible(getElement<HTMLButtonElement>("#change-current-site-scope"), status.state === "exact");
   getElement<HTMLElement>("#quick-action-scope-copy").hidden = !showProxyAction && !showDirectAction;
-  setButtonVisible(getElement<HTMLButtonElement>("#check-via-proxy"), status.state !== "blocked");
-  setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), status.state !== "blocked");
+  setButtonVisible(
+    getElement<HTMLButtonElement>("#check-via-proxy"),
+    status.state !== "blocked" && status.state !== "conflict"
+  );
+  setButtonVisible(
+    getElement<HTMLButtonElement>("#preview-related-domains"),
+    status.state !== "blocked" && status.state !== "conflict"
+  );
 }
 
 async function refreshPopup(): Promise<CurrentTabDomainResult> {
@@ -1695,9 +1754,22 @@ async function handleAddCurrentSite(action: RuleAction): Promise<void> {
     return;
   }
 
-  const updated = await updateSyncSettings({
-    rules: addResult.rules
-  });
+  const proposedRule = addResult.rules[current.rules.length];
+  const finalAdd = await addSyncRules([proposedRule]);
+
+  if (!finalAdd.ok) {
+    renderSupported(result.domain, finalAdd.settings);
+    setStatus(actionStatus, finalAdd.error, "error");
+    return;
+  }
+
+  const updated = finalAdd.settings;
+
+  if (finalAdd.addedRules.length === 0) {
+    renderSupported(result.domain, updated);
+    setStatus(actionStatus, `${addResult.domain} already has that synced ${ruleActionLabel(action)} rule.`, "neutral");
+    return;
+  }
 
   renderSupported(result.domain, updated);
   setStatus(actionStatus, `Added synced ${ruleActionLabel(action)} route for ${addResult.domain}.`, "success");
@@ -2221,9 +2293,15 @@ async function handleAddSelectedRelatedDomains(): Promise<void> {
     return;
   }
 
-  const updated = await updateSyncSettings({
-    rules: addResult.rules
-  });
+  const finalAdd = await addSyncRules(addResult.addedRules);
+
+  if (!finalAdd.ok) {
+    renderSupported(currentResult.domain, finalAdd.settings);
+    setStatus(actionStatus, finalAdd.error, "error");
+    return;
+  }
+
+  const updated = finalAdd.settings;
 
   renderSupported(currentResult.domain, updated);
   setStatus(actionStatus, saveStatus.message, saveStatus.kind);
@@ -2271,9 +2349,22 @@ async function handleSaveDiagnosticRule(): Promise<void> {
     return;
   }
 
-  const updated = await updateSyncSettings({
-    rules: addResult.rules
-  });
+  const proposedRule = addResult.rules[current.rules.length];
+  const finalAdd = await addSyncRules([proposedRule]);
+
+  if (!finalAdd.ok) {
+    renderSupported(domain, finalAdd.settings);
+    setStatus(actionStatus, finalAdd.error, "error");
+    return;
+  }
+
+  const updated = finalAdd.settings;
+
+  if (finalAdd.addedRules.length === 0) {
+    renderSupported(domain, updated);
+    setStatus(actionStatus, `${addResult.domain} already has that synced proxy rule.`, "neutral");
+    return;
+  }
 
   renderSupported(domain, updated);
   setStatus(actionStatus, `Added synced proxy route for ${addResult.domain}.`, "success");

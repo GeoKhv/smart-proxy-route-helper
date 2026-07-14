@@ -5,6 +5,7 @@ import {
 import { checkDenylistedHost } from "./denylist";
 import { domainMatchesRule } from "./domainMatcher";
 import { normalizeDomain } from "./normalizeDomain";
+import { sameRouteTarget } from "./routeTarget";
 import type { DomainRule, RuleAction } from "./ruleTypes";
 
 export type RuleScope = "exact" | "hostname-and-subdomains" | "registrable-domain-and-subdomains";
@@ -73,13 +74,6 @@ function normalizedRuleDomain(rule: Pick<DomainRule, "domain">): string {
 
 function actionLabel(action: RuleAction): string {
   return action === "proxy" ? "Proxy" : "Direct";
-}
-
-function exactTargetMatches(
-  first: Pick<DomainRule, "domain" | "includeSubdomains">,
-  second: Pick<DomainRule, "domain" | "includeSubdomains">
-): boolean {
-  return normalizedRuleDomain(first) === normalizedRuleDomain(second) && first.includeSubdomains === second.includeSubdomains;
 }
 
 function ruleCoversTarget(coveringRule: DomainRule, targetRule: DomainRule): boolean {
@@ -179,7 +173,7 @@ function isBroaderThan(currentRule: DomainRule, proposedRule: DomainRule): boole
     return true;
   }
 
-  return domainMatchesRule(currentRule.domain, proposedRule) && !exactTargetMatches(currentRule, proposedRule);
+  return domainMatchesRule(currentRule.domain, proposedRule) && !sameRouteTarget(currentRule, proposedRule);
 }
 
 function coveragePreview(currentRule: DomainRule, proposedRule: DomainRule, isBroadening: boolean): string[] {
@@ -213,7 +207,7 @@ function buildConflictWarnings(
   }
 
   rules.forEach((rule, index) => {
-    if (index === currentIndex || exactTargetMatches(rule, proposedRule)) {
+    if (index === currentIndex || sameRouteTarget(rule, proposedRule)) {
       return;
     }
 
@@ -260,7 +254,7 @@ function targetConflict(
   currentIndex: number,
   proposedRule: DomainRule
 ): { ok: false; error: string; reason: "duplicate" | "conflict" } | null {
-  const matchingRule = rules.find((rule, index) => index !== currentIndex && exactTargetMatches(rule, proposedRule));
+  const matchingRule = rules.find((rule, index) => index !== currentIndex && sameRouteTarget(rule, proposedRule));
 
   if (!matchingRule) {
     return null;

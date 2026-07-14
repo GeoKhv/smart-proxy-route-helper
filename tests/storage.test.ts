@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { getLocalSettings, setLocalSettings, updateLocalSettings } from "../src/storage/localStore";
-import { getSyncSettings, setSyncSettings, updateSyncRule, updateSyncSettings } from "../src/storage/syncStore";
+import {
+  addSyncRules,
+  getSyncSettings,
+  resolveSyncRouteTargetConflict,
+  setSyncSettings,
+  updateSyncRule,
+  updateSyncSettings
+} from "../src/storage/syncStore";
+import { getRouteTargetKey } from "../src/rules/routeTarget";
 import type { StorageAreaAdapter } from "../src/storage/storageTypes";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
@@ -62,6 +70,13 @@ function manualRule(domain: string, includeSubdomains = true): DomainRule {
   };
 }
 
+function directRule(domain: string, includeSubdomains = true): DomainRule {
+  return {
+    ...manualRule(domain, includeSubdomains),
+    action: "direct"
+  };
+}
+
 describe("sync storage settings", () => {
   it("reads safe defaults from empty storage", async () => {
     await expect(getSyncSettings(createMemoryStorage())).resolves.toEqual({
@@ -101,6 +116,14 @@ describe("sync storage settings", () => {
     );
 
     expect(settings.rules).toEqual([manualRule("example.com", true)]);
+  });
+
+  it("preserves contradictory stored rules for explicit repair instead of deleting either action", async () => {
+    const proxy = manualRule("routing-test.test", true);
+    const direct = directRule("routing-test.test", true);
+    const settings = await getSyncSettings(createMemoryStorage({ rules: [proxy, direct] }));
+
+    expect(settings.rules).toEqual([proxy, direct]);
   });
 
   it("filters invalid or internally protected rules", async () => {
@@ -247,6 +270,38 @@ describe("sync storage settings", () => {
     expect(storage.dump()).toEqual(updatedSettings);
   });
 
+  it("allows unrelated sync updates while preserving a legacy conflict byte-for-byte", async () => {
+    const proxy = { ...manualRule("routing-test.test", true), id: "proxy" };
+    const direct = {
+      ...directRule("routing-test.test", true),
+      id: "direct",
+      createdAt: "2026-07-13T10:01:00.000Z"
+    };
+    const storage = createMemoryStorage({ rules: [proxy, direct] });
+
+    const result = await updateSyncSettings({ ignoredDomains: ["ignored.example"] }, storage);
+
+    expect(result.rules).toEqual([proxy, direct]);
+    expect(storage.dump().rules).toEqual([proxy, direct]);
+    expect(storage.setCount()).toBe(1);
+  });
+
+  it("rejects generic updates that reorder or mutate a legacy conflict", async () => {
+    const proxy = { ...manualRule("routing-test.test", true), id: "proxy" };
+    const direct = {
+      ...directRule("routing-test.test", true),
+      id: "direct",
+      createdAt: "2026-07-13T10:01:00.000Z"
+    };
+    const storage = createMemoryStorage({ rules: [proxy, direct] });
+
+    await expect(updateSyncSettings({ rules: [direct, proxy] }, storage)).rejects.toThrow(
+      "Use Keep Proxy or Keep Direct"
+    );
+    expect(storage.dump().rules).toEqual([proxy, direct]);
+    expect(storage.setCount()).toBe(0);
+  });
+
   it("updates a rule atomically with one storage write and preserves its stable metadata", async () => {
     const currentRule = {
       ...manualRule("child.example.com", false),
@@ -297,6 +352,95 @@ describe("sync storage settings", () => {
     });
     expect(storage.setCount()).toBe(1);
     expect(result.settings.rules).toHaveLength(2);
+  });
+
+  it("changes actions in place while preserving the same ID, source, and createdAt", async () => {
+    const currentRule = { ...manualRule("routing-test.test", true), id: "route-action" };
+    const storage = createMemoryStorage({ rules: [currentRule] });
+    const toDirect = await updateSyncRule(
+      currentRule.id,
+      { domain: currentRule.domain, includeSubdomains: true, action: "direct" },
+      storage
+    );
+
+    expect(toDirect).toMatchObject({
+      ok: true,
+      updatedRule: {
+        id: "route-action",
+        action: "direct",
+        source: "manual",
+        createdAt
+      }
+    });
+
+    const toProxy = await updateSyncRule(
+      currentRule.id,
+      { domain: currentRule.domain, includeSubdomains: true, action: "proxy" },
+      storage
+    );
+
+    expect(toProxy).toMatchObject({
+      ok: true,
+      updatedRule: { id: "route-action", action: "proxy" }
+    });
+    expect(storage.setCount()).toBe(2);
+    expect(storage.dump().rules).toHaveLength(1);
+  });
+
+  it("validates additions against the latest stored rules immediately before one final write", async () => {
+    const existing = directRule("routing-test.test", false);
+    const storage = createMemoryStorage({ rules: [existing] });
+    const proposed = manualRule("routing-test.test", false);
+    const result = await addSyncRules([proposed], storage);
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "conflict",
+      existingRule: existing,
+      proposedRule: proposed
+    });
+    expect(storage.setCount()).toBe(0);
+    expect(storage.dump().rules).toEqual([existing]);
+  });
+
+  it("blocks a stale edit when another rule ID now occupies the proposed target", async () => {
+    const editedRule = { ...manualRule("child.example.com", false), id: "edited" };
+    const latestOccupant = {
+      ...directRule("routing-test.test", true),
+      id: "latest-occupant",
+      createdAt: "2026-07-13T10:01:00.000Z"
+    };
+    const storage = createMemoryStorage({ rules: [editedRule, latestOccupant] });
+    const result = await updateSyncRule(
+      editedRule.id,
+      { domain: "routing-test.test", includeSubdomains: true, action: "proxy" },
+      storage
+    );
+
+    expect(result).toMatchObject({ ok: false });
+
+    if (result.ok) {
+      throw new Error("Expected the stale rule edit to be blocked.");
+    }
+
+    expect(result.error).toContain("opposite-action Direct rule already exists");
+    expect(storage.setCount()).toBe(0);
+    expect(storage.dump().rules).toEqual([editedRule, latestOccupant]);
+  });
+
+  it.each(["proxy", "direct"] as const)("resolves a stored conflict by keeping %s in one write", async (action) => {
+    const proxy = { ...manualRule("routing-test.test", true), id: "proxy" };
+    const direct = { ...directRule("routing-test.test", true), id: "direct" };
+    const storage = createMemoryStorage({ rules: [proxy, direct] });
+    const result = await resolveSyncRouteTargetConflict(getRouteTargetKey(proxy), action, storage);
+
+    expect(result).toMatchObject({
+      ok: true,
+      keptRule: action === "proxy" ? proxy : direct,
+      removedRules: [action === "proxy" ? direct : proxy]
+    });
+    expect(storage.setCount()).toBe(1);
+    expect(storage.dump().rules).toEqual([action === "proxy" ? proxy : direct]);
   });
 });
 
@@ -469,5 +613,22 @@ describe("storage writes", () => {
         }
       }
     });
+  });
+
+  it("rejects a new contradictory full write instead of silently retaining both actions", async () => {
+    const storage = createMemoryStorage();
+
+    await expect(
+      setSyncSettings(
+        {
+          rules: [manualRule("routing-test.test", true), directRule("routing-test.test", true)],
+          ignoredDomains: [],
+          denylist: [],
+          classificationOverrides: { global: {}, site: {} }
+        },
+        storage
+      )
+    ).rejects.toThrow("Conflicting route rules must be resolved explicitly");
+    expect(storage.setCount()).toBe(0);
   });
 });

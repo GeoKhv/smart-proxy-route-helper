@@ -257,6 +257,26 @@
         font-weight: 600;
       }
 
+      .conflict-panel {
+        margin-top: 18px;
+        padding: 16px;
+        border: 2px solid #b54708;
+        border-radius: 8px;
+        background: color-mix(in srgb, #b54708 8%, Canvas);
+      }
+
+      .conflict-panel[hidden] {
+        display: none;
+      }
+
+      .conflict-panel h3 {
+        color: #b54708;
+      }
+
+      .conflict-item {
+        border-color: color-mix(in srgb, #b54708 52%, Canvas);
+      }
+
       @media (max-width: 720px) {
         .grid,
         .rule-item {
@@ -348,6 +368,17 @@
           </div>
         </form>
         <p class="status" id="rule-status" aria-live="polite"></p>
+
+        <div class="conflict-panel" id="route-rule-conflicts" role="alert" hidden>
+          <h3>Conflicting route rules</h3>
+          <p>
+            Both Proxy and Direct are configured for the same hostname and scope. Choose the one route that should
+            remain; nothing is removed automatically.
+          </p>
+          <ul class="rule-list" id="route-rule-conflict-list"></ul>
+          <p class="status" id="route-rule-conflict-status" aria-live="polite"></p>
+        </div>
+
         <ul class="rule-list" id="rule-list"></ul>
 
         <div class="rule-editor" id="rule-editor" aria-labelledby="rule-editor-title" hidden>

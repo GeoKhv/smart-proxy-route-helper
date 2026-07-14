@@ -182,6 +182,17 @@ describe("settings export", () => {
     expect(document.data.syncSettings.rules).toEqual([directRule("www.example.com", false)]);
   });
 
+  it("blocks export while contradictory stored route targets remain unresolved", () => {
+    expect(() =>
+      serializeSettingsExport(
+        syncSettings({
+          rules: [manualRule("routing-test.test", true), directRule("routing-test.test", true)]
+        }),
+        localSettings()
+      )
+    ).toThrow("Resolve conflicting route rules before exporting settings");
+  });
+
   it("exports domain-level settings without raw URLs or diagnostic session data", () => {
     const exportText = serializeSettingsExport(
       syncSettings({
@@ -377,6 +388,89 @@ describe("settings import preview", () => {
       "track.example": "ignored"
     });
     expect(preview.summary.classificationOverrides.addedOrUpdated).toBe(1);
+  });
+
+  it("detects a contradictory pair inside the imported file and blocks Apply", () => {
+    const preview = previewSettingsImport(
+      exportJson({
+        syncSettings: {
+          rules: [
+            {
+              domain: "routing-test.test",
+              includeSubdomains: true,
+              action: "proxy",
+              mode: "proxy"
+            },
+            {
+              domain: "ROUTING-TEST.TEST.",
+              includeSubdomains: true,
+              action: "direct",
+              mode: "proxy"
+            }
+          ]
+        }
+      }),
+      syncSettings(),
+      localSettings(),
+      importedAt
+    );
+
+    expect(preview).toMatchObject({ ok: false });
+    expect(preview.errors.join(" ")).toContain("both Proxy and Direct for routing-test.test and its subdomains");
+  });
+
+  it("detects an imported rule that conflicts with an existing stored target", () => {
+    const preview = previewSettingsImport(
+      exportJson({
+        syncSettings: {
+          rules: [
+            {
+              domain: "routing-test.test",
+              includeSubdomains: false,
+              action: "direct",
+              mode: "proxy"
+            }
+          ]
+        }
+      }),
+      syncSettings({ rules: [manualRule("routing-test.test", false)] }),
+      localSettings(),
+      importedAt
+    );
+
+    expect(preview).toMatchObject({ ok: false });
+    expect(preview.errors.join(" ")).toContain("conflicts with the existing Proxy rule");
+  });
+
+  it("reports same-action duplicates inside the imported file without retaining both", () => {
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [
+              {
+                domain: "routing-test.test",
+                includeSubdomains: true,
+                action: "proxy",
+                mode: "proxy"
+              },
+              {
+                domain: "ROUTING-TEST.TEST.",
+                includeSubdomains: true,
+                action: "proxy",
+                mode: "proxy"
+              }
+            ]
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+
+    expect(preview.summary.routeRules).toMatchObject({ importable: 1, added: 1, duplicates: 1 });
+    expect(preview.nextSyncSettings.rules).toHaveLength(1);
   });
 
   it("imports direct actions and rejects malformed action values", () => {
@@ -636,5 +730,34 @@ describe("settings import apply", () => {
     expect(syncStorage.dump()).toEqual({
       rules: [manualRule("existing.example")]
     });
+  });
+
+  it("revalidates against latest stored rules and blocks a stale conflicting Apply", async () => {
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [
+              {
+                domain: "routing-test.test",
+                includeSubdomains: false,
+                action: "proxy",
+                mode: "proxy"
+              }
+            ]
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+    const latestDirect = directRule("routing-test.test", false);
+    const syncStorage = createMemoryStorage({ rules: [latestDirect] });
+
+    await expect(applySettingsImportPreview(preview, { syncStorage })).rejects.toThrow(
+      "Synced route rules changed after preview"
+    );
+    expect(syncStorage.dump()).toEqual({ rules: [latestDirect] });
   });
 });

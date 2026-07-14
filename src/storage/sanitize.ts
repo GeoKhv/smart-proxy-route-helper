@@ -3,6 +3,7 @@ import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
 import { isDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
+import { getRouteTargetKey } from "../rules/routeTarget";
 import { createDefaultLocalSettings, createDefaultSyncSettings } from "./defaults";
 import type { DeviceProxySettings, DiagnosticsSettings, LocalSettings, SyncSettings } from "./storageTypes";
 
@@ -102,7 +103,7 @@ function sanitizeRules(input: unknown): DomainRule[] {
       continue;
     }
 
-    const key = `${rule.domain}:${String(rule.includeSubdomains)}:${rule.action}`;
+    const key = `${getRouteTargetKey(rule)}:${rule.action}`;
 
     if (seenRules.has(key)) {
       continue;

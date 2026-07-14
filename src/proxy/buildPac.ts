@@ -1,4 +1,5 @@
 import { normalizeDomain } from "../rules/normalizeDomain";
+import { getRouteTargetKey } from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import { buildPacProxyString, type LocalProxyConfigValidationError } from "./proxyConfig";
 
@@ -48,7 +49,10 @@ function serializePacRules(rules: readonly PacDomainRule[]): SerializedPacRule[]
     }
 
     const action = rule.action === "direct" ? "direct" : "proxy";
-    const key = `${normalizedRule.domain}:${String(rule.includeSubdomains)}:${action}`;
+    const key = `${getRouteTargetKey({
+      domain: normalizedRule.domain,
+      includeSubdomains: rule.includeSubdomains
+    })}:${action}`;
 
     if (seenDomains.has(key)) {
       continue;

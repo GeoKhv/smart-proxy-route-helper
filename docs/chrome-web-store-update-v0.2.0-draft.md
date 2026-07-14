@@ -4,7 +4,7 @@ Draft only. This file is repository preparation, not Dashboard state. Do not upl
 
 ## Draft What's New
 
-Version 0.2.0 adds prominent current-route status, exact-host Popup actions, editable proxy/direct rules with confirmed PSL-aware scope expansion, deterministic precedence, safe redundant-rule cleanup suggestions, local settings backup and restore, a stable-ID local build workflow, and improved automatic action-specific hostname recording. Recording remains user-invoked, temporary, hostname-only, and unable to create rules automatically.
+Version 0.2.0 adds prominent current-route status, exact-host Popup actions, editable proxy/direct rules with one rule per normalized hostname/scope target, explicit repair for legacy contradictory targets, confirmed PSL-aware scope expansion, deterministic precedence, safe redundant-rule cleanup suggestions, local settings backup and restore, a stable-ID local build workflow, and improved automatic action-specific hostname recording. Recording remains user-invoked, temporary, hostname-only, and unable to create rules automatically.
 
 ## Store Listing Changes Needed
 
@@ -14,6 +14,7 @@ Keep the current name and short description. Update the detailed description's f
 - Prominent Proxy, explicit Direct, and unconfigured default-Direct Popup states with exact/parent explanations and accessible text labels.
 - Exact-host-only Popup quick actions plus explicit Change scope confirmation.
 - In-place rule editing and safe PSL-aware parent-domain expansion with coverage/conflict preview.
+- Same-target Proxy/Direct creation blockers plus explicit `Keep Proxy` / `Keep Direct` repair for contradictory data created by an earlier candidate build.
 - Exact-over-parent and most-specific-parent precedence.
 - Explicit redundant-rule cleanup suggestions with no automatic removal.
 - Versioned local settings export/import with preview before apply.
@@ -29,6 +30,8 @@ Remove or replace wording that describes routing rules as proxy-only, treats rec
 New in version 0.2.0:
 
 - Choose proxy or direct routing for each domain rule.
+- Keep one rule per normalized hostname and scope; change an existing rule's action instead of creating a contradictory sibling.
+- Repair legacy contradictory targets explicitly without silent deletion.
 - See the effective route at a glance while keeping explicit Direct distinct from the unconfigured default direct route.
 - Edit an existing rule or broaden its scope after reviewing exactly which hostnames will be covered.
 - Use deterministic exact and parent-rule precedence for predictable exceptions.

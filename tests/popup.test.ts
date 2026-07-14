@@ -212,6 +212,34 @@ describe("popup rule status helpers", () => {
     });
   });
 
+  it("shows unresolved same-target actions as a conflict while preserving the deterministic winner", () => {
+    const proxy = {
+      ...manualRule("routing-test.test", true),
+      createdAt: "2026-07-13T10:00:00.000Z"
+    };
+    const direct = {
+      ...directRule("routing-test.test", true),
+      createdAt: "2026-07-13T10:01:00.000Z"
+    };
+    const settings = { rules: [proxy, direct], denylist: [] };
+
+    expect(getPopupRuleStatus("child.routing-test.test", settings)).toMatchObject({
+      state: "conflict",
+      action: "direct",
+      effectiveRule: direct,
+      matchType: "parent"
+    });
+    expect(getPopupRouteStatusView("child.routing-test.test", settings, availableLocalProxy)).toEqual({
+      routeState: "conflict",
+      appearance: "warning",
+      label: "Conflicting rules",
+      explanation:
+        "Direct is currently effective through parent target routing-test.test. Resolve this configuration in Options.",
+      ariaLabel:
+        "Warning: Conflicting rules. Direct is currently effective through parent target routing-test.test. Resolve this configuration in Options."
+    });
+  });
+
   it("refreshes from exact Proxy to parent-covered Proxy immediately after atomic scope expansion", () => {
     const exactRule = {
       ...manualRule("child.example.com", false),
@@ -303,6 +331,21 @@ describe("popup add current site rule helper", () => {
       action: "proxy",
       includeSubdomains: false,
       rules
+    });
+  });
+
+  it("does not append an opposite action for an existing exact route target", () => {
+    const existing = directRule("routing-test.test", false);
+
+    expect(addCurrentSiteRule([existing], "routing-test.test", createdAt, "manual", "proxy")).toMatchObject({
+      ok: false,
+      reason: "conflict",
+      existingRule: existing,
+      error: "A Direct rule already exists for this hostname and scope. Edit existing rule instead."
+    });
+    expect(addCurrentSiteRule([existing], "routing-test.test", createdAt, "diagnostic", "proxy")).toMatchObject({
+      ok: false,
+      reason: "conflict"
     });
   });
 
@@ -1490,6 +1533,46 @@ describe("popup related-domain selected save helper", () => {
     });
   });
 
+  it("blocks related-domain confirmation when the target has the opposite action", () => {
+    const existing = directRule("assets.example.net", false);
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "1 public resource host checked for related-domain preview. No rules were saved.",
+        currentDomain: "example.com",
+        collectedHosts: ["assets.example.net"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [],
+          mediumCandidates: [
+            {
+              domain: "assets.example.net",
+              reason: "third-party-resource",
+              sourceHosts: ["assets.example.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [existing], denylist: [] }
+    );
+
+    expect(
+      addSelectedRelatedDomainRules(
+        { rules: [existing], denylist: [] },
+        view.candidates,
+        new Set(["assets.example.net"]),
+        createdAt
+      )
+    ).toMatchObject({
+      ok: false,
+      error: "A Direct rule already exists for assets.example.net with the same scope. Edit existing rule instead."
+    });
+  });
+
   it("does not save already-covered candidates even if a caller selects them", () => {
     const view = buildRelatedDomainPopupView(
       {
@@ -1687,7 +1770,7 @@ describe("popup runtime boundaries", () => {
 
     expect(previewHandler).not.toContain("updateSyncSettings");
     expect(previewHandler).not.toContain("setSyncSettings");
-    expect(saveHandler).toContain("updateSyncSettings");
+    expect(saveHandler).toContain("addSyncRules");
   });
 
   it("saves classification overrides separately from route rules and refreshes preview", async () => {

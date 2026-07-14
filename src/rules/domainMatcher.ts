@@ -1,4 +1,5 @@
 import type { DomainRule, RuleAction } from "./ruleTypes";
+import { sameRouteTarget } from "./routeTarget";
 
 function normalizeForMatching(domain: string): string {
   return domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.+$/, "");
@@ -156,7 +157,7 @@ function redundancyReason(redundantRule: DomainRule, coveringRule: DomainRule): 
   const action = ruleAction(redundantRule) === "proxy" ? "proxy route" : "direct route";
   const scope = redundantRule.includeSubdomains ? "domain and its subdomains" : "exact domain";
 
-  if (normalizeForMatching(redundantRule.domain) === normalizeForMatching(coveringRule.domain)) {
+  if (sameRouteTarget(redundantRule, coveringRule)) {
     return `The same ${action} already exists for this ${scope}.`;
   }
 

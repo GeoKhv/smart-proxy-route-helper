@@ -175,6 +175,28 @@ describe("buildPacScript", () => {
     expect(runPac(pacScript, "www.linkedin.com")).toBe("SOCKS5 127.0.0.1:10808");
   });
 
+  it("keeps a child Proxy exception under a parent Direct rule", () => {
+    const childProxy = {
+      ...manualRule("media.linkedin.com", true),
+      createdAt: "2026-06-24T00:00:02.000Z"
+    };
+    const pacScript = buildTestPac([directRule("linkedin.com", true), childProxy]);
+
+    expect(runPac(pacScript, "asset.media.linkedin.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(pacScript, "www.linkedin.com")).toBe("DIRECT");
+  });
+
+  it("uses the same newest-then-later temporary winner as the popup for legacy conflicts", () => {
+    const proxy = {
+      ...manualRule("routing-test.test", true),
+      createdAt: "2026-07-13T10:00:00.000Z"
+    };
+    const direct = directRule("routing-test.test", true, "2026-07-13T10:01:00.000Z");
+    const pacScript = buildTestPac([proxy, direct]);
+
+    expect(runPac(pacScript, "child.routing-test.test")).toBe("DIRECT");
+  });
+
   it("rejects invalid local proxy configs instead of generating partial PAC", () => {
     const result = buildPacScript({
       rules: [manualRule("example.com", true)],
