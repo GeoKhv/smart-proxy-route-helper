@@ -7,6 +7,7 @@ type ExtensionManifest = {
   name?: string;
   version?: string;
   description?: string;
+  default_locale?: string;
   permissions?: string[];
   host_permissions?: string[];
   content_scripts?: unknown[];
@@ -41,10 +42,16 @@ describe("extension release manifest", () => {
 
   it("uses neutral release metadata", async () => {
     const manifest = await readManifest();
-    const metadata = `${manifest.name ?? ""} ${manifest.description ?? ""}`.toLowerCase();
+    const englishMessages = JSON.parse(
+      await readFile(resolve(__dirname, "../_locales/en/messages.json"), "utf8")
+    ) as Record<string, { message: string }>;
+    const metadata = `${englishMessages.extensionName.message} ${englishMessages.extensionDescription.message}`.toLowerCase();
 
-    expect(manifest.name).toBe("Smart Proxy Route Helper");
-    expect(manifest.description).toContain("per-domain proxy routing");
+    expect(manifest.default_locale).toBe("en");
+    expect(manifest.name).toBe("__MSG_extensionName__");
+    expect(manifest.description).toBe("__MSG_extensionDescription__");
+    expect(englishMessages.extensionName.message).toBe("Smart Proxy Route Helper");
+    expect(englishMessages.extensionDescription.message).toContain("per-domain proxy routing");
     expect(metadata).not.toContain("bypass");
     expect(metadata).not.toContain("unblock");
     expect(metadata).not.toContain("censorship");

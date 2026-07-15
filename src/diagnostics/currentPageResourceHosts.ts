@@ -1,4 +1,5 @@
 import { buildRelatedDomainCandidates, type RelatedDomainCandidatesResult } from "./relatedDomainCandidates";
+import { getMessage } from "../i18n/i18n";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
@@ -116,7 +117,7 @@ function errorMessage(error: unknown): string {
     return error;
   }
 
-  return "Could not collect resource hosts from this page.";
+  return getMessage("previewCollectFailed");
 }
 
 function isPageNotLoadedError(error: unknown): boolean {
@@ -126,7 +127,7 @@ function isPageNotLoadedError(error: unknown): boolean {
 }
 
 function errorOrProtectionPageMessage(): string {
-  return "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains.";
+  return getMessage("previewErrorPageWarning");
 }
 
 function collectionUnavailableMessage(error: unknown): string {
@@ -134,32 +135,32 @@ function collectionUnavailableMessage(error: unknown): string {
     return errorOrProtectionPageMessage();
   }
 
-  return `Could not collect resource hosts from this page: ${errorMessage(error)}`;
+  return getMessage("previewCollectFailedDetail", [errorMessage(error)]);
 }
 
 function unsupportedUrlMessage(url: string): string {
   try {
     const protocol = new URL(url).protocol.replace(/:$/, "");
-    const protocolLabel = protocol ? `${protocol}://` : "This page";
+    const protocolLabel = protocol ? `${protocol}://` : getMessage("commonThisPage");
 
-    return `${protocolLabel} pages cannot be used for related-domain preview. Open an http or https site first.`;
+    return getMessage("previewProtocolCannotUse", [protocolLabel]);
   } catch {
-    return "Open a valid http or https site before previewing related domains.";
+    return getMessage("previewOpenValidSite");
   }
 }
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
-    "internal-scheme": "Internal browser pages cannot be used for related-domain preview.",
-    localhost: "Localhost cannot be used for related-domain preview.",
-    "loopback-ip": "Loopback addresses cannot be used for related-domain preview.",
-    "private-ip": "Private network addresses cannot be used for related-domain preview.",
-    "internal-suffix": "Internal local domains cannot be used for related-domain preview.",
-    "single-label-host": "Open a public domain with a dot before previewing related domains.",
-    "invalid-host": "Open a valid http or https site before previewing related domains."
+    "internal-scheme": getMessage("previewInternalPage"),
+    localhost: getMessage("previewLocalhost"),
+    "loopback-ip": getMessage("previewLoopback"),
+    "private-ip": getMessage("previewPrivate"),
+    "internal-suffix": getMessage("previewInternalDomain"),
+    "single-label-host": getMessage("previewOpenPublicDomain"),
+    "invalid-host": getMessage("previewOpenValidSite")
   };
 
-  return messages[reason] ?? "This site cannot be used for related-domain preview.";
+  return messages[reason] ?? getMessage("previewSiteCannotUse");
 }
 
 function isIpv4Address(host: string): boolean {
@@ -241,7 +242,7 @@ function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageR
   if (!url) {
     return {
       ok: false,
-      response: response("unsupported_url", "Open a supported site before previewing related domains.")
+      response: response("unsupported_url", getMessage("previewOpenSupportedSite"))
     };
   }
 
@@ -252,7 +253,7 @@ function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageR
   } catch {
     return {
       ok: false,
-      response: response("unsupported_url", "Open a valid http or https site before previewing related domains.")
+      response: response("unsupported_url", getMessage("previewOpenValidSite"))
     };
   }
 
@@ -289,18 +290,18 @@ function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageR
 
 function resultMessage(resultState: CurrentPageResourceHostResultState, summary: CurrentPageResourceHostPreviewSummary): string {
   if (resultState === "no_resource_entries_collected") {
-    return "No page resource hosts were found. Try reloading the page, then preview again.";
+    return getMessage("popupRelatedNoResourceHosts");
   }
 
   if (resultState === "hosts_collected_but_all_internal_or_ignored") {
-    return "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.";
+    return getMessage("popupRelatedOnlyIgnored");
   }
 
   if (resultState === "hosts_collected_but_no_related_candidates") {
-    return "Resource hosts were found, but no new related-domain candidates were identified. No rules were saved.";
+    return getMessage("popupRelatedNoCandidates");
   }
 
-  return `${summary.hostsAfterSanitization} resource host${summary.hostsAfterSanitization === 1 ? "" : "s"} checked for related-domain preview. No rules were saved.`;
+  return getMessage("previewHostsChecked", [summary.hostsAfterSanitization]);
 }
 
 function flattenInjectionResults(results: readonly ScriptInjectionResult[]): CurrentPageResourceHostCollectionResult {
@@ -494,7 +495,7 @@ export async function runCurrentPageResourceHostPreview(
   }
 
   if (!Number.isInteger(request.tabId) || request.tabId < 0) {
-    return response("error", "Could not identify the active tab for related-domain preview.", target.domain);
+    return response("error", getMessage("previewTabUnavailable"), target.domain);
   }
 
   try {

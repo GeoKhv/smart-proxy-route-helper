@@ -1,4 +1,5 @@
 import { checkDenylistedHost } from "../rules/denylist";
+import { getMessage, localizeDocument, selectPluralForm, type MessageKey } from "../i18n/i18n";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import {
@@ -104,7 +105,7 @@ export type PopupRouteState =
 export type PopupRouteStatusView = {
   routeState: PopupRouteState;
   appearance: "proxy" | "direct" | "not-configured" | "warning" | "blocked";
-  label: "Through proxy" | "Direct" | "Not configured" | "Proxy unavailable" | "Conflicting rules" | "Unavailable";
+  label: string;
   explanation: string;
   ariaLabel: string;
 };
@@ -236,23 +237,23 @@ const relatedDomainSaveableCandidateLimit = 12;
 const relatedDomainAlreadyCoveredCandidateLimit = 6;
 const relatedDomainIgnoredCandidateLimit = 4;
 
-const relatedDomainReasonLabels: Record<RelatedDomainCandidateReason, string> = {
-  "same-site-subdomain": "same site resources",
-  "explicit-related-domain": "known related domain",
-  "third-party-resource": "resource on current page",
-  "known-tracking-or-analytics": "analytics or tracking host",
-  "shared-infrastructure": "shared infrastructure",
-  "local-or-adblock-helper": "local or adblock helper",
-  "system-or-schema-helper": "system or schema helper"
+const relatedDomainReasonMessageKeys: Record<RelatedDomainCandidateReason, MessageKey> = {
+  "same-site-subdomain": "popupRelatedReasonSameSite",
+  "explicit-related-domain": "popupRelatedReasonKnown",
+  "third-party-resource": "popupRelatedReasonResource",
+  "known-tracking-or-analytics": "popupRelatedReasonAnalytics",
+  "shared-infrastructure": "popupRelatedReasonShared",
+  "local-or-adblock-helper": "popupRelatedReasonLocalHelper",
+  "system-or-schema-helper": "popupRelatedReasonSystemHelper"
 };
 
-const relatedDomainRouteTargetReasonLabels: Record<RelatedDomainRouteTargetReason, string> = {
-  "same-site-resources": "same site resources",
-  "known-related-domain": "known related domain",
-  "multiple-sibling-hosts": "multiple sibling hosts",
-  "generated-subdomain": "generated subdomain family",
-  "exact-observed-host": "resource on current page",
-  "unsafe-shared-infrastructure": "shared infrastructure"
+const relatedDomainRouteTargetReasonMessageKeys: Record<RelatedDomainRouteTargetReason, MessageKey> = {
+  "same-site-resources": "popupRelatedReasonSameSite",
+  "known-related-domain": "popupRelatedReasonKnown",
+  "multiple-sibling-hosts": "popupRelatedReasonSiblings",
+  "generated-subdomain": "popupRelatedReasonGenerated",
+  "exact-observed-host": "popupRelatedReasonResource",
+  "unsafe-shared-infrastructure": "popupRelatedReasonShared"
 };
 
 type ActiveTabSnapshot = {
@@ -262,16 +263,16 @@ type ActiveTabSnapshot = {
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
-    "internal-scheme": "Internal browser pages cannot be routed.",
-    localhost: "Localhost cannot be routed.",
-    "loopback-ip": "Loopback addresses cannot be routed.",
-    "private-ip": "Private network addresses cannot be routed.",
-    "internal-suffix": "Internal local domains cannot be routed.",
-    "single-label-host": "Open a public domain with a dot to manage a site rule.",
-    "invalid-host": "Open a valid http or https site to manage a rule."
+    "internal-scheme": getMessage("validationInternalPageCannotRoute"),
+    localhost: getMessage("validationLocalhostCannotRoute"),
+    "loopback-ip": getMessage("validationLoopbackCannotRoute"),
+    "private-ip": getMessage("validationPrivateCannotRoute"),
+    "internal-suffix": getMessage("validationInternalDomainCannotRoute"),
+    "single-label-host": getMessage("validationOpenPublicDomain"),
+    "invalid-host": getMessage("validationOpenValidSite")
   };
 
-  return messages[reason] ?? "This site cannot be routed.";
+  return messages[reason] ?? getMessage("validationSiteCannotRoute");
 }
 
 function unsupportedUrlMessage(url: string): string {
@@ -280,12 +281,12 @@ function unsupportedUrlMessage(url: string): string {
   try {
     protocol = new URL(url).protocol.replace(/:$/, "");
   } catch {
-    return "Open a valid http or https site to manage a rule.";
+    return getMessage("validationOpenValidSite");
   }
 
-  const protocolLabel = protocol ? `${protocol}://` : "This page";
+  const protocolLabel = protocol ? `${protocol}://` : getMessage("commonThisPage");
 
-  return `${protocolLabel} pages cannot be routed. Open an http or https site first.`;
+  return getMessage("validationProtocolCannotRoute", [protocolLabel]);
 }
 
 function normalizeKnownDomain(input: string): string | null {
@@ -356,11 +357,11 @@ function findCoveringRouteTargetRule(
 }
 
 function ruleActionLabel(action: RuleAction): string {
-  return action === "direct" ? "direct" : "proxy";
+  return action === "direct" ? getMessage("ruleActionDirectLower") : getMessage("ruleActionProxyLower");
 }
 
 function ruleActionDisplayLabel(action: RuleAction): string {
-  return action === "direct" ? "Direct" : "Proxy";
+  return action === "direct" ? getMessage("commonDirect") : getMessage("commonProxy");
 }
 
 function suggestedCurrentSiteRuleTarget(domain: string): { domain: string; includeSubdomains: boolean } {
@@ -406,15 +407,15 @@ function candidateViewFromCandidate(
   const saveable = category !== "ignored" && !alreadyCovered;
   const defaultSelected = category === "strong" && candidate.defaultSelected && saveable;
   const routeTargetReasonLabel = candidate.routeTargetReason
-    ? relatedDomainRouteTargetReasonLabels[candidate.routeTargetReason]
-    : relatedDomainReasonLabels[candidate.reason];
+    ? getMessage(relatedDomainRouteTargetReasonMessageKeys[candidate.routeTargetReason])
+    : getMessage(relatedDomainReasonMessageKeys[candidate.reason]);
 
   return {
     category,
     domain,
     suggestedRuleDomain: domain,
     reasonCode: candidate.reason,
-    reason: relatedDomainReasonLabels[candidate.reason],
+    reason: getMessage(relatedDomainReasonMessageKeys[candidate.reason]),
     ...(candidate.routeTargetReason ? { routeTargetReason: candidate.routeTargetReason } : {}),
     ...(candidate.routeTargetConfidence ? { routeTargetConfidence: candidate.routeTargetConfidence } : {}),
     routeTargetReasonLabel,
@@ -479,12 +480,22 @@ export function relatedDomainAddActionLabel(
   candidate: Pick<RelatedDomainCandidateView, "domain" | "includeSubdomains">
 ): string {
   return candidate.includeSubdomains
-    ? `Add ${candidate.domain} and subdomains`
-    : `Add ${candidate.domain}`;
+    ? getMessage("popupRelatedAddParent", [candidate.domain])
+    : getMessage("popupRelatedAddExact", [candidate.domain]);
 }
 
 export function relatedDomainBatchAddActionLabel(selectedCount: number): string {
-  return `Add ${selectedCount} selected domain${selectedCount === 1 ? "" : "s"}`;
+  const form = selectPluralForm(selectedCount);
+  const key: MessageKey =
+    form === "one"
+      ? "popupRelatedBatchAddOne"
+      : form === "few"
+        ? "popupRelatedBatchAddFew"
+        : form === "many"
+          ? "popupRelatedBatchAddMany"
+          : "popupRelatedBatchAddOther";
+
+  return getMessage(key, [selectedCount]);
 }
 
 export function updateRelatedDomainCandidateViewsAfterAdd(
@@ -529,7 +540,7 @@ export function getCurrentTabDomain(url: string | undefined): CurrentTabDomainRe
   if (!url) {
     return {
       ok: false,
-      message: "Open a supported site to manage a proxy routing rule."
+      message: getMessage("popupOpenSupportedSite")
     };
   }
 
@@ -540,7 +551,7 @@ export function getCurrentTabDomain(url: string | undefined): CurrentTabDomainRe
   } catch {
     return {
       ok: false,
-      message: "Open a valid http or https site to manage a rule."
+      message: getMessage("validationOpenValidSite")
     };
   }
 
@@ -588,7 +599,7 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
   if (isStoredDenylistedDomain(domain, settings.denylist)) {
     return {
       state: "blocked",
-      message: `${domain} is blocked by the synced denylist. Open Options to review stored lists.`
+      message: getMessage("popupSyncedDenylistBlocked", [domain])
     };
   }
 
@@ -605,7 +616,7 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
         effectiveRule: effectiveRule.rule,
         matchType: effectiveRule.type,
         action,
-        message: `Conflicting rules. ${ruleActionDisplayLabel(action)} is currently effective, but this configuration must be resolved in Options.`
+        message: getMessage("popupConflictEffective", [ruleActionDisplayLabel(action)])
       };
     }
   }
@@ -619,8 +630,8 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
       action,
       message:
         action === "proxy"
-          ? `${domain} uses proxy via an exact synced rule.`
-          : `${domain} goes direct via an exact synced rule.`
+          ? getMessage("popupExactProxy", [domain])
+          : getMessage("popupExactDirect", [domain])
     };
   }
 
@@ -633,14 +644,14 @@ export function getPopupRuleStatus(domain: string, settings: Pick<SyncSettings, 
       action,
       message:
         action === "proxy"
-          ? `${domain} uses proxy via parent rule ${effectiveRule.rule.domain}. Open Options to edit it.`
-          : `${domain} goes direct via parent rule ${effectiveRule.rule.domain}. Open Options to edit it.`
+          ? getMessage("popupParentProxy", [domain, effectiveRule.rule.domain])
+          : getMessage("popupParentDirect", [domain, effectiveRule.rule.domain])
     };
   }
 
   return {
     state: "none",
-    message: `${domain} uses the default direct route.`
+    message: getMessage("popupDefaultDirect", [domain])
   };
 }
 
@@ -656,44 +667,44 @@ export function getPopupRouteStatusView(
   const status = getPopupRuleStatus(domain, settings);
 
   if (status.state === "blocked") {
-    const label = "Unavailable" as const;
+    const label = getMessage("popupStatusUnavailable");
 
     return {
       routeState: "blocked",
       appearance: "blocked",
       label,
       explanation: status.message,
-      ariaLabel: `${label}. ${status.message}`
+      ariaLabel: getMessage("popupAriaRouteStatus", [label, status.message])
     };
   }
 
   if (status.state === "none") {
-    const label = "Not configured" as const;
-    const explanation = "No matching rule. Default route is direct.";
+    const label = getMessage("popupStatusNotConfigured");
+    const explanation = getMessage("popupNoMatchingRule");
 
     return {
       routeState: "default_direct",
       appearance: "not-configured",
       label,
       explanation,
-      ariaLabel: `${label}. ${explanation}`
+      ariaLabel: getMessage("popupAriaRouteStatus", [label, explanation])
     };
   }
 
   if (status.state === "conflict") {
-    const label = "Conflicting rules" as const;
+    const label = getMessage("popupStatusConflictingRules");
     const routeSource =
       status.matchType === "exact"
-        ? `the exact target ${status.effectiveRule.domain}`
-        : `parent target ${status.effectiveRule.domain}`;
-    const explanation = `${ruleActionDisplayLabel(status.action)} is currently effective through ${routeSource}. Resolve this configuration in Options.`;
+        ? getMessage("popupConflictExactSource", [status.effectiveRule.domain])
+        : getMessage("popupConflictParentSource", [status.effectiveRule.domain]);
+    const explanation = getMessage("popupConflictExplanation", [ruleActionDisplayLabel(status.action), routeSource]);
 
     return {
       routeState: "conflict",
       appearance: "warning",
       label,
       explanation,
-      ariaLabel: `Warning: ${label}. ${explanation}`
+      ariaLabel: getMessage("popupWarningAria", [label, explanation])
     };
   }
 
@@ -710,33 +721,33 @@ export function getPopupRouteStatusView(
   const explanation =
     status.action === "proxy"
       ? isExact
-        ? `Exact rule for ${domain}`
-        : `Covered by parent rule ${rule.domain}`
+        ? getMessage("popupExactProxyExplanation", [domain])
+        : getMessage("popupParentProxyExplanation", [rule.domain])
       : isExact
-        ? `Exact direct rule for ${domain}`
-        : `Direct through parent rule ${rule.domain}`;
+        ? getMessage("popupExactDirectExplanation", [domain])
+        : getMessage("popupParentDirectExplanation", [rule.domain]);
 
   if (status.action === "proxy" && !localProxyIsAvailable(deviceProxy)) {
-    const label = "Proxy unavailable" as const;
-    const warningExplanation = `${explanation}. Local proxy is disabled or invalid on this device.`;
+    const label = getMessage("popupStatusProxyUnavailable");
+    const warningExplanation = getMessage("popupProxyDisabledExplanation", [explanation]);
 
     return {
       routeState,
       appearance: "warning",
       label,
       explanation: warningExplanation,
-      ariaLabel: `Warning: ${label}. ${warningExplanation}`
+      ariaLabel: getMessage("popupWarningAria", [label, warningExplanation])
     };
   }
 
-  const label = status.action === "proxy" ? ("Through proxy" as const) : ("Direct" as const);
+  const label = status.action === "proxy" ? getMessage("popupStatusThroughProxy") : getMessage("popupStatusDirect");
 
   return {
     routeState,
     appearance: status.action,
     label,
     explanation,
-    ariaLabel: `${label}. ${explanation}`
+    ariaLabel: getMessage("popupAriaRouteStatus", [label, explanation])
   };
 }
 
@@ -782,7 +793,7 @@ export function addCurrentSiteRule(
       ok: false,
       reason: "conflict",
       existingRule: targetCheck.existingRule,
-      error: `A ${ruleActionDisplayLabel(targetCheck.existingRule.action)} rule already exists for this hostname and scope. Edit existing rule instead.`
+      error: getMessage("ruleActionExistsForScope", [ruleActionDisplayLabel(targetCheck.existingRule.action)])
     };
   }
 
@@ -862,7 +873,7 @@ export function getDiagnosticActionStatus(
 ): DiagnosticActionStatus {
   if (routeStatus.state === "conflict") {
     return {
-      message: "Resolve the conflicting route rules in Options before adding a diagnostic rule.",
+      message: getMessage("popupDiagnosticResolveConflict"),
       kind: "error"
     };
   }
@@ -873,14 +884,14 @@ export function getDiagnosticActionStatus(
       ((routeStatus.state === "exact" || routeStatus.state === "inherited") && routeStatus.action === "direct")
     ) {
       return {
-        message: "This site appears reachable through your local proxy. You can add it as a synced proxy route.",
+        message: getMessage("popupDiagnosticReachableCanAdd"),
         kind: "success",
         saveReachableDomain: diagnostic.domain ?? domain
       };
     }
 
     return {
-      message: "This site appears reachable through your local proxy. A synced rule already covers it.",
+      message: getMessage("popupDiagnosticReachableCovered"),
       kind: "success"
     };
   }
@@ -888,14 +899,13 @@ export function getDiagnosticActionStatus(
   if (diagnostic.status === "proxy_unreachable") {
     if ((routeStatus.state === "exact" || routeStatus.state === "inherited") && routeStatus.action === "proxy") {
       return {
-        message:
-          "A synced rule covers this site, but it did not appear reachable through your local proxy. Check your local proxy settings.",
+        message: getMessage("popupDiagnosticUnreachableCovered"),
         kind: "error"
       };
     }
 
     return {
-      message: "This site did not appear reachable through your local proxy.",
+      message: getMessage("popupDiagnosticUnreachable"),
       kind: "error"
     };
   }
@@ -910,14 +920,14 @@ function formatCandidateDomains(candidates: readonly RelatedDomainCandidate[], l
   const domains = candidates.slice(0, limit).map((candidate) => candidate.suggestedRuleDomain ?? candidate.domain);
   const extraCount = candidates.length - domains.length;
 
-  return extraCount > 0 ? `${domains.join(", ")} and ${extraCount} more` : domains.join(", ");
+  return extraCount > 0 ? getMessage("commonAndMore", [domains.join(", "), extraCount]) : domains.join(", ");
 }
 
 function formatCandidateViewDomains(candidates: readonly RelatedDomainCandidateView[], limit = 4): string {
   const domains = candidates.slice(0, limit).map((candidate) => candidate.domain);
   const extraCount = candidates.length - domains.length;
 
-  return extraCount > 0 ? `${domains.join(", ")} and ${extraCount} more` : domains.join(", ");
+  return extraCount > 0 ? getMessage("commonAndMore", [domains.join(", "), extraCount]) : domains.join(", ");
 }
 
 function emptyPreviewSummary(): CurrentPageResourceHostPreviewSummary {
@@ -955,24 +965,25 @@ function previewSummary(preview: CurrentPageResourceHostsResponse): CurrentPageR
 }
 
 function formatPreviewDiagnosticSummary(summary: RelatedDomainPopupSummary): string {
-  const parts = [
-    `${summary.rawEntriesInspected} inspected`,
-    `${summary.requestInitiationsInspected ?? 0} request initiations`,
-    `${summary.performanceEntriesInspected ?? 0} performance`,
-    `${summary.domAttributesInspected ?? 0} DOM resource attributes`,
-    `${summary.urlLikeValuesFound ?? summary.hostsExtracted} URL-like values`,
-    `${summary.hostsAfterSanitization} sanitized hosts`,
-    `${summary.hostsIgnoredOrInternal} ignored or internal`,
-    `${summary.alreadyCoveredCandidates} already covered`,
-    `${summary.saveableCandidates} saveable`
-  ];
+  let message = getMessage("popupPreviewDetails", [
+    summary.rawEntriesInspected,
+    summary.requestInitiationsInspected ?? 0,
+    summary.performanceEntriesInspected ?? 0,
+    summary.domAttributesInspected ?? 0,
+    summary.urlLikeValuesFound ?? summary.hostsExtracted,
+    summary.hostsAfterSanitization,
+    summary.hostsIgnoredOrInternal,
+    summary.alreadyCoveredCandidates,
+    summary.saveableCandidates
+  ]);
   if ((summary.droppedPerformanceEntries ?? 0) > 0) {
-    parts.push(`${summary.droppedPerformanceEntries} dropped performance entries reported by the browser`);
+    message += getMessage("popupPreviewDropped", [summary.droppedPerformanceEntries ?? 0]);
   }
-  const hostSample =
-    summary.sampleHosts && summary.sampleHosts.length > 0 ? ` Hosts: ${summary.sampleHosts.slice(0, 5).join(", ")}.` : "";
+  if (summary.sampleHosts && summary.sampleHosts.length > 0) {
+    message += getMessage("popupPreviewHosts", [summary.sampleHosts.slice(0, 5).join(", ")]);
+  }
 
-  return `Preview details: ${parts.join("; ")}.${hostSample}`;
+  return message;
 }
 
 function previewDiagnosticSummary(summary: RelatedDomainPopupSummary): string | undefined {
@@ -999,8 +1010,8 @@ export function getRelatedDomainPreviewActionStatus(
     return {
       message:
         preview.captureMode === "recording"
-          ? "No request hostnames were captured during this session. Some worker, service-worker, or browser-level requests may be outside this privacy-preserving recorder."
-          : "No page resource hosts were found. Try reloading the page, then preview again.",
+          ? getMessage("popupRelatedNoRequestHosts")
+          : getMessage("popupRelatedNoResourceHosts"),
       kind: "neutral"
     };
   }
@@ -1019,13 +1030,13 @@ export function getRelatedDomainPreviewActionStatus(
   if (strongCandidates.length === 0 && mediumCandidates.length === 0) {
     if (preview.resultState === "hosts_collected_but_all_internal_or_ignored" || ignoredCount > 0) {
       return {
-        message: "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved.",
+        message: getMessage("popupRelatedOnlyIgnored"),
         kind: "neutral"
       };
     }
 
     return {
-      message: "Resource hosts were found, but no new related-domain candidates were identified. No rules were saved.",
+      message: getMessage("popupRelatedNoCandidates"),
       kind: "neutral"
     };
   }
@@ -1033,19 +1044,19 @@ export function getRelatedDomainPreviewActionStatus(
   const parts: string[] = [];
 
   if (strongCandidates.length > 0) {
-    parts.push(`Likely related: ${formatCandidateDomains(strongCandidates)}`);
+    parts.push(getMessage("popupRelatedLikely", [formatCandidateDomains(strongCandidates)]));
   }
 
   if (mediumCandidates.length > 0) {
-    parts.push(`Review manually: ${formatCandidateDomains(mediumCandidates)}`);
+    parts.push(getMessage("popupRelatedReview", [formatCandidateDomains(mediumCandidates)]));
   }
 
   if (ignoredCount > 0) {
-    parts.push(`${ignoredCount} analytics, helper, or infrastructure host${ignoredCount === 1 ? "" : "s"} ignored`);
+    parts.push(getMessage(ignoredCount === 1 ? "popupRelatedIgnoredCountOne" : "popupRelatedIgnoredCount", [ignoredCount]));
   }
 
   return {
-    message: `Related-domain preview found candidates. No rules were saved yet. ${parts.join(". ")}.`,
+    message: getMessage("popupRelatedPreviewIntro", [parts.join(". ")]),
     kind: "neutral"
   };
 }
@@ -1062,14 +1073,14 @@ export function getRelatedDomainSaveActionStatus(
 
   if (addResult.status === "none-selected") {
     return {
-      message: "Select at least one related domain before adding rules.",
+      message: getMessage("popupRelatedSelectOne"),
       kind: "neutral"
     };
   }
 
   if (addResult.status === "no-new-rules") {
     return {
-      message: "No new related-domain rules were added; selected domains are already covered.",
+      message: getMessage("popupRelatedNoNewRules"),
       kind: "neutral"
     };
   }
@@ -1077,7 +1088,7 @@ export function getRelatedDomainSaveActionStatus(
   const addedDomains = addResult.addedRules.map((rule) => rule.domain).join(", ");
 
   return {
-    message: `Added synced proxy route${addResult.addedRules.length === 1 ? "" : "s"} for ${addedDomains}.`,
+    message: getMessage(addResult.addedRules.length === 1 ? "popupRelatedAddedRoute" : "popupRelatedAddedRoutes", [addedDomains]),
     kind: "success"
   };
 }
@@ -1137,42 +1148,61 @@ export function buildRelatedDomainPopupView(
   let message = status.message;
 
   if (resultState === "hosts_collected_but_all_already_covered") {
-    message = "Resource hosts were found, but they are already covered by existing rules. No rules were saved.";
+    message = getMessage("popupRelatedAllCovered");
   } else if (saveableCandidates.length > 0) {
     if (strongSaveableCandidates.length > 0) {
-      messageParts.push(`Likely related: ${formatCandidateViewDomains(strongSaveableCandidates)}`);
+      messageParts.push(getMessage("popupRelatedLikely", [formatCandidateViewDomains(strongSaveableCandidates)]));
     }
 
     if (mediumSaveableCandidates.length > 0) {
-      messageParts.push(`Review manually: ${formatCandidateViewDomains(mediumSaveableCandidates)}`);
+      messageParts.push(getMessage("popupRelatedReview", [formatCandidateViewDomains(mediumSaveableCandidates)]));
     }
 
     if (alreadyCoveredCandidates.length > 0) {
-      messageParts.push(`${alreadyCoveredCandidates.length} already-covered candidate${alreadyCoveredCandidates.length === 1 ? "" : "s"}`);
+      messageParts.push(
+        getMessage(alreadyCoveredCandidates.length === 1 ? "popupRelatedCoveredCountOne" : "popupRelatedCoveredCount", [
+          alreadyCoveredCandidates.length
+        ])
+      );
     }
 
     if (summary.ignoredCandidates > 0) {
-      messageParts.push(`${summary.ignoredCandidates} analytics, helper, or infrastructure host${summary.ignoredCandidates === 1 ? "" : "s"} ignored`);
+      messageParts.push(
+        getMessage(summary.ignoredCandidates === 1 ? "popupRelatedIgnoredCountOne" : "popupRelatedIgnoredCount", [
+          summary.ignoredCandidates
+        ])
+      );
     }
 
-    message = `Related-domain preview found candidates. No rules were saved yet. ${messageParts.join(". ")}.`;
+    message = getMessage("popupRelatedPreviewIntro", [messageParts.join(". ")]);
   }
 
   const capped = cappedRelatedDomainCandidateViews(candidates);
   const hiddenParts: string[] = [];
 
   if (capped.hiddenSaveableCount > 0) {
-    hiddenParts.push(`${capped.hiddenSaveableCount} more saveable candidate${capped.hiddenSaveableCount === 1 ? "" : "s"} hidden`);
+    hiddenParts.push(
+      getMessage(capped.hiddenSaveableCount === 1 ? "popupRelatedHiddenSaveableOne" : "popupRelatedHiddenSaveable", [
+        capped.hiddenSaveableCount
+      ])
+    );
   }
 
   if (capped.hiddenAlreadyCoveredCount > 0) {
     hiddenParts.push(
-      `${capped.hiddenAlreadyCoveredCount} already-covered candidate${capped.hiddenAlreadyCoveredCount === 1 ? "" : "s"} hidden`
+      getMessage(
+        capped.hiddenAlreadyCoveredCount === 1 ? "popupRelatedHiddenCoveredOne" : "popupRelatedHiddenCovered",
+        [capped.hiddenAlreadyCoveredCount]
+      )
     );
   }
 
   if (capped.hiddenIgnoredCount > 0) {
-    hiddenParts.push(`${capped.hiddenIgnoredCount} ignored candidate${capped.hiddenIgnoredCount === 1 ? "" : "s"} hidden`);
+    hiddenParts.push(
+      getMessage(capped.hiddenIgnoredCount === 1 ? "popupRelatedHiddenIgnoredOne" : "popupRelatedHiddenIgnored", [
+        capped.hiddenIgnoredCount
+      ])
+    );
   }
 
   return {
@@ -1239,7 +1269,10 @@ export function addSelectedRelatedDomainRules(
     if (targetCheck.status === "conflict") {
       return {
         ok: false,
-        error: `A ${ruleActionDisplayLabel(targetCheck.existingRule.action)} rule already exists for ${domain} with the same scope. Edit existing rule instead.`
+        error: getMessage("ruleActionExistsForDomainScope", [
+          ruleActionDisplayLabel(targetCheck.existingRule.action),
+          domain
+        ])
       };
     }
 
@@ -1323,7 +1356,7 @@ function renderRouteStatus(view: PopupRouteStatusView): void {
 }
 
 function scopeLabel(rule: Pick<DomainRule, "includeSubdomains">): string {
-  return rule.includeSubdomains ? "This domain and all subdomains" : "Exact hostname only";
+  return rule.includeSubdomains ? getMessage("commonDomainAndSubdomains") : getMessage("commonExactHostname");
 }
 
 function appendScopePreviewLine(container: HTMLElement, label: string, value: string): void {
@@ -1352,12 +1385,12 @@ function renderPopupScopePlan(plan: RuleEditPlan): void {
   preview.dataset.kind = "neutral";
   appendScopePreviewLine(
     preview,
-    "Current rule",
+    getMessage("commonCurrentRule"),
     `${plan.currentRule.domain} · ${scopeLabel(plan.currentRule)} · ${ruleActionDisplayLabel(plan.currentRule.action)}`
   );
   appendScopePreviewLine(
     preview,
-    "Proposed rule",
+    getMessage("commonProposedRule"),
     `${plan.proposedRule.domain} · ${scopeLabel(plan.proposedRule)} · ${ruleActionDisplayLabel(plan.proposedRule.action)}`
   );
 
@@ -1365,7 +1398,7 @@ function renderPopupScopePlan(plan: RuleEditPlan): void {
     const coverageHeading = document.createElement("strong");
     const coverageList = document.createElement("ul");
 
-    coverageHeading.textContent = "Coverage:";
+    coverageHeading.textContent = getMessage("commonCoverage");
     coverageList.className = "scope-preview-list";
     plan.coverage.forEach((entry) => {
       const item = document.createElement("li");
@@ -1397,7 +1430,7 @@ function refreshPopupScopePlan(): void {
     renderPopupScopePlan({
       ok: false,
       reason: "rule-not-found",
-      error: "The exact rule is no longer available. Reopen the popup and try again."
+      error: getMessage("popupExactRuleGone")
     });
     return;
   }
@@ -1438,7 +1471,7 @@ function openPopupScopeEditor(): void {
   const status = getPopupRuleStatus(domain, currentSyncSettingsSnapshot);
 
   if (status.state !== "exact") {
-    setStatus(getElement<HTMLElement>("#action-status"), "Only an exact rule can be expanded here.", "error");
+    setStatus(getElement<HTMLElement>("#action-status"), getMessage("popupOnlyExactExpandable"), "error");
     return;
   }
 
@@ -1457,7 +1490,9 @@ function openPopupScopeEditor(): void {
       return option;
     })
   );
-  getElement<HTMLElement>("#scope-change-action").textContent = `${ruleActionDisplayLabel(status.action)} action will be preserved.`;
+  getElement<HTMLElement>("#scope-change-action").textContent = getMessage("popupScopeActionPreserved", [
+    ruleActionDisplayLabel(status.action)
+  ]);
   editor.hidden = false;
   refreshPopupScopePlan();
 }
@@ -1509,8 +1544,8 @@ export function buildRelatedDomainRecordingControlView(
       cancelVisible: true,
       message:
         state.status === "expired"
-          ? `Diagnostic recording for ${state.currentDomain} auto-expired. Stop and preview captured hosts, or cancel it.`
-          : `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you use an add action.`,
+          ? getMessage("recordingExpiredAction", [state.currentDomain])
+          : getMessage("recordingActive", [state.currentDomain]),
       kind: "neutral"
     };
   }
@@ -1519,17 +1554,17 @@ export function buildRelatedDomainRecordingControlView(
     startVisible: false,
     stopVisible: false,
     cancelVisible: true,
-    message: `Diagnostic recording belongs to ${state.currentDomain} in another tab. Return to that tab to stop and preview, or cancel it.`,
+    message: getMessage("recordingBelongsOtherTab", [state.currentDomain]),
     kind: "neutral"
   };
 }
 
 function candidateGroupTitle(group: RelatedDomainCandidateGroupKey): string {
   const titles: Record<RelatedDomainCandidateGroupKey, string> = {
-    strong: "Strong candidates",
-    medium: "Review manually",
-    alreadyCovered: "Already covered",
-    ignored: "Ignored"
+    strong: getMessage("popupRelatedGroupStrong"),
+    medium: getMessage("popupRelatedGroupMedium"),
+    alreadyCovered: getMessage("popupRelatedGroupCovered"),
+    ignored: getMessage("popupRelatedGroupIgnored")
   };
 
   return titles[group];
@@ -1537,29 +1572,33 @@ function candidateGroupTitle(group: RelatedDomainCandidateGroupKey): string {
 
 function candidateCoverageLabel(candidate: RelatedDomainCandidateView): string {
   if (!candidate.alreadyCovered) {
-    return "not covered yet";
+    return getMessage("popupRelatedNotCovered");
   }
 
-  return candidate.coveredBy ? `already covered by ${candidate.coveredBy}` : "already covered";
+  return candidate.coveredBy
+    ? getMessage("popupRelatedCoveredBy", [candidate.coveredBy])
+    : getMessage("popupRelatedAlreadyCovered");
 }
 
 function candidateIncludeSubdomainsLabel(candidate: RelatedDomainCandidateView): string {
-  return candidate.includeSubdomains ? "hostname and subdomains" : "exact hostname";
+  return candidate.includeSubdomains
+    ? getMessage("popupRelatedHostnameAndSubdomains")
+    : getMessage("popupRelatedExactHostname");
 }
 
 function formatObservedHosts(hosts: readonly string[], limit = 3): string {
   const visibleHosts = hosts.slice(0, limit);
   const extraCount = hosts.length - visibleHosts.length;
 
-  return extraCount > 0 ? `${visibleHosts.join(", ")} and ${extraCount} more` : visibleHosts.join(", ");
+  return extraCount > 0 ? getMessage("commonAndMore", [visibleHosts.join(", "), extraCount]) : visibleHosts.join(", ");
 }
 
 function relatedDomainOverrideActionLabel(action: DomainCandidateUserOverrideAction): string {
   const labels: Record<DomainCandidateUserOverrideAction, string> = {
-    "ignore-globally": "Ignore globally",
-    "review-globally": "Review globally",
-    "suggest-for-site": "Suggest for site",
-    "ignore-for-site": "Ignore for site"
+    "ignore-globally": getMessage("popupRelatedIgnoreGlobally"),
+    "review-globally": getMessage("popupRelatedReviewGlobally"),
+    "suggest-for-site": getMessage("popupRelatedSuggestForSite"),
+    "ignore-for-site": getMessage("popupRelatedIgnoreForSite")
   };
 
   return labels[action];
@@ -1567,10 +1606,10 @@ function relatedDomainOverrideActionLabel(action: DomainCandidateUserOverrideAct
 
 function relatedDomainOverrideSavedMessage(action: DomainCandidateUserOverrideAction, domain: string): string {
   const messages: Record<DomainCandidateUserOverrideAction, string> = {
-    "ignore-globally": `${domain} will be ignored globally. Preview refreshed.`,
-    "review-globally": `${domain} will stay in manual review globally. Preview refreshed.`,
-    "suggest-for-site": `${domain} will be suggested for this site. Preview refreshed.`,
-    "ignore-for-site": `${domain} will be ignored for this site. Preview refreshed.`
+    "ignore-globally": getMessage("popupRelatedOverrideIgnoredSaved", [domain]),
+    "review-globally": getMessage("popupRelatedOverrideReviewSaved", [domain]),
+    "suggest-for-site": getMessage("popupRelatedOverrideSuggestedSaved", [domain]),
+    "ignore-for-site": getMessage("popupRelatedOverrideSiteIgnoredSaved", [domain])
   };
 
   return messages[action];
@@ -1640,7 +1679,7 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView, 
     checkbox.checked = candidate.selected;
     checkbox.disabled = !candidate.saveable;
     checkbox.dataset.relatedDomain = candidate.domain;
-    checkbox.setAttribute("aria-label", `Select ${relatedDomainAddActionLabel(candidate)}`);
+    checkbox.setAttribute("aria-label", getMessage("popupRelatedSelectAria", [relatedDomainAddActionLabel(candidate)]));
     checkbox.addEventListener("change", () => {
       updateCandidateRowSelection(row, checkbox);
     });
@@ -1659,7 +1698,7 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView, 
   meta.textContent = [
     candidate.routeTargetReasonLabel,
     candidateIncludeSubdomainsLabel(candidate),
-    `observed hosts: ${formatObservedHosts(candidate.sourceHosts)}`,
+    getMessage("popupRelatedObservedHosts", [formatObservedHosts(candidate.sourceHosts)]),
     candidateCoverageLabel(candidate)
   ].join(" · ");
 
@@ -1671,13 +1710,13 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView, 
 
     addButton.type = "button";
     addButton.className = "candidate-add-action";
-    addButton.textContent = candidate.added ? "Added" : relatedDomainAddActionLabel(candidate);
+    addButton.textContent = candidate.added ? getMessage("commonAdded") : relatedDomainAddActionLabel(candidate);
     addButton.disabled = candidate.added === true;
     addButton.dataset.relatedDomainAdd = candidate.domain;
     addButton.dataset.state = candidate.added ? "added" : "available";
     addButton.setAttribute(
       "aria-label",
-      candidate.added ? `${candidate.domain} added` : relatedDomainAddActionLabel(candidate)
+      candidate.added ? getMessage("popupRelatedAddedAria", [candidate.domain]) : relatedDomainAddActionLabel(candidate)
     );
     row.append(addButton);
   }
@@ -1689,7 +1728,7 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView, 
     const actionsId = `candidate-actions-${candidate.category}-${rowIndex}-${candidate.domain.replace(/[^a-z0-9-]/gi, "-")}`;
 
     details.className = "candidate-more-actions";
-    summary.textContent = "More actions";
+    summary.textContent = getMessage("popupRelatedMoreActions");
     summary.setAttribute("aria-expanded", "false");
     summary.setAttribute("aria-controls", actionsId);
     actions.className = "candidate-actions";
@@ -1741,10 +1780,10 @@ function createRelatedDomainHeader(): HTMLElement {
   const backButton = document.createElement("button");
 
   header.className = "related-domain-header";
-  title.textContent = "Related domains";
+  title.textContent = getMessage("popupRelatedTitle");
   backButton.type = "button";
   backButton.className = "related-domain-back";
-  backButton.textContent = "Back to site status";
+  backButton.textContent = getMessage("popupRelatedBack");
   backButton.dataset.relatedDomainBack = "true";
   header.append(title, backButton);
 
@@ -1802,14 +1841,14 @@ function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }
     cancelVisible: false,
     kind: "neutral"
   });
-  getElement<HTMLElement>("#current-domain").textContent = "Not available";
+  getElement<HTMLElement>("#current-domain").textContent = getMessage("commonNotAvailable");
   const routeStatus = getElement<HTMLElement>("#route-status");
   setStatus(routeStatus, result.message, "error");
   routeStatus.dataset.appearance = "blocked";
   routeStatus.dataset.routeState = "blocked";
   routeStatus.setAttribute("role", "status");
   routeStatus.setAttribute("aria-label", result.message);
-  setStatus(getElement<HTMLElement>("#action-status"), "Open a regular website tab to add a proxy route.", "neutral");
+  setStatus(getElement<HTMLElement>("#action-status"), getMessage("popupOpenRegularWebsite"), "neutral");
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), false);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), false);
@@ -1841,7 +1880,7 @@ function renderSupported(
 
   getElement<HTMLElement>("#current-domain").textContent = domain;
   renderRouteStatus(routeStatus);
-  setStatus(getElement<HTMLElement>("#action-status"), "Use explicit controls to update synced site rules.", "neutral");
+  setStatus(getElement<HTMLElement>("#action-status"), getMessage("popupUseExplicitControls"), "neutral");
 
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), showProxyAction);
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), showDirectAction);
@@ -1895,7 +1934,7 @@ async function handleAddCurrentSite(action: RuleAction): Promise<void> {
 
   if (addResult.status === "duplicate") {
     renderSupported(result.domain, current);
-    setStatus(actionStatus, `${addResult.domain} already has that synced ${ruleActionLabel(action)} rule.`, "neutral");
+    setStatus(actionStatus, getMessage("popupRuleAlreadyExists", [addResult.domain, ruleActionLabel(action)]), "neutral");
     return;
   }
 
@@ -1903,7 +1942,7 @@ async function handleAddCurrentSite(action: RuleAction): Promise<void> {
     renderSupported(result.domain, current);
     setStatus(
       actionStatus,
-      `${addResult.domain} already uses ${ruleActionLabel(action)} via parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
+      getMessage("popupRuleInherited", [addResult.domain, ruleActionLabel(action), addResult.parentRule?.domain ?? ""]),
       "neutral"
     );
     return;
@@ -1922,12 +1961,12 @@ async function handleAddCurrentSite(action: RuleAction): Promise<void> {
 
   if (finalAdd.addedRules.length === 0) {
     renderSupported(result.domain, updated);
-    setStatus(actionStatus, `${addResult.domain} already has that synced ${ruleActionLabel(action)} rule.`, "neutral");
+    setStatus(actionStatus, getMessage("popupRuleAlreadyExists", [addResult.domain, ruleActionLabel(action)]), "neutral");
     return;
   }
 
   renderSupported(result.domain, updated);
-  setStatus(actionStatus, `Added synced ${ruleActionLabel(action)} route for ${addResult.domain}.`, "success");
+  setStatus(actionStatus, getMessage("popupRuleAdded", [ruleActionLabel(action), addResult.domain]), "success");
 }
 
 async function handleRemoveCurrentSite(): Promise<void> {
@@ -1948,7 +1987,7 @@ async function handleRemoveCurrentSite(): Promise<void> {
     renderSupported(result.domain, current);
     setStatus(
       actionStatus,
-      `${removeResult.domain} is routed by parent rule ${removeResult.parentRule?.domain}. Open Options to edit parent rules.`,
+      getMessage("popupParentRuleEdit", [removeResult.domain, removeResult.parentRule?.domain ?? ""]),
       "neutral"
     );
     return;
@@ -1956,7 +1995,7 @@ async function handleRemoveCurrentSite(): Promise<void> {
 
   if (removeResult.status === "not-found") {
     renderSupported(result.domain, current);
-    setStatus(actionStatus, `No exact synced rule for ${removeResult.domain}.`, "neutral");
+    setStatus(actionStatus, getMessage("popupNoExactRule", [removeResult.domain]), "neutral");
     return;
   }
 
@@ -1965,7 +2004,7 @@ async function handleRemoveCurrentSite(): Promise<void> {
   });
 
   renderSupported(result.domain, updated);
-  setStatus(actionStatus, `Removed exact synced rule for ${removeResult.domain}.`, "success");
+  setStatus(actionStatus, getMessage("popupExactRuleRemoved", [removeResult.domain]), "success");
 }
 
 async function handleConfirmScopeChange(): Promise<void> {
@@ -1973,7 +2012,7 @@ async function handleConfirmScopeChange(): Promise<void> {
   const actionStatus = getElement<HTMLElement>("#action-status");
 
   if (!plan) {
-    setStatus(actionStatus, "Choose a broader scope and review the preview before confirming.", "error");
+    setStatus(actionStatus, getMessage("popupChooseBroaderScope"), "error");
     return;
   }
 
@@ -1995,7 +2034,7 @@ async function handleConfirmScopeChange(): Promise<void> {
   renderSupported(currentDomain.domain, updateResult.settings);
   setStatus(
     actionStatus,
-    `Updated the existing ${ruleActionLabel(plan.proposedRule.action)} rule to ${plan.proposedRule.domain} without deleting it first.`,
+    getMessage("popupScopeChanged", [plan.proposedRule.domain]),
     "success"
   );
 }
@@ -2009,7 +2048,7 @@ async function requestCurrentSiteDiagnostic(url: string): Promise<CurrentSiteDia
   if (!isCurrentSiteDiagnosticResponse(response)) {
     return {
       status: "error",
-      message: "Could not complete the proxy check."
+      message: getMessage("popupCouldNotCheckProxy")
     };
   }
 
@@ -2026,7 +2065,7 @@ async function requestRelatedDomainPreview(tabId: number, url: string): Promise<
   if (!isCurrentPageResourceHostsResponse(response)) {
     return {
       status: "error",
-      message: "Could not preview related domains."
+      message: getMessage("popupCouldNotPreviewRelated")
     };
   }
 
@@ -2046,7 +2085,7 @@ async function requestRelatedDomainRecording(input: {
   if (!isRelatedDomainRecordingResponse(response)) {
     return {
       status: "error",
-      message: "Could not handle diagnostic recording.",
+      message: getMessage("popupCouldNotHandleRecording"),
       state: { status: "idle" }
     };
   }
@@ -2118,13 +2157,20 @@ function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?
     note.className = "candidate-note";
     note.textContent = [
       view.hiddenSaveableCount > 0
-        ? `${view.hiddenSaveableCount} more saveable candidate${view.hiddenSaveableCount === 1 ? "" : "s"} hidden`
+        ? getMessage(view.hiddenSaveableCount === 1 ? "popupRelatedHiddenSaveableOne" : "popupRelatedHiddenSaveable", [
+            view.hiddenSaveableCount
+          ])
         : "",
       view.hiddenAlreadyCoveredCount > 0
-        ? `${view.hiddenAlreadyCoveredCount} already-covered candidate${view.hiddenAlreadyCoveredCount === 1 ? "" : "s"} hidden`
+        ? getMessage(
+            view.hiddenAlreadyCoveredCount === 1 ? "popupRelatedHiddenCoveredOne" : "popupRelatedHiddenCovered",
+            [view.hiddenAlreadyCoveredCount]
+          )
         : "",
       view.hiddenIgnoredCount > 0
-        ? `${view.hiddenIgnoredCount} ignored candidate${view.hiddenIgnoredCount === 1 ? "" : "s"} hidden`
+        ? getMessage(view.hiddenIgnoredCount === 1 ? "popupRelatedHiddenIgnoredOne" : "popupRelatedHiddenIgnored", [
+            view.hiddenIgnoredCount
+          ])
         : ""
     ]
       .filter(Boolean)
@@ -2156,12 +2202,12 @@ async function handleCheckViaProxy(): Promise<void> {
   }
 
   if (!activeUrl) {
-    setStatus(actionStatus, "Open a supported site before checking proxy reachability.", "error");
+    setStatus(actionStatus, getMessage("popupOpenSiteBeforeCheck"), "error");
     return;
   }
 
   checkButton.disabled = true;
-  setStatus(actionStatus, "Checking via your configured local proxy...", "neutral");
+  setStatus(actionStatus, getMessage("popupCheckingProxy"), "neutral");
 
   try {
     const diagnostic = await requestCurrentSiteDiagnostic(activeUrl);
@@ -2200,14 +2246,14 @@ async function loadRelatedDomainPreview(options: {
   }
 
   if (typeof activeTab.id !== "number" || !activeTab.url) {
-    setStatus(actionStatus, "Open a supported site before previewing related domains.", "error");
+    setStatus(actionStatus, getMessage("popupOpenSiteBeforePreview"), "error");
     return;
   }
 
   previewButton.disabled = true;
   setStatus(
     actionStatus,
-    options.loadingMessage ?? "Previewing related domains from current-page resources...",
+    options.loadingMessage ?? getMessage("popupPreviewingRelated"),
     "neutral"
   );
 
@@ -2242,12 +2288,12 @@ async function handleStartRelatedDomainRecording(): Promise<void> {
   }
 
   if (typeof activeTab.id !== "number" || !activeTab.url) {
-    setStatus(actionStatus, "Open a supported site before starting diagnostic recording.", "error");
+    setStatus(actionStatus, getMessage("popupOpenSiteBeforeRecording"), "error");
     return;
   }
 
   startButton.disabled = true;
-  setStatus(actionStatus, "Starting diagnostic recording for this tab...", "neutral");
+  setStatus(actionStatus, getMessage("popupRecordingStarting"), "neutral");
 
   try {
     const recording = await requestRelatedDomainRecording({
@@ -2279,12 +2325,12 @@ async function handleStopRelatedDomainRecording(): Promise<void> {
   }
 
   if (typeof activeTab.id !== "number" || !activeTab.url) {
-    setStatus(actionStatus, "Open the recorded site before stopping diagnostic recording.", "error");
+    setStatus(actionStatus, getMessage("popupOpenRecordedSite"), "error");
     return;
   }
 
   stopButton.disabled = true;
-  setStatus(actionStatus, "Stopping diagnostic recording and preparing preview...", "neutral");
+  setStatus(actionStatus, getMessage("popupRecordingStopping"), "neutral");
 
   try {
     const recording = await requestRelatedDomainRecording({
@@ -2301,7 +2347,7 @@ async function handleStopRelatedDomainRecording(): Promise<void> {
       const previewView = buildRelatedDomainPopupView(recording.preview, current);
 
       renderRelatedDomainPreview(previewView, recording.preview.currentDomain);
-      setStatus(actionStatus, `Recorded during this session. ${previewView.message}`, previewView.kind);
+      setStatus(actionStatus, getMessage("popupRecordedSession", [previewView.message]), previewView.kind);
       return;
     }
 
@@ -2324,7 +2370,7 @@ async function handleCancelRelatedDomainRecording(): Promise<void> {
   const cancelButton = getElement<HTMLButtonElement>("#cancel-related-domain-recording");
 
   cancelButton.disabled = true;
-  setStatus(actionStatus, "Cancelling diagnostic recording...", "neutral");
+  setStatus(actionStatus, getMessage("popupRecordingCancelling"), "neutral");
 
   try {
     const recording = await requestRelatedDomainRecording({
@@ -2354,17 +2400,17 @@ async function handleRelatedDomainClassificationOverride(button: HTMLButtonEleme
   }
 
   if (!relatedDomainPreviewDomain || currentResult.domain !== relatedDomainPreviewDomain) {
-    setStatus(actionStatus, "Preview related domains again for the current site before saving an override.", "error");
+    setStatus(actionStatus, getMessage("popupRelatedPreviewAgainOverride"), "error");
     return;
   }
 
   if (!isDomainCandidateUserOverrideAction(action)) {
-    setStatus(actionStatus, "Choose a supported classification override action.", "error");
+    setStatus(actionStatus, getMessage("popupRelatedChooseOverride"), "error");
     return;
   }
 
   button.disabled = true;
-  setStatus(actionStatus, "Saving classification override...", "neutral");
+  setStatus(actionStatus, getMessage("popupRelatedSavingOverride"), "neutral");
 
   try {
     const current = await getSyncSettings();
@@ -2385,7 +2431,7 @@ async function handleRelatedDomainClassificationOverride(button: HTMLButtonEleme
     });
 
     await loadRelatedDomainPreview({
-      loadingMessage: "Refreshing related-domain preview...",
+      loadingMessage: getMessage("popupRelatedRefreshing"),
       successMessage: relatedDomainOverrideSavedMessage(action, addResult.override.domain),
       successKind: "success"
     });
@@ -2436,12 +2482,12 @@ async function handleAddRelatedDomains(
   }
 
   if (!relatedDomainPreviewDomain || currentResult.domain !== relatedDomainPreviewDomain) {
-    setStatus(actionStatus, "Preview related domains again for the current site before adding candidates.", "error");
+    setStatus(actionStatus, getMessage("popupRelatedPreviewAgainAdd"), "error");
     return;
   }
 
   if (selectedDomains.size === 0) {
-    setStatus(actionStatus, "Select at least one related domain before adding rules.", "neutral");
+    setStatus(actionStatus, getMessage("popupRelatedSelectOne"), "neutral");
     return;
   }
 
@@ -2529,7 +2575,7 @@ async function handleSaveDiagnosticRule(): Promise<void> {
   resetRelatedDomainPreview();
 
   if (!domain) {
-    setStatus(actionStatus, "Run a successful proxy check before adding a diagnostic rule.", "neutral");
+    setStatus(actionStatus, getMessage("popupRunSuccessfulCheck"), "neutral");
     return;
   }
 
@@ -2537,7 +2583,7 @@ async function handleSaveDiagnosticRule(): Promise<void> {
 
   if (!currentResult.ok || currentResult.domain !== domain) {
     resetDiagnosticOffer();
-    setStatus(actionStatus, "Run the proxy check again for the current site before adding a rule.", "error");
+    setStatus(actionStatus, getMessage("popupRunCheckAgain"), "error");
     return;
   }
 
@@ -2551,7 +2597,7 @@ async function handleSaveDiagnosticRule(): Promise<void> {
 
   if (addResult.status === "duplicate") {
     renderSupported(domain, current);
-    setStatus(actionStatus, `${addResult.domain} already has that synced proxy rule.`, "neutral");
+    setStatus(actionStatus, getMessage("popupRuleAlreadyExists", [addResult.domain, getMessage("ruleActionProxyLower")]), "neutral");
     return;
   }
 
@@ -2559,7 +2605,11 @@ async function handleSaveDiagnosticRule(): Promise<void> {
     renderSupported(domain, current);
     setStatus(
       actionStatus,
-      `${addResult.domain} already uses proxy via parent rule ${addResult.parentRule?.domain}. Open Options to edit it.`,
+      getMessage("popupRuleInherited", [
+        addResult.domain,
+        getMessage("ruleActionProxyLower"),
+        addResult.parentRule?.domain ?? ""
+      ]),
       "neutral"
     );
     return;
@@ -2578,15 +2628,16 @@ async function handleSaveDiagnosticRule(): Promise<void> {
 
   if (finalAdd.addedRules.length === 0) {
     renderSupported(domain, updated);
-    setStatus(actionStatus, `${addResult.domain} already has that synced proxy rule.`, "neutral");
+    setStatus(actionStatus, getMessage("popupRuleAlreadyExists", [addResult.domain, getMessage("ruleActionProxyLower")]), "neutral");
     return;
   }
 
   renderSupported(domain, updated);
-  setStatus(actionStatus, `Added synced proxy route for ${addResult.domain}.`, "success");
+  setStatus(actionStatus, getMessage("popupRuleAdded", [getMessage("ruleActionProxyLower"), addResult.domain]), "success");
 }
 
 function initPopupPage(): void {
+  localizeDocument();
   getElement<HTMLButtonElement>("#change-current-site-scope").addEventListener("click", () => {
     openPopupScopeEditor();
   });
@@ -2599,7 +2650,7 @@ function initPopupPage(): void {
     void handleConfirmScopeChange().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not update the rule scope.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotUpdateScope"),
         "error"
       );
     });
@@ -2607,14 +2658,14 @@ function initPopupPage(): void {
 
   getElement<HTMLButtonElement>("#cancel-scope-change").addEventListener("click", () => {
     resetPopupScopeEditor();
-    setStatus(getElement<HTMLElement>("#action-status"), "Scope change cancelled. No rule was changed.", "neutral");
+    setStatus(getElement<HTMLElement>("#action-status"), getMessage("popupScopeChangeCancelled"), "neutral");
   });
 
   getElement<HTMLButtonElement>("#add-current-site").addEventListener("click", () => {
     void handleAddCurrentSite("proxy").catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not add the current site.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotAddSite"),
         "error"
       );
     });
@@ -2624,7 +2675,7 @@ function initPopupPage(): void {
     void handleAddCurrentSite("direct").catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not add the direct route.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotAddDirect"),
         "error"
       );
     });
@@ -2634,7 +2685,7 @@ function initPopupPage(): void {
     void handleRemoveCurrentSite().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not remove the current site.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotRemoveSite"),
         "error"
       );
     });
@@ -2644,7 +2695,7 @@ function initPopupPage(): void {
     void handleCheckViaProxy().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not complete the proxy check.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotCheckProxy"),
         "error"
       );
     });
@@ -2654,7 +2705,7 @@ function initPopupPage(): void {
     void handlePreviewRelatedDomains().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not preview related domains.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotPreviewRelated"),
         "error"
       );
     });
@@ -2664,7 +2715,7 @@ function initPopupPage(): void {
     void handleStartRelatedDomainRecording().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not start diagnostic recording.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotStartRecording"),
         "error"
       );
     });
@@ -2674,7 +2725,7 @@ function initPopupPage(): void {
     void handleStopRelatedDomainRecording().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not stop diagnostic recording.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotStopRecording"),
         "error"
       );
     });
@@ -2684,7 +2735,7 @@ function initPopupPage(): void {
     void handleCancelRelatedDomainRecording().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not cancel diagnostic recording.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotCancelRecording"),
         "error"
       );
     });
@@ -2699,7 +2750,7 @@ function initPopupPage(): void {
 
     if (button.dataset.relatedDomainBack) {
       resetRelatedDomainPreview();
-      setStatus(getElement<HTMLElement>("#action-status"), "Showing current site status.", "neutral");
+      setStatus(getElement<HTMLElement>("#action-status"), getMessage("popupShowingSiteStatus"), "neutral");
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -2712,7 +2763,7 @@ function initPopupPage(): void {
         .catch((error: unknown) => {
           setStatus(
             getElement<HTMLElement>("#action-status"),
-            error instanceof Error ? error.message : "Could not add the related domain.",
+            error instanceof Error ? error.message : getMessage("popupCouldNotAddRelated"),
             "error"
           );
         })
@@ -2732,7 +2783,7 @@ function initPopupPage(): void {
         .catch((error: unknown) => {
           setStatus(
             getElement<HTMLElement>("#action-status"),
-            error instanceof Error ? error.message : "Could not add selected related domains.",
+            error instanceof Error ? error.message : getMessage("popupCouldNotAddSelected"),
             "error"
           );
         })
@@ -2751,7 +2802,7 @@ function initPopupPage(): void {
     void handleRelatedDomainClassificationOverride(button).catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not save the classification override.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotSaveOverride"),
         "error"
       );
     });
@@ -2761,7 +2812,7 @@ function initPopupPage(): void {
     void handleSaveDiagnosticRule().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not add the checked site.",
+        error instanceof Error ? error.message : getMessage("popupCouldNotAddChecked"),
         "error"
       );
     });
@@ -2774,7 +2825,7 @@ function initPopupPage(): void {
   void refreshPopup().catch((error: unknown) => {
     setStatus(
       getElement<HTMLElement>("#route-status"),
-      error instanceof Error ? error.message : "Could not load the current site.",
+      error instanceof Error ? error.message : getMessage("popupCouldNotLoad"),
       "error"
     );
   });

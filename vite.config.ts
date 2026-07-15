@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, cp, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
@@ -30,6 +30,7 @@ export default defineConfig({
       async closeBundle() {
         await mkdir(outDir, { recursive: true });
         await copyFile(resolve(rootDir, "manifest.json"), resolve(outDir, "manifest.json"));
+        await cp(resolve(rootDir, "_locales"), resolve(outDir, "_locales"), { recursive: true });
       }
     }
   ],

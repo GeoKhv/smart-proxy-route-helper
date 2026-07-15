@@ -1,4 +1,5 @@
 import type { DomainValidationErrorCode, NormalizeDomainResult } from "./ruleTypes";
+import { getMessage } from "../i18n/i18n";
 
 const schemePattern = /^([a-z][a-z0-9+.-]*):/i;
 const supportedSchemes = new Set(["http", "https"]);
@@ -87,25 +88,25 @@ export function normalizeDomain(input: string): NormalizeDomainResult {
   const trimmedInput = input.trim();
 
   if (trimmedInput.length === 0) {
-    return validationError("empty", "Enter a domain.");
+    return validationError("empty", getMessage("validationEnterDomain"));
   }
 
   const lowerInput = trimmedInput.toLowerCase();
 
   if (hasUnsupportedScheme(lowerInput)) {
-    return validationError("unsupported-scheme", "Only http and https URLs can be normalized.");
+    return validationError("unsupported-scheme", getMessage("validationOnlyHttpHttps"));
   }
 
   const hostname = extractHostname(lowerInput);
 
   if (!hostname) {
-    return validationError("invalid-host", "Enter a valid domain or URL.");
+    return validationError("invalid-host", getMessage("validationInvalidHostname"));
   }
 
   const normalizedDomain = normalizeHostname(hostname);
 
   if (!isValidNormalizedHost(normalizedDomain)) {
-    return validationError("invalid-host", "Enter a valid domain or URL.");
+    return validationError("invalid-host", getMessage("validationInvalidHostname"));
   }
 
   return {

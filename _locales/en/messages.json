@@ -1,0 +1,1047 @@
+{
+  "extensionName": { "message": "Smart Proxy Route Helper" },
+  "extensionDescription": { "message": "Manage per-domain proxy routing through a user-configured local proxy." },
+  "optionsDocumentTitle": { "message": "Smart Proxy Route Helper Options" },
+  "commonProxy": { "message": "Proxy" },
+  "commonDirect": { "message": "Direct" },
+  "commonEdit": { "message": "Edit" },
+  "commonRemove": { "message": "Remove" },
+  "commonCancel": { "message": "Cancel" },
+  "commonAdded": { "message": "Added" },
+  "commonCurrentRule": { "message": "Current rule" },
+  "commonProposedRule": { "message": "Proposed rule" },
+  "commonCoverage": { "message": "Coverage:" },
+  "commonExactHostname": { "message": "Exact hostname only" },
+  "commonHostnameAndSubdomains": { "message": "This hostname and its subdomains" },
+  "commonDomainAndSubdomains": { "message": "This domain and all subdomains" },
+  "commonParentDomainAndSubdomains": { "message": "Parent domain and all subdomains" },
+  "commonNotAvailable": { "message": "Not available" },
+  "commonThisPage": { "message": "This page" },
+  "commonAndMore": {
+    "message": "$DOMAINS$ and $COUNT$ more",
+    "description": "Shared UI message. DOMAINS is a displayed hostname list and must remain unchanged; COUNT is the displayed numeric count.",
+    "placeholders": {
+      "domains": { "content": "$1", "example": "api.example.com, cdn.example.com" },
+      "count": { "content": "$2", "example": "3" }
+    }
+  },
+
+  "validationEnterDomain": { "message": "Enter a domain." },
+  "validationOnlyHttpHttps": { "message": "Only http and https URLs can be normalized." },
+  "validationInvalidHostname": { "message": "Enter a valid domain or URL." },
+  "validationUnsupportedProxyScheme": { "message": "Choose a supported local proxy scheme." },
+  "validationProxyHostRequired": { "message": "Enter a local proxy host." },
+  "validationProxyHostInvalid": { "message": "Enter a local proxy host without spaces or PAC separators." },
+  "validationProxyPortInvalid": { "message": "Enter a local proxy port from 1 to 65535." },
+  "validationInternalPageCannotRoute": { "message": "Internal browser pages cannot be routed." },
+  "validationLocalhostCannotRoute": { "message": "Localhost cannot be routed." },
+  "validationLoopbackCannotRoute": { "message": "Loopback addresses cannot be routed." },
+  "validationPrivateCannotRoute": { "message": "Private network addresses cannot be routed." },
+  "validationInternalDomainCannotRoute": { "message": "Internal local domains cannot be routed." },
+  "validationPublicDomainRequired": { "message": "Enter a public domain with a dot." },
+  "validationOpenPublicDomain": { "message": "Open a public domain with a dot to manage a site rule." },
+  "validationOpenValidSite": { "message": "Open a valid http or https site to manage a rule." },
+  "validationSiteCannotRoute": { "message": "This site cannot be routed." },
+  "validationDomainCannotRoute": { "message": "This domain cannot be routed." },
+  "validationProtocolCannotRoute": {
+    "message": "$PROTOCOL$ pages cannot be routed. Open an http or https site first.",
+    "description": "Validation message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+
+  "ruleActionProxyLower": { "message": "proxy" },
+  "ruleActionDirectLower": { "message": "direct" },
+  "ruleProxyRoute": { "message": "Proxy route" },
+  "ruleDirectRoute": { "message": "Direct route" },
+  "ruleProxyRouteLower": { "message": "proxy route" },
+  "ruleDirectRouteLower": { "message": "direct route" },
+  "ruleIncludesSubdomains": { "message": "includes subdomains" },
+  "ruleExactDomainOnly": { "message": "exact domain only" },
+  "ruleDomainAndSubdomainsLower": { "message": "domain and its subdomains" },
+  "ruleExactDomainLower": { "message": "exact domain" },
+  "ruleSource": {
+    "message": "source: $SOURCE$",
+    "description": "Route-rule message. SOURCE is the stored technical source value.",
+    "placeholders": { "source": { "content": "$1", "example": "manual" } }
+  },
+  "ruleScopeMoreHostsWarning": { "message": "This rule will apply to more hostnames." },
+  "ruleOtherSubdomains": {
+    "message": "Other subdomains of $HOSTNAME$",
+    "description": "Route-rule message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleTargetWithSubdomains": {
+    "message": "$HOSTNAME$ and its subdomains",
+    "description": "Route-rule message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleTargetExact": {
+    "message": "$HOSTNAME$ (exact hostname)",
+    "description": "Route-rule message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleDuplicateEditExisting": { "message": "An identical rule already exists. Keep the existing rule and cancel this edit." },
+  "ruleNoLongerAvailableRefresh": { "message": "The rule is no longer available. Refresh the rule list and try again." },
+  "ruleIdentityAmbiguous": { "message": "The rule identity is ambiguous. No changes were saved." },
+  "ruleBroaderScopeUnavailable": { "message": "That broader scope is not available for this hostname. Choose a safe exact or hostname scope." },
+  "ruleNoChanges": { "message": "No rule changes to save." },
+  "ruleNoLongerAvailable": { "message": "The rule is no longer available. No changes were saved." },
+  "ruleHostnameCannotRoute": { "message": "That hostname cannot be routed." },
+  "ruleConflictNoLongerAvailable": { "message": "That route-target conflict is no longer available. Refresh and try again." },
+  "ruleConflictNoAction": {
+    "message": "No $ACTION$ rule is available for that route target.",
+    "description": "Route-rule message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Proxy" } }
+  },
+  "ruleSameActionExists": {
+    "message": "The same $ACTION$ already exists for this $SCOPE$.",
+    "description": "Route-rule message. ACTION is the localized route action; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "proxy route" },
+      "scope": { "content": "$2", "example": "exact domain" }
+    }
+  },
+  "ruleCoveredBy": {
+    "message": "$PARENT$ already covers this $ACTION$ for the $SCOPE$.",
+    "description": "Route-rule message. PARENT is a normalized parent hostname and must remain unchanged; ACTION is the localized route action; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "parent": { "content": "$1", "example": "example.com" },
+      "action": { "content": "$2", "example": "proxy route" },
+      "scope": { "content": "$3", "example": "exact hostname" }
+    }
+  },
+  "ruleExistingParentSameRoute": {
+    "message": "An existing parent rule $PARENT$ already provides the same route.",
+    "description": "Route-rule message. PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": { "parent": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleOverridesParentWarning": {
+    "message": "This $ACTION$ rule will override the broader $PARENT_ACTION$ rule $PARENT$ within its scope.",
+    "description": "Route-rule message. ACTION is the localized route action; PARENT_ACTION is the localized parent route action; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "parent_action": { "content": "$2", "example": "Direct" },
+      "parent": { "content": "$3", "example": "example.com" }
+    }
+  },
+  "ruleChildRedundantWarning": {
+    "message": "This broader $ACTION$ rule will make $CHILD$ redundant. It will not be removed automatically.",
+    "description": "Route-rule message. ACTION is the localized route action; CHILD is a normalized child hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "child": { "content": "$2", "example": "api.example.com" }
+    }
+  },
+  "ruleChildExceptionWarning": {
+    "message": "This broader $ACTION$ rule will contain a $CHILD_ACTION$ child exception at $CHILD$. The $CHILD_ACTION$ exception will continue to win.",
+    "description": "Route-rule message. ACTION is the localized route action; CHILD_ACTION is the localized child route action; CHILD is a normalized child hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "child_action": { "content": "$2", "example": "Direct" },
+      "child": { "content": "$3", "example": "api.example.com" }
+    }
+  },
+  "ruleOppositeActionExists": {
+    "message": "An opposite-action $ACTION$ rule already exists for the same hostname and scope. Edit that rule instead.",
+    "description": "Route-rule message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Direct" } }
+  },
+  "ruleConflictSaveBlocked": { "message": "Conflicting route rules must be resolved explicitly before these synced settings can be saved." },
+  "ruleProxyDirectExists": { "message": "A Proxy/Direct rule already exists for this hostname and scope. Edit the existing rule instead." },
+  "ruleConflictUseKeep": { "message": "Use Keep Proxy or Keep Direct to resolve conflicting route rules explicitly." },
+  "ruleConflictResolveBeforeEdit": { "message": "Resolve this conflicting route target with Keep Proxy or Keep Direct before editing it." },
+  "ruleActionExistsForScope": {
+    "message": "A $ACTION$ rule already exists for this hostname and scope. Edit existing rule instead.",
+    "description": "Route-rule message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Proxy" } }
+  },
+  "ruleActionExistsForDomainScope": {
+    "message": "A $ACTION$ rule already exists for $HOSTNAME$ with the same scope. Edit existing rule instead.",
+    "description": "Route-rule message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Direct" },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+
+  "popupIntro": { "message": "Manage the current site with explicit synced proxy or direct route rules." },
+  "popupCurrentSiteTitle": { "message": "Current site" },
+  "popupLoadingCurrentSite": { "message": "Loading..." },
+  "popupRouteStatusTitle": { "message": "Route status" },
+  "popupCheckingCurrentSite": { "message": "Checking current site..." },
+  "popupCheckingCurrentSiteAria": { "message": "Checking current site" },
+  "popupActionsTitle": { "message": "Actions" },
+  "popupProxyThisHostname": { "message": "Proxy this hostname" },
+  "popupDirectThisHostname": { "message": "Route this hostname directly" },
+  "popupExactScopeCopy": { "message": "Applies to this exact hostname only." },
+  "popupChangeScope": { "message": "Change scope" },
+  "popupRemoveExactRule": { "message": "Remove exact rule" },
+  "popupRuleScopeLabel": { "message": "Rule scope" },
+  "popupConfirmScopeChange": { "message": "Confirm scope change" },
+  "popupCheckViaProxy": { "message": "Check via proxy" },
+  "popupPreviewRelatedDomains": { "message": "Preview related domains" },
+  "popupStartRecording": { "message": "Start recording" },
+  "popupStopAndPreview": { "message": "Stop and preview" },
+  "popupCancelRecording": { "message": "Cancel recording" },
+  "popupAddCheckedRule": { "message": "Add checked site as rule" },
+  "popupOpenOptions": { "message": "Open Options" },
+  "popupLoadingActions": { "message": "Loading actions..." },
+  "popupStatusThroughProxy": { "message": "Through proxy" },
+  "popupStatusDirect": { "message": "Direct" },
+  "popupStatusNotConfigured": { "message": "Not configured" },
+  "popupStatusProxyUnavailable": { "message": "Proxy unavailable" },
+  "popupStatusConflictingRules": { "message": "Conflicting rules" },
+  "popupStatusUnavailable": { "message": "Unavailable" },
+  "popupNoMatchingRule": { "message": "No matching rule. Default route is direct." },
+  "popupConflictExactSource": {
+    "message": "the exact target $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupConflictParentSource": {
+    "message": "parent target $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupConflictExplanation": {
+    "message": "$ACTION$ is currently effective through $SOURCE$. Resolve this configuration in Options.",
+    "description": "Popup UI message. ACTION is the localized route action; SOURCE is the stored technical source value.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "source": { "content": "$2", "example": "the exact target example.com" }
+    }
+  },
+  "popupWarningAria": {
+    "message": "Warning: $LABEL$. $EXPLANATION$",
+    "description": "Popup UI message. LABEL is a localized control label; EXPLANATION is a localized route explanation.",
+    "placeholders": {
+      "label": { "content": "$1", "example": "Proxy unavailable" },
+      "explanation": { "content": "$2", "example": "Local proxy is disabled." }
+    }
+  },
+  "popupExactProxyExplanation": {
+    "message": "Exact rule for $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentProxyExplanation": {
+    "message": "Covered by parent rule $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupExactDirectExplanation": {
+    "message": "Exact direct rule for $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentDirectExplanation": {
+    "message": "Direct through parent rule $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupProxyDisabledExplanation": {
+    "message": "$EXPLANATION$. Local proxy is disabled or invalid on this device.",
+    "description": "Popup UI message. EXPLANATION is a localized route explanation.",
+    "placeholders": { "explanation": { "content": "$1", "example": "Exact rule for example.com" } }
+  },
+  "popupAriaRouteStatus": {
+    "message": "$LABEL$. $EXPLANATION$",
+    "description": "Popup UI message. LABEL is a localized control label; EXPLANATION is a localized route explanation.",
+    "placeholders": {
+      "label": { "content": "$1", "example": "Through proxy" },
+      "explanation": { "content": "$2", "example": "example.com uses proxy." }
+    }
+  },
+  "popupSyncedDenylistBlocked": {
+    "message": "$HOSTNAME$ is blocked by the synced denylist. Open Options to review stored lists.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupConflictEffective": {
+    "message": "Conflicting rules. $ACTION$ is currently effective, but this configuration must be resolved in Options.",
+    "description": "Popup UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Proxy" } }
+  },
+  "popupExactProxy": {
+    "message": "$HOSTNAME$ uses proxy via an exact synced rule.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupExactDirect": {
+    "message": "$HOSTNAME$ goes direct via an exact synced rule.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentProxy": {
+    "message": "$HOSTNAME$ uses proxy via parent rule $PARENT$. Open Options to edit it.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "parent": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupParentDirect": {
+    "message": "$HOSTNAME$ goes direct via parent rule $PARENT$. Open Options to edit it.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "parent": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupDefaultDirect": {
+    "message": "$HOSTNAME$ uses the default direct route.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupOpenSupportedSite": { "message": "Open a supported site to manage a proxy routing rule." },
+  "popupOpenRegularWebsite": { "message": "Open a regular website tab to add a proxy route." },
+  "popupUseExplicitControls": { "message": "Use explicit controls to update synced site rules." },
+  "popupExactRuleGone": { "message": "The exact rule is no longer available. Reopen the popup and try again." },
+  "popupOnlyExactExpandable": { "message": "Only an exact rule can be expanded here." },
+  "popupChooseBroaderScope": { "message": "Choose a broader scope and review the preview before confirming." },
+  "popupScopeChangeCancelled": { "message": "Scope change cancelled. No rule was changed." },
+  "popupScopeActionPreserved": {
+    "message": "$ACTION$ action will be preserved.",
+    "description": "Popup UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Proxy" } }
+  },
+  "popupScopeChanged": {
+    "message": "Updated the synced rule for $HOSTNAME$ with the selected scope.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupRuleAlreadyExists": {
+    "message": "$HOSTNAME$ already has that synced $ACTION$ rule.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; ACTION is the localized route action.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "example.com" },
+      "action": { "content": "$2", "example": "proxy" }
+    }
+  },
+  "popupRuleInherited": {
+    "message": "$HOSTNAME$ already uses $ACTION$ via parent rule $PARENT$. Open Options to edit it.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; ACTION is the localized route action; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "action": { "content": "$2", "example": "proxy" },
+      "parent": { "content": "$3", "example": "example.com" }
+    }
+  },
+  "popupRuleAdded": {
+    "message": "Added synced $ACTION$ route for $HOSTNAME$.",
+    "description": "Popup UI message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "proxy" },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupExactRuleRemoved": {
+    "message": "Removed the exact synced rule for $HOSTNAME$.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupNoExactRule": {
+    "message": "No exact synced rule exists for $HOSTNAME$.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentRuleEdit": {
+    "message": "$HOSTNAME$ is routed by parent rule $PARENT$. Open Options to edit parent rules.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "parent": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupDiagnosticResolveConflict": { "message": "Resolve the conflicting route rules in Options before adding a diagnostic rule." },
+  "popupDiagnosticReachableCanAdd": { "message": "This site appears reachable through your local proxy. You can add it as a synced proxy route." },
+  "popupDiagnosticReachableCovered": { "message": "This site appears reachable through your local proxy. A synced rule already covers it." },
+  "popupDiagnosticUnreachableCovered": { "message": "A synced rule covers this site, but it did not appear reachable through your local proxy. Check your local proxy settings." },
+  "popupDiagnosticUnreachable": { "message": "This site did not appear reachable through your local proxy." },
+  "popupCheckingProxy": { "message": "Checking via your configured local proxy..." },
+  "popupOpenSiteBeforeCheck": { "message": "Open a supported site before checking proxy reachability." },
+  "popupRunSuccessfulCheck": { "message": "Run a successful proxy check before adding a diagnostic rule." },
+  "popupRunCheckAgain": { "message": "Run the proxy check again for the current site before adding a rule." },
+
+  "popupRelatedTitle": { "message": "Related domains" },
+  "popupRelatedBack": { "message": "Back to site status" },
+  "popupRelatedMoreActions": { "message": "More actions" },
+  "popupRelatedGroupStrong": { "message": "Strong candidates" },
+  "popupRelatedGroupMedium": { "message": "Review manually" },
+  "popupRelatedGroupCovered": { "message": "Already covered" },
+  "popupRelatedGroupIgnored": { "message": "Ignored" },
+  "popupRelatedNotCovered": { "message": "not covered yet" },
+  "popupRelatedAlreadyCovered": { "message": "already covered" },
+  "popupRelatedCoveredBy": {
+    "message": "already covered by $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupRelatedHostnameAndSubdomains": { "message": "hostname and subdomains" },
+  "popupRelatedExactHostname": { "message": "exact hostname" },
+  "popupRelatedAddExact": {
+    "message": "Add $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "status.openai.com" } }
+  },
+  "popupRelatedAddParent": {
+    "message": "Add $HOSTNAME$ and subdomains",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
+  "popupRelatedBatchAddOne": {
+    "message": "Add $COUNT$ selected domain",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedBatchAddFew": {
+    "message": "Add $COUNT$ selected domains",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "popupRelatedBatchAddMany": {
+    "message": "Add $COUNT$ selected domains",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "5" } }
+  },
+  "popupRelatedBatchAddOther": {
+    "message": "Add $COUNT$ selected domains",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "popupRelatedSelectAria": {
+    "message": "Select $ACTION$",
+    "description": "Popup UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Add status.openai.com" } }
+  },
+  "popupRelatedIgnoreGlobally": { "message": "Ignore globally" },
+  "popupRelatedReviewGlobally": { "message": "Review globally" },
+  "popupRelatedSuggestForSite": { "message": "Suggest for site" },
+  "popupRelatedIgnoreForSite": { "message": "Ignore for site" },
+  "popupRelatedReasonSameSite": { "message": "same site resources" },
+  "popupRelatedReasonKnown": { "message": "known related domain" },
+  "popupRelatedReasonResource": { "message": "resource on current page" },
+  "popupRelatedReasonAnalytics": { "message": "analytics or tracking host" },
+  "popupRelatedReasonShared": { "message": "shared infrastructure" },
+  "popupRelatedReasonLocalHelper": { "message": "local or adblock helper" },
+  "popupRelatedReasonSystemHelper": { "message": "system or schema helper" },
+  "popupRelatedReasonSiblings": { "message": "multiple sibling hosts" },
+  "popupRelatedReasonGenerated": { "message": "generated subdomain family" },
+  "popupRelatedObservedHosts": {
+    "message": "observed hosts: $HOSTNAMES$",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com, cdn.example.com" } }
+  },
+  "popupRelatedAddedAria": {
+    "message": "$HOSTNAME$ was added as a proxy route",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedOverrideIgnoredSaved": {
+    "message": "$HOSTNAME$ will be ignored globally. Preview refreshed.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "popupRelatedOverrideReviewSaved": {
+    "message": "$HOSTNAME$ will stay in manual review globally. Preview refreshed.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "cdn.example.net" } }
+  },
+  "popupRelatedOverrideSuggestedSaved": {
+    "message": "$HOSTNAME$ will be suggested for this site. Preview refreshed.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "cdn.example.net" } }
+  },
+  "popupRelatedOverrideSiteIgnoredSaved": {
+    "message": "$HOSTNAME$ will be ignored for this site. Preview refreshed.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "popupRelatedNoRequestHosts": { "message": "No request hostnames were captured during this session. Some worker, service-worker, or browser-level requests may be outside this privacy-preserving recorder." },
+  "popupRelatedNoResourceHosts": { "message": "No page resource hosts were found. Try reloading the page, then preview again." },
+  "popupRelatedOnlyIgnored": { "message": "Resource hosts were found, but they look like analytics/adtech/local or schema helper domains. No rules were saved." },
+  "popupRelatedNoCandidates": { "message": "Resource hosts were found, but no new related-domain candidates were identified. No rules were saved." },
+  "popupRelatedAllCovered": { "message": "Resource hosts were found, but they are already covered by existing rules. No rules were saved." },
+  "popupRelatedSelectOne": { "message": "Select at least one related domain before adding rules." },
+  "popupRelatedNoNewRules": { "message": "No new related-domain rules were added; selected domains are already covered." },
+  "popupRelatedAddedRoutes": {
+    "message": "Added synced proxy routes for $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com, cdn.example.com" } }
+  },
+  "popupRelatedAddedRoute": {
+    "message": "Added synced proxy route for $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedPreviewIntro": {
+    "message": "Related-domain preview found candidates. No rules were saved yet. $DETAILS$.",
+    "description": "Popup UI message. DETAILS is a localized summary.",
+    "placeholders": { "details": { "content": "$1", "example": "Likely related: api.example.com" } }
+  },
+  "popupRelatedLikely": {
+    "message": "Likely related: $HOSTNAMES$",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedReview": {
+    "message": "Review manually: $HOSTNAMES$",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "cdn.example.net" } }
+  },
+  "popupRelatedIgnoredCount": {
+    "message": "$COUNT$ analytics, helper, or infrastructure hosts ignored",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedIgnoredCountOne": {
+    "message": "$COUNT$ analytics, helper, or infrastructure host ignored",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedCoveredCount": {
+    "message": "$COUNT$ already-covered candidates",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedCoveredCountOne": {
+    "message": "$COUNT$ already-covered candidate",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedHiddenSaveable": {
+    "message": "$COUNT$ more saveable candidates hidden",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedHiddenSaveableOne": {
+    "message": "$COUNT$ more saveable candidate hidden",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedHiddenCovered": {
+    "message": "$COUNT$ already-covered candidates hidden",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedHiddenCoveredOne": {
+    "message": "$COUNT$ already-covered candidate hidden",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedHiddenIgnored": {
+    "message": "$COUNT$ ignored candidates hidden",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedHiddenIgnoredOne": {
+    "message": "$COUNT$ ignored candidate hidden",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupPreviewDetails": {
+    "message": "Preview details: $INSPECTED$ inspected; $REQUESTS$ request initiations; $PERFORMANCE$ performance; $ATTRIBUTES$ DOM resource attributes; $VALUES$ URL-like values; $HOSTS$ sanitized hosts; $IGNORED$ ignored or internal; $COVERED$ already covered; $SAVEABLE$ saveable.",
+    "description": "Popup UI message. INSPECTED is the inspected-element count; REQUESTS is the recorded-request count; PERFORMANCE is the performance-entry count; ATTRIBUTES is the inspected attribute count; VALUES is a displayed normalized-domain list and must remain unchanged; HOSTS is the collected-host count; IGNORED is the ignored-item count; COVERED is the number of covered candidates; SAVEABLE is the saveable-candidate count.",
+    "placeholders": {
+      "inspected": { "content": "$1", "example": "12" },
+      "requests": { "content": "$2", "example": "8" },
+      "performance": { "content": "$3", "example": "5" },
+      "attributes": { "content": "$4", "example": "3" },
+      "values": { "content": "$5", "example": "9" },
+      "hosts": { "content": "$6", "example": "6" },
+      "ignored": { "content": "$7", "example": "2" },
+      "covered": { "content": "$8", "example": "1" },
+      "saveable": { "content": "$9", "example": "3" }
+    }
+  },
+  "popupPreviewDropped": {
+    "message": " Dropped performance entries reported by the browser: $COUNT$.",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "popupPreviewHosts": {
+    "message": " Hosts: $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com, cdn.example.com" } }
+  },
+  "popupRelatedPreviewAgainOverride": { "message": "Preview related domains again for the current site before saving an override." },
+  "popupRelatedChooseOverride": { "message": "Choose a supported classification override action." },
+  "popupRelatedSavingOverride": { "message": "Saving classification override..." },
+  "popupRelatedRefreshing": { "message": "Refreshing related-domain preview..." },
+  "popupRelatedPreviewAgainAdd": { "message": "Preview related domains again for the current site before adding candidates." },
+  "popupShowingSiteStatus": { "message": "Showing current site status." },
+  "popupPreviewingRelated": { "message": "Previewing related domains from current-page resources..." },
+  "popupRecordingStarting": { "message": "Starting diagnostic recording for this tab..." },
+  "popupRecordingStopping": { "message": "Stopping diagnostic recording and preparing preview..." },
+  "popupRecordingCancelling": { "message": "Cancelling diagnostic recording..." },
+  "popupOpenSiteBeforePreview": { "message": "Open a supported site before previewing related domains." },
+  "popupOpenSiteBeforeRecording": { "message": "Open a supported site before starting diagnostic recording." },
+  "popupOpenRecordedSite": { "message": "Open the recorded site before stopping diagnostic recording." },
+  "popupRecordedSession": {
+    "message": "Recorded during this session. $MESSAGE$",
+    "description": "Popup UI message. MESSAGE is a localized nested status message.",
+    "placeholders": { "message": { "content": "$1", "example": "Related domains were found." } }
+  },
+  "popupCouldNotUpdateScope": { "message": "Could not update the rule scope." },
+  "popupCouldNotAddSite": { "message": "Could not add the current site." },
+  "popupCouldNotAddDirect": { "message": "Could not add the direct route." },
+  "popupCouldNotRemoveSite": { "message": "Could not remove the current site." },
+  "popupCouldNotCheckProxy": { "message": "Could not complete the proxy check." },
+  "popupCouldNotPreviewRelated": { "message": "Could not preview related domains." },
+  "popupCouldNotStartRecording": { "message": "Could not start diagnostic recording." },
+  "popupCouldNotStopRecording": { "message": "Could not stop diagnostic recording." },
+  "popupCouldNotCancelRecording": { "message": "Could not cancel diagnostic recording." },
+  "popupCouldNotHandleRecording": { "message": "Could not handle diagnostic recording." },
+  "popupCouldNotAddRelated": { "message": "Could not add the related domain." },
+  "popupCouldNotAddSelected": { "message": "Could not add selected related domains." },
+  "popupCouldNotSaveOverride": { "message": "Could not save the classification override." },
+  "popupCouldNotAddChecked": { "message": "Could not add the checked site." },
+  "popupCouldNotLoad": { "message": "Could not load the current site." },
+
+  "optionsIntro": { "message": "Configure the local proxy for this device and manage synced proxy and direct route rules." },
+  "optionsLocalProxyTitle": { "message": "Local proxy settings" },
+  "optionsLocalProxyDescription": { "message": "Stored only on this Chrome installation. Host and port are not synced to other devices." },
+  "optionsEnableProxy": { "message": "Enable proxy routing on this device" },
+  "optionsProxySchemeLabel": { "message": "Scheme" },
+  "optionsProxyHostLabel": { "message": "Host" },
+  "optionsProxyPortLabel": { "message": "Port" },
+  "optionsSuggestedProxy": { "message": "Suggested local default: socks5 127.0.0.1:10808." },
+  "optionsSaveLocal": { "message": "Save local settings" },
+  "optionsRulesTitle": { "message": "Synced domain rules" },
+  "optionsRulesDescription": { "message": "Stored in Chrome Sync. Adding or removing a rule requires an explicit action; the extension does not auto-add domains." },
+  "optionsDomainLabel": { "message": "Domain or URL" },
+  "optionsRouteActionLabel": { "message": "Route action" },
+  "optionsRouteThroughProxy": { "message": "Route through proxy" },
+  "optionsRouteDirectly": { "message": "Route directly" },
+  "optionsRuleScopeHint": { "message": "Choose the exact coverage explicitly; no parent domain is inferred." },
+  "optionsAddRule": { "message": "Add domain rule" },
+  "optionsConflictsTitle": { "message": "Conflicting route rules" },
+  "optionsConflictsDescription": { "message": "Both Proxy and Direct are configured for the same hostname and scope. Choose the one route that should remain; nothing is removed automatically." },
+  "optionsEditRuleTitle": { "message": "Edit route rule" },
+  "optionsHostnameLabel": { "message": "Hostname or domain" },
+  "optionsSafeParentHint": { "message": "A safe parent-domain option appears only when PSL-aware planning permits it." },
+  "optionsPreviewChanges": { "message": "Preview changes" },
+  "optionsSaveChanges": { "message": "Save changes" },
+  "optionsPreviewBeforeSave": { "message": "Preview the edit before saving." },
+  "optionsOptimizeTitle": { "message": "Optimize rules" },
+  "optionsOptimizeDescription": { "message": "Find same-action child rules already covered by broader parent rules. Nothing is removed automatically." },
+  "optionsFindRedundant": { "message": "Find redundant rules" },
+  "optionsDenylistTitle": { "message": "Denylist and ignored domains" },
+  "optionsDenylistDescription": { "message": "Read-only in this slice. Editing these lists will be added separately if needed." },
+  "optionsLoadingLists": { "message": "Loading stored lists..." },
+  "optionsOverridesTitle": { "message": "Classification overrides" },
+  "optionsOverridesDescription": { "message": "Stored in Chrome Sync as domain-level personal preferences. Removing an override does not change proxy routing rules." },
+  "optionsBackupTitle": { "message": "Backup and restore" },
+  "optionsBackupDescription": { "message": "Export and import local user-controlled backups. No cloud upload, telemetry, backend, raw URLs, diagnostic sessions, or page content are included." },
+  "optionsExportTitle": { "message": "Export settings" },
+  "optionsIncludeLocalProxy": { "message": "Include local proxy config for this device" },
+  "optionsLocalProxyBackupHint": { "message": "Local proxy host and port are device-specific and are excluded by default. Include them only for a backup you control." },
+  "optionsExportButton": { "message": "Export settings" },
+  "optionsExportJsonLabel": { "message": "Export JSON" },
+  "optionsImportTitle": { "message": "Import settings" },
+  "optionsImportJsonLabel": { "message": "Import JSON" },
+  "optionsImportPlaceholder": { "message": "Paste a Smart Proxy Route Helper settings export JSON document" },
+  "optionsPreviewImport": { "message": "Preview import" },
+  "optionsApplyImport": { "message": "Apply import" },
+  "optionsNoImportPreview": { "message": "No import preview yet." },
+  "optionsNoRules": { "message": "No synced route rules yet." },
+  "optionsResolveConflictsForList": { "message": "Resolve the conflicting route targets above to return to a normal rule list." },
+  "optionsEditRuleAria": {
+    "message": "Edit route rule for $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRemoveRuleAria": {
+    "message": "Remove route rule for $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsConflictDetail": {
+    "message": "Both Proxy and Direct are configured. $DETAIL$",
+    "description": "Options UI message. DETAIL is a localized status detail.",
+    "placeholders": { "detail": { "content": "$1", "example": "Proxy is temporarily effective." } }
+  },
+  "optionsConflictEffective": {
+    "message": "$ACTION$ is temporarily effective because the newest createdAt wins, then the later stored position breaks a tie.",
+    "description": "Options UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Proxy" } }
+  },
+  "optionsConflictTieBreaker": { "message": "The runtime still uses its deterministic tie-breaker." },
+  "optionsKeepProxy": { "message": "Keep Proxy" },
+  "optionsKeepDirect": { "message": "Keep Direct" },
+  "optionsKeepProxyAria": {
+    "message": "Keep Proxy for $TARGET$ and remove the Direct sibling",
+    "description": "Options UI message. TARGET is a localized route-target description.",
+    "placeholders": { "target": { "content": "$1", "example": "example.com with exact scope" } }
+  },
+  "optionsKeepDirectAria": {
+    "message": "Keep Direct for $TARGET$ and remove the Proxy sibling",
+    "description": "Options UI message. TARGET is a localized route-target description.",
+    "placeholders": { "target": { "content": "$1", "example": "example.com with exact scope" } }
+  },
+  "optionsNoRedundant": { "message": "No redundant route rules found." },
+  "optionsCoveredBy": {
+    "message": "$REASON$ Covered by $HOSTNAME$.",
+    "description": "Options UI message. REASON is a localized candidate reason; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "reason": { "content": "$1", "example": "This rule is redundant." },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "optionsRemoveSuggestion": { "message": "Remove suggestion" },
+  "optionsRemoveSuggestionAria": {
+    "message": "Remove redundant rule for $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "api.example.com" } }
+  },
+  "optionsDenylistValues": {
+    "message": "Denylist: $HOSTNAMES$.",
+    "description": "Options UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "localhost, internal" } }
+  },
+  "optionsDenylistEmpty": { "message": "Denylist: no stored entries." },
+  "optionsIgnoredValues": {
+    "message": "Ignored domains: $HOSTNAMES$.",
+    "description": "Options UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "optionsIgnoredEmpty": { "message": "Ignored domains: no stored entries." },
+  "optionsOverrideIgnored": { "message": "ignored" },
+  "optionsOverrideReview": { "message": "manual review" },
+  "optionsOverrideSuggested": { "message": "suggested" },
+  "optionsGlobalOverride": {
+    "message": "global override · $ACTION$",
+    "description": "Options UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "ignored" } }
+  },
+  "optionsSiteOverride": {
+    "message": "site override for $SITE$ · $ACTION$",
+    "description": "Options UI message. SITE is a normalized site hostname and must remain unchanged; ACTION is the localized route action.",
+    "placeholders": {
+      "site": { "content": "$1", "example": "example.com" },
+      "action": { "content": "$2", "example": "suggested" }
+    }
+  },
+  "optionsNoOverrides": { "message": "No synced classification overrides yet." },
+  "optionsRemoveOverrideAria": {
+    "message": "Remove override for $HOSTNAME$ on $SITE$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged; SITE is a normalized site hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "cdn.example.net" },
+      "site": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "optionsRemoveGlobalOverrideAria": {
+    "message": "Remove global override for $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "optionsFixProxy": { "message": "Fix the highlighted local proxy setting before saving." },
+  "optionsProxySaved": { "message": "Local proxy settings saved on this device." },
+  "optionsRuleDuplicate": {
+    "message": "$HOSTNAME$ already has that synced route rule.",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRuleAdded": {
+    "message": "Added synced $ACTION$ rule for $HOSTNAME$.",
+    "description": "Options UI message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "proxy" },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "optionsConflictResolved": {
+    "message": "$ACTION$ will remain for $TARGET$. $COUNT$ contradictory sibling rules were removed in one synced write.",
+    "description": "Options UI message. ACTION is the localized route action; TARGET is a localized route-target description; COUNT is the displayed numeric count.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "target": { "content": "$2", "example": "example.com with exact scope" },
+      "count": { "content": "$3", "example": "2" }
+    }
+  },
+  "optionsConflictResolvedOne": {
+    "message": "$ACTION$ will remain for $TARGET$. $COUNT$ contradictory sibling rule was removed in one synced write.",
+    "description": "Options UI message. ACTION is the localized route action; TARGET is a localized route-target description; COUNT is the displayed numeric count.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "target": { "content": "$2", "example": "example.com with exact scope" },
+      "count": { "content": "$3", "example": "1" }
+    }
+  },
+  "optionsChangesNotSaved": { "message": "Changes are not saved yet. Preview the edit to continue." },
+  "optionsChooseRule": { "message": "Choose a rule to edit first." },
+  "optionsPreviewValidEdit": { "message": "Preview a valid rule edit before saving." },
+  "optionsRuleUpdated": {
+    "message": "Updated $HOSTNAME$ atomically. The existing rule identity and metadata were preserved.",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRuleGone": { "message": "That rule is no longer available. Refresh and try again." },
+  "optionsEditingRule": {
+    "message": "Editing $HOSTNAME$. Nothing changes until Save changes.",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRuleRemoved": { "message": "Synced rule removed." },
+  "optionsRedundantRemoved": { "message": "Redundant rule removed after confirmation." },
+  "optionsCleanupComplete": { "message": "Rule cleanup scan complete. Nothing was removed automatically." },
+  "optionsOverrideRemoveUnknown": { "message": "Could not identify the classification override to remove." },
+  "optionsOverrideRemoved": { "message": "Classification override removed." },
+  "optionsExportWithProxy": { "message": "Export JSON generated with local proxy config included." },
+  "optionsExportWithoutProxy": { "message": "Export JSON generated without local proxy config." },
+  "optionsCouldNotExport": { "message": "Could not export settings." },
+  "optionsFixImport": { "message": "Fix the import JSON before applying changes." },
+  "optionsImportPreviewReady": { "message": "Import preview ready. Review it before applying changes." },
+  "optionsCouldNotPreviewImport": { "message": "Could not preview import." },
+  "optionsPreviewValidImport": { "message": "Preview a valid import before applying it." },
+  "optionsProxyRestored": { "message": "Local proxy settings restored on this device." },
+  "optionsImportApplied": { "message": "Import applied after explicit confirmation." },
+  "optionsCouldNotApplyImport": { "message": "Could not apply import." },
+  "optionsImportCleared": { "message": "Import preview cleared." },
+  "optionsLoadedLocal": { "message": "Loaded local settings." },
+  "optionsLoadedRules": { "message": "Loaded synced rules." },
+  "optionsRunCleanup": { "message": "Run a scan to find redundant route rules." },
+  "optionsLoadedOverrides": { "message": "Loaded classification overrides." },
+  "optionsBackupReady": { "message": "Backup export ready." },
+  "optionsPasteImport": { "message": "Paste export JSON to preview import." },
+  "optionsCouldNotPreviewEdit": { "message": "Could not preview the rule edit." },
+  "optionsCouldNotSaveEdit": { "message": "Could not save the rule edit." },
+  "optionsEditCancelled": { "message": "Rule edit cancelled. No rule was changed." },
+  "optionsCouldNotLoad": { "message": "Could not load options." },
+  "optionsImportRouteSummary": {
+    "message": "Route rules: $IMPORTABLE$ importable, $ADDED$ new, $DUPLICATES$ duplicate matches, $SKIPPED$ skipped.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; ADDED is the number of added items; DUPLICATES is the duplicate-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "added": { "content": "$2", "example": "2" },
+      "duplicates": { "content": "$3", "example": "1" },
+      "skipped": { "content": "$4", "example": "0" }
+    }
+  },
+  "optionsImportOverrideSummary": {
+    "message": "Classification overrides: $IMPORTABLE$ importable, $UPDATED$ added or updated, $SKIPPED$ skipped.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; UPDATED is the updated-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "updated": { "content": "$2", "example": "2" },
+      "skipped": { "content": "$3", "example": "1" }
+    }
+  },
+  "optionsImportIgnoredSummary": {
+    "message": "Ignored domains: $IMPORTABLE$ importable, $ADDED$ new, $DUPLICATES$ duplicate, $SKIPPED$ skipped.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; ADDED is the number of added items; DUPLICATES is the duplicate-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "added": { "content": "$2", "example": "2" },
+      "duplicates": { "content": "$3", "example": "1" },
+      "skipped": { "content": "$4", "example": "0" }
+    }
+  },
+  "optionsImportDenylistSummary": {
+    "message": "Denylist: $IMPORTABLE$ importable, $ADDED$ new, $DUPLICATES$ duplicate, $SKIPPED$ skipped.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; ADDED is the number of added items; DUPLICATES is the duplicate-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "added": { "content": "$2", "example": "2" },
+      "duplicates": { "content": "$3", "example": "1" },
+      "skipped": { "content": "$4", "example": "0" }
+    }
+  },
+  "optionsImportProxyIncluded": { "message": "Local proxy config: included and will be applied after confirmation." },
+  "optionsImportProxyExcluded": { "message": "Local proxy config: not included." },
+  "optionsImportNoWarnings": { "message": "Warnings: none." },
+
+  "backupProxyShapeSkipped": { "message": "Local proxy settings were skipped because their shape is not supported." },
+  "backupProxyInvalidSkipped": { "message": "Local proxy settings were skipped because the proxy host, scheme, or port is invalid." },
+  "backupRulesSkipped": {
+    "message": "Invalid or protected route rule items skipped: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupRuleDuplicates": {
+    "message": "Same-action route rule duplicates found in the imported file: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupScopeIncludeSubdomains": { "message": "and its subdomains" },
+  "backupScopeExact": { "message": "(exact hostname only)" },
+  "backupImportedConflict": {
+    "message": "Imported rules contain both Proxy and Direct for $HOSTNAME$ $SCOPE$. Choose one action in the import file before applying.",
+    "description": "Settings backup or import message. HOSTNAME is a normalized hostname and must remain unchanged; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "example.com" },
+      "scope": { "content": "$2", "example": "exact hostname" }
+    }
+  },
+  "backupIgnoredSkipped": {
+    "message": "Invalid, duplicate, or protected ignored-domain items skipped: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupDenylistSkipped": {
+    "message": "Invalid, duplicate, or protected denylist items skipped: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupOverridesSkipped": {
+    "message": "Invalid or protected classification override items skipped: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupRuleConflictExisting": {
+    "message": "Imported $ACTION$ rule conflicts with the existing $EXISTING_ACTION$ rule for $HOSTNAME$ $SCOPE$.",
+    "description": "Settings backup or import message. ACTION is the localized route action; EXISTING_ACTION is the localized stored route action; HOSTNAME is a normalized hostname and must remain unchanged; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Proxy" },
+      "existing_action": { "content": "$2", "example": "Direct" },
+      "hostname": { "content": "$3", "example": "example.com" },
+      "scope": { "content": "$4", "example": "exact hostname" }
+    }
+  },
+  "backupResolveConflictsExport": { "message": "Resolve conflicting route rules before exporting settings. No backup was generated." },
+  "backupPasteJson": { "message": "Paste a settings export JSON document before previewing import." },
+  "backupJsonParseFailed": { "message": "Import JSON could not be parsed." },
+  "backupJsonObjectRequired": { "message": "Import JSON must be an object." },
+  "backupWrongFormat": { "message": "Import JSON is not a Smart Proxy Route Helper settings export." },
+  "backupUnsupportedVersion": { "message": "Import JSON uses an unsupported settings export version." },
+  "backupMissingSyncData": { "message": "Import JSON does not contain supported synced settings data." },
+  "backupResolveConflictsImport": { "message": "Resolve the existing conflicting route rules before applying an import." },
+  "backupPreviewValid": { "message": "Preview a valid settings import before applying it." },
+  "backupResolveThenPreview": { "message": "Resolve the existing conflicting route rules, then preview the import again." },
+  "backupRulesChanged": { "message": "Synced route rules changed after preview. Preview the import again before applying it." },
+  "backupSettingsChanged": { "message": "Synced settings changed after preview. Preview the import again before applying it." },
+
+  "diagnosticConfigureProxy": { "message": "Configure local proxy in Options first." },
+  "diagnosticReachable": { "message": "This site appears reachable through your local proxy." },
+  "diagnosticUnreachable": { "message": "This site did not appear reachable through your local proxy." },
+  "diagnosticCheckFailed": { "message": "Could not complete the proxy check." },
+  "diagnosticRestoreFailed": {
+    "message": "Diagnostic finished, but proxy routing could not be restored: $ERROR$",
+    "description": "Current-site diagnostic message. ERROR is a localized error detail.",
+    "placeholders": { "error": { "content": "$1", "example": "Proxy settings operation failed" } }
+  },
+  "diagnosticOpenValidSite": { "message": "Open a valid http or https site before checking proxy reachability." },
+  "diagnosticInternalPage": { "message": "Internal browser pages cannot be checked through proxy." },
+  "diagnosticLocalhost": { "message": "Localhost cannot be checked through proxy." },
+  "diagnosticLoopback": { "message": "Loopback addresses cannot be checked through proxy." },
+  "diagnosticPrivate": { "message": "Private network addresses cannot be checked through proxy." },
+  "diagnosticInternalDomain": { "message": "Internal local domains cannot be checked through proxy." },
+  "diagnosticOpenPublicDomain": { "message": "Open a public domain with a dot before checking proxy reachability." },
+  "diagnosticSiteCannotCheck": { "message": "This site cannot be checked through proxy." },
+  "diagnosticOpenSupportedSite": { "message": "Open a supported site before checking proxy reachability." },
+  "diagnosticProtocolCannotCheck": {
+    "message": "$PROTOCOL$ pages cannot be checked through proxy. Open an http or https site first.",
+    "description": "Current-site diagnostic message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+  "recordingNoActive": { "message": "No diagnostic recording is active." },
+  "recordingExpiredAction": {
+    "message": "Diagnostic recording for $HOSTNAME$ auto-expired. Stop and preview captured hosts, or cancel it.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingActive": {
+    "message": "Diagnostic recording is active for $HOSTNAME$. No data is saved until you use an add action.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingActiveOtherTab": {
+    "message": "Diagnostic recording is already active for $HOSTNAME$ in another tab. Return to that tab to stop and preview, or cancel it.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingAlreadyActive": {
+    "message": "Diagnostic recording is already active for $HOSTNAME$.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingStarted": {
+    "message": "Diagnostic recording started for $HOSTNAME$. Perform the action, then reopen the popup and choose Stop and preview. No rules will be saved automatically.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingBelongsOtherTab": {
+    "message": "Diagnostic recording belongs to $HOSTNAME$ in another tab. Return to that tab to stop and preview, or cancel it.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingExpiredNavigation": {
+    "message": "Diagnostic recording for $HOSTNAME$ expired because the tab navigated or reloaded. Start a new recording on the loaded page.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingExpiredDocument": {
+    "message": "Diagnostic recording for $HOSTNAME$ expired because the page reloaded, navigated, or replaced the recorded document. Start a new recording on the loaded page.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingExpiredPreview": {
+    "message": "Diagnostic recording for $HOSTNAME$ expired. Previewing hosts captured before expiration. No rules were saved.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingStoppedPreview": {
+    "message": "Diagnostic recording stopped for $HOSTNAME$. Previewing recorded hosts. No rules were saved.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingCancelled": {
+    "message": "Diagnostic recording for $HOSTNAME$ was cancelled. No candidates were returned and no rules were saved.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingTabUnavailable": { "message": "Could not identify the active tab for diagnostic recording." },
+  "recordingBridgeFailed": { "message": "Could not start the diagnostic recording bridge on this page." },
+  "recordingBridgeMissing": { "message": "No matching diagnostic recording bridge was found on this page." },
+  "recordingBridgeInvalidRequest": { "message": "Invalid diagnostic recording bridge request." },
+  "recordingMainMissing": { "message": "No matching MAIN-world recorder was found on this page." },
+  "recordingMainInvalidRequest": { "message": "Invalid MAIN-world diagnostic recorder request." },
+  "recordingMainCaptureFailed": { "message": "Could not start MAIN-world request capture on this page." },
+  "recordingAutomaticFailed": { "message": "Could not start automatic request recording on this page. Chrome may not allow temporary script access here." },
+  "recordingStopPreviewFailed": { "message": "Could not stop and preview this recording. Temporary hooks were cancelled where the page remained accessible." },
+  "recordingOpenValidSite": { "message": "Open a valid http or https site before starting diagnostic recording." },
+  "recordingInternalPage": { "message": "Internal browser pages cannot be used for diagnostic recording." },
+  "recordingLocalhost": { "message": "Localhost cannot be used for diagnostic recording." },
+  "recordingLoopback": { "message": "Loopback addresses cannot be used for diagnostic recording." },
+  "recordingPrivate": { "message": "Private network addresses cannot be used for diagnostic recording." },
+  "recordingInternalDomain": { "message": "Internal local domains cannot be used for diagnostic recording." },
+  "recordingOpenPublicDomain": { "message": "Open a public domain with a dot before starting diagnostic recording." },
+  "recordingSiteCannotUse": { "message": "This site cannot be used for diagnostic recording." },
+  "recordingOpenSupportedSite": { "message": "Open a supported site before starting diagnostic recording." },
+  "recordingProtocolCannotUse": {
+    "message": "$PROTOCOL$ pages cannot be used for diagnostic recording. Open an http or https site first.",
+    "description": "Diagnostic recording message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+  "previewCollectFailed": { "message": "Could not collect resource hosts from this page." },
+  "previewCollectFailedDetail": {
+    "message": "Could not collect resource hosts from this page: $ERROR$",
+    "description": "Related-domain preview message. ERROR is a localized error detail.",
+    "placeholders": { "error": { "content": "$1", "example": "The page is not available" } }
+  },
+  "previewHostsChecked": {
+    "message": "Resource hosts checked for related-domain preview: $COUNT$. No rules were saved.",
+    "description": "Related-domain preview message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "previewErrorPageWarning": { "message": "This page appears to be an error or protection page, so related-domain results may not represent the target site. Route or check this site through proxy, reload the page, then preview related domains." },
+  "previewOpenValidSite": { "message": "Open a valid http or https site before previewing related domains." },
+  "previewInternalPage": { "message": "Internal browser pages cannot be used for related-domain preview." },
+  "previewLocalhost": { "message": "Localhost cannot be used for related-domain preview." },
+  "previewLoopback": { "message": "Loopback addresses cannot be used for related-domain preview." },
+  "previewPrivate": { "message": "Private network addresses cannot be used for related-domain preview." },
+  "previewInternalDomain": { "message": "Internal local domains cannot be used for related-domain preview." },
+  "previewOpenPublicDomain": { "message": "Open a public domain with a dot before previewing related domains." },
+  "previewSiteCannotUse": { "message": "This site cannot be used for related-domain preview." },
+  "previewOpenSupportedSite": { "message": "Open a supported site before previewing related domains." },
+  "previewTabUnavailable": { "message": "Could not identify the active tab for related-domain preview." },
+  "previewProtocolCannotUse": {
+    "message": "$PROTOCOL$ pages cannot be used for related-domain preview. Open an http or https site first.",
+    "description": "Related-domain preview message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+  "proxyOperationFailed": { "message": "Proxy settings operation failed." },
+  "overrideCandidateInvalid": { "message": "Choose a valid public candidate domain before saving a classification override." },
+  "overrideSiteInvalid": { "message": "Choose a valid public site domain before saving a site classification override." }
+}

@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold, Popup current-site proxy/direct rule management, manual current-site diagnostics, Options configuration UI, redundant-rule cleanup, Backup and restore, and runtime PAC application.
+This checklist covers the current Manifest V3 extension scaffold, English/Russian Chrome i18n UI, Popup current-site proxy/direct rule management, manual current-site diagnostics, Options configuration UI, redundant-rule cleanup, Backup and restore, and runtime PAC application.
 
 ## v0.2.0 Release Gate Summary
 
@@ -54,6 +54,41 @@ Record:
 - Extension version.
 - Whether Chrome Sync is enabled.
 - Local proxy type, host, and port used for the test.
+
+## English and Russian Localization Checks
+
+Use two separate disposable temporary profiles: one with English Chrome UI and one with Russian Chrome UI. Keep Chrome Sync signed out. Load the real unpacked build from `dist/`, then interact with it through the visible toolbar popup. Do not use the owner's personal profile, a direct `chrome-extension://` URL, or direct `chrome://extensions` navigation as a substitute for the UI checks below.
+
+### English Profile
+
+1. Open a safe public demo page and open Smart Proxy Route Helper from the toolbar.
+2. Confirm the manifest name is `Smart Proxy Route Helper` and no empty text or `__MSG_*__` token is visible.
+3. Confirm the current site, route state, explanation, loading/status messages, and accessible status label are in English.
+4. Open Related domains through the popup and confirm the heading, empty/result states, candidate reasons, `More actions`, classification actions, and `Back to site status` are in English.
+5. Confirm an exact candidate uses `Add <hostname>` and a parent candidate uses `Add <domain> and subdomains`; the hostname itself must remain unchanged.
+6. Select one and then two safe candidates when available. Confirm the sticky action says `Add 1 selected domain` and `Add 2 selected domains`, remains fully visible, and does not cover the final candidate row.
+7. Expand `More actions`, verify its buttons, then use `Back to site status` and confirm the main view is restored.
+8. Open Options from the popup and confirm the local proxy, route rules, conflict repair, classification overrides, cleanup, and Backup and restore sections are in English.
+9. Trigger safe validation and preview-only conflict/import paths. Confirm dynamic hostnames remain intact and the validation, warning, and preview summaries are in English.
+
+### Russian Profile
+
+1. Open the same safe public demo page in the separate Russian temporary profile and open the extension from the toolbar.
+2. Confirm the Popup, route state, explanations, loading/error states, recording controls, and Related domains UI are in Russian; the manifest name may remain the product name.
+3. Confirm the standard labels use consistent product terms, including `Через прокси`, `Напрямую`, `Не настроено`, `Прокси недоступен`, `Конфликт правил`, `Связанные домены`, `Другие действия`, `Вернуться к статусу сайта`, and `Добавлено` where those states are available.
+4. Confirm exact and parent candidate actions preserve the original hostname, for example `Добавить status.openai.com` and `Добавить wikipedia.org и поддомены`.
+5. Verify the selected-domain action for fixture counts 1, 2, 5, 11, 21, 22, 25, 111, and 112. Expected endings are respectively `домен`, `домена`, `доменов`, `доменов`, `домен`, `домена`, `доменов`, `доменов`, and `доменов`.
+6. Confirm `Другие действия` expands, `Вернуться к статусу сайта` works, the sticky action is not clipped, long labels wrap without leaving button boundaries, and no control overlaps another control.
+7. Open Options from the popup and confirm every main section, label, action, validation message, conflict repair action, export/import summary, and empty state is in Russian.
+8. Check keyboard focus and the accessibility tree for the primary route status, candidate selection, added state, More actions disclosure, Back button, and conflict-repair controls. Confirm localized labels are present and hostname substitutions are unchanged.
+
+### Locale Fallback and Build
+
+1. Confirm source `manifest.json` has `default_locale: "en"` and uses `__MSG_extensionName__` / `__MSG_extensionDescription__`.
+2. Confirm `dist/_locales/en/messages.json` and `dist/_locales/ru/messages.json` exist after the production build and have matching key sets.
+3. Start Chrome with an unsupported UI locale in a disposable profile if practical and confirm the extension falls back to English.
+4. Confirm changing the browser locale, rather than extension storage, controls the language. No language selector or language storage key should exist.
+5. Confirm localization causes no translation network request and adds no permission, host permission, persistent content script, backend, telemetry, or remote executable code.
 
 ## Pre-Release Checks
 

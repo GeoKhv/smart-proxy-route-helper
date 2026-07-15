@@ -1,3 +1,5 @@
+import { getMessage } from "../i18n/i18n";
+
 export const supportedLocalProxySchemes = ["http", "https", "socks4", "socks5"] as const;
 
 export type LocalProxyScheme = (typeof supportedLocalProxySchemes)[number];
@@ -70,25 +72,25 @@ function hasUnsafePacHostCharacter(host: string): boolean {
 
 export function validateLocalProxyConfig(input: unknown): LocalProxyConfigValidationResult {
   if (!isRecord(input) || !isSupportedLocalProxyScheme(input.scheme)) {
-    return validationError("invalid-scheme", "Choose a supported local proxy scheme.");
+    return validationError("invalid-scheme", getMessage("validationUnsupportedProxyScheme"));
   }
 
   if (typeof input.host !== "string") {
-    return validationError("empty-host", "Enter a local proxy host.");
+    return validationError("empty-host", getMessage("validationProxyHostRequired"));
   }
 
   const host = input.host.trim();
 
   if (host.length === 0) {
-    return validationError("empty-host", "Enter a local proxy host.");
+    return validationError("empty-host", getMessage("validationProxyHostRequired"));
   }
 
   if (hasUnsafePacHostCharacter(host)) {
-    return validationError("invalid-host", "Enter a local proxy host without spaces or PAC separators.");
+    return validationError("invalid-host", getMessage("validationProxyHostInvalid"));
   }
 
   if (typeof input.port !== "number" || !Number.isInteger(input.port) || input.port < 1 || input.port > 65535) {
-    return validationError("invalid-port", "Enter a local proxy port from 1 to 65535.");
+    return validationError("invalid-port", getMessage("validationProxyPortInvalid"));
   }
 
   return {

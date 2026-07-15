@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Smart Proxy Route Helper",
+  "name": "__MSG_extensionName__",
   "version": "0.2.0",
-  "description": "Manage per-domain proxy routing through a user-configured local proxy.",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -15,7 +16,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Smart Proxy Route Helper",
+    "default_title": "__MSG_extensionName__",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

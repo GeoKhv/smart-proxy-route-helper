@@ -3,6 +3,7 @@ import {
   getRegistrableDomain
 } from "../domainClassification/registrableDomain";
 import { checkDenylistedHost } from "./denylist";
+import { getMessage } from "../i18n/i18n";
 import { domainMatchesRule } from "./domainMatcher";
 import { normalizeDomain } from "./normalizeDomain";
 import { sameRouteTarget } from "./routeTarget";
@@ -73,7 +74,7 @@ function normalizedRuleDomain(rule: Pick<DomainRule, "domain">): string {
 }
 
 function actionLabel(action: RuleAction): string {
-  return action === "proxy" ? "Proxy" : "Direct";
+  return action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect");
 }
 
 function ruleCoversTarget(coveringRule: DomainRule, targetRule: DomainRule): boolean {
@@ -120,14 +121,14 @@ export function getRuleScopeOptions(input: string, denylist: readonly string[] =
   const options: RuleScopeOption[] = [
     {
       scope: "exact",
-      label: "Exact hostname only",
+      label: getMessage("commonExactHostname"),
       targetDomain: domain,
       includeSubdomains: false,
       coverage: [domain]
     },
     {
       scope: "hostname-and-subdomains",
-      label: "This hostname and its subdomains",
+      label: getMessage("commonHostnameAndSubdomains"),
       targetDomain: domain,
       includeSubdomains: true,
       coverage: [domain, `*.${domain}`]
@@ -142,7 +143,7 @@ export function getRuleScopeOptions(input: string, denylist: readonly string[] =
   ) {
     options.push({
       scope: "registrable-domain-and-subdomains",
-      label: "Parent domain and all subdomains",
+      label: getMessage("commonParentDomainAndSubdomains"),
       targetDomain: registrableDomain,
       includeSubdomains: true,
       coverage: [registrableDomain, `*.${registrableDomain}`]
@@ -187,7 +188,7 @@ function coveragePreview(currentRule: DomainRule, proposedRule: DomainRule, isBr
     coverage.push(currentRule.domain);
   }
 
-  coverage.push(`Other subdomains of ${proposedRule.domain}`);
+  coverage.push(getMessage("ruleOtherSubdomains", [proposedRule.domain]));
   return coverage;
 }
 
@@ -202,7 +203,7 @@ function buildConflictWarnings(
   if (isBroadening) {
     warnings.push({
       kind: "broader-scope",
-      message: "This rule will apply to more hostnames."
+      message: getMessage("ruleScopeMoreHostsWarning")
     });
   }
 
@@ -216,12 +217,16 @@ function buildConflictWarnings(
         rule.action === proposedRule.action
           ? {
               kind: "covered-by-parent",
-              message: `An existing parent rule ${rule.domain} already provides the same route.`,
+              message: getMessage("ruleExistingParentSameRoute", [rule.domain]),
               relatedRule: rule
             }
           : {
               kind: "overrides-parent",
-              message: `This ${actionLabel(proposedRule.action)} rule will override the broader ${actionLabel(rule.action)} rule ${rule.domain} within its scope.`,
+              message: getMessage("ruleOverridesParentWarning", [
+                actionLabel(proposedRule.action),
+                actionLabel(rule.action),
+                rule.domain
+              ]),
               relatedRule: rule
             }
       );
@@ -235,12 +240,16 @@ function buildConflictWarnings(
       rule.action === proposedRule.action
         ? {
             kind: "child-rule-redundant",
-            message: `This broader ${actionLabel(proposedRule.action)} rule will make ${rule.domain} redundant. It will not be removed automatically.`,
+            message: getMessage("ruleChildRedundantWarning", [actionLabel(proposedRule.action), rule.domain]),
             relatedRule: rule
           }
         : {
             kind: "child-exception-preserved",
-            message: `This broader ${actionLabel(proposedRule.action)} rule will contain a ${actionLabel(rule.action)} child exception at ${rule.domain}. The ${actionLabel(rule.action)} exception will continue to win.`,
+            message: getMessage("ruleChildExceptionWarning", [
+              actionLabel(proposedRule.action),
+              actionLabel(rule.action),
+              rule.domain
+            ]),
             relatedRule: rule
           }
     );
@@ -264,14 +273,14 @@ function targetConflict(
     return {
       ok: false,
       reason: "duplicate",
-      error: "An identical rule already exists. Keep the existing rule and cancel this edit."
+      error: getMessage("ruleDuplicateEditExisting")
     };
   }
 
   return {
     ok: false,
     reason: "conflict",
-    error: `An opposite-action ${actionLabel(matchingRule.action)} rule already exists for the same hostname and scope. Edit that rule instead.`
+    error: getMessage("ruleOppositeActionExists", [actionLabel(matchingRule.action)])
   };
 }
 
@@ -287,7 +296,7 @@ export function planRuleEdit(
     return {
       ok: false,
       reason: "rule-not-found",
-      error: "The rule is no longer available. Refresh the rule list and try again."
+      error: getMessage("ruleNoLongerAvailableRefresh")
     };
   }
 
@@ -295,7 +304,7 @@ export function planRuleEdit(
     return {
       ok: false,
       reason: "ambiguous-rule",
-      error: "The rule identity is ambiguous. No changes were saved."
+      error: getMessage("ruleIdentityAmbiguous")
     };
   }
 
@@ -310,7 +319,7 @@ export function planRuleEdit(
       ok: false,
       reason: normalized.ok ? "unsafe-scope" : "invalid-domain",
       error: normalized.ok
-        ? "That broader scope is not available for this hostname. Choose a safe exact or hostname scope."
+        ? getMessage("ruleBroaderScopeUnavailable")
         : normalized.error.message
     };
   }
@@ -331,7 +340,7 @@ export function planRuleEdit(
     return {
       ok: false,
       reason: "no-change",
-      error: "No rule changes to save."
+      error: getMessage("ruleNoChanges")
     };
   }
 
@@ -365,7 +374,7 @@ export function replaceRuleAtomically(
     return {
       ok: false,
       reason: "rule-not-found",
-      error: "The rule is no longer available. No changes were saved."
+      error: getMessage("ruleNoLongerAvailable")
     };
   }
 
@@ -373,7 +382,7 @@ export function replaceRuleAtomically(
     return {
       ok: false,
       reason: "ambiguous-rule",
-      error: "The rule identity is ambiguous. No changes were saved."
+      error: getMessage("ruleIdentityAmbiguous")
     };
   }
 
@@ -383,7 +392,7 @@ export function replaceRuleAtomically(
     return {
       ok: false,
       reason: "invalid-domain",
-      error: normalized.ok ? "That hostname cannot be routed." : normalized.error.message
+      error: normalized.ok ? getMessage("ruleHostnameCannotRoute") : normalized.error.message
     };
   }
 

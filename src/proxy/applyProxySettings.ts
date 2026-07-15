@@ -1,4 +1,5 @@
 import { getLocalSettings } from "../storage/localStore";
+import { getMessage } from "../i18n/i18n";
 import type { LocalSettings, StorageAreaAdapter, SyncSettings } from "../storage/storageTypes";
 import { getSyncSettings } from "../storage/syncStore";
 import { buildPacScript } from "./buildPac";
@@ -97,7 +98,7 @@ function errorMessage(error: unknown): string {
     return error;
   }
 
-  return "Proxy settings operation failed.";
+  return getMessage("proxyOperationFailed");
 }
 
 export function createChromeProxySettingsAdapter(): ProxySettingsAdapter {

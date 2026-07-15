@@ -3,6 +3,7 @@ import {
   runCurrentSiteDiagnostic,
   type CurrentSiteDiagnosticResponse
 } from "../diagnostics/currentSiteDiagnostics";
+import { getMessage } from "../i18n/i18n";
 import {
   collectCurrentPageResourceHostnamesFromDom,
   isCurrentPageResourceHostsRequest,
@@ -36,7 +37,7 @@ import { domainCandidateUserOverridesFromStorage } from "../domainClassification
 import { createChromeProxySettingsAdapter, createProxySettingsController } from "../proxy/applyProxySettings";
 import { getSyncSettings } from "../storage/syncStore";
 
-const extensionName = "Smart Proxy Route Helper";
+const extensionName = getMessage("extensionName");
 const proxySettingsAdapter = createChromeProxySettingsAdapter();
 const proxySettingsController = createProxySettingsController({
   proxySettings: proxySettingsAdapter
@@ -243,13 +244,13 @@ async function handleGetRelatedDomainRecordingState(): Promise<RelatedDomainReco
   }
 
   if (!metadata || state.status === "idle") {
-    return buildRelatedDomainRecordingResponse("success", "No diagnostic recording is active.", state);
+    return buildRelatedDomainRecordingResponse("success", getMessage("recordingNoActive"), state);
   }
 
   if (state.status === "expired") {
     return buildRelatedDomainRecordingResponse(
       "expired",
-      `Diagnostic recording for ${state.currentDomain} expired. Stop and preview from that tab, or cancel it.`,
+      getMessage("recordingExpiredAction", [state.currentDomain]),
       state,
       {
         currentDomain: state.currentDomain
@@ -259,7 +260,7 @@ async function handleGetRelatedDomainRecordingState(): Promise<RelatedDomainReco
 
   return buildRelatedDomainRecordingResponse(
     "success",
-    `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you use an add action.`,
+    getMessage("recordingActive", [state.currentDomain]),
     state,
     {
       currentDomain: state.currentDomain
@@ -279,7 +280,7 @@ async function handleStartRelatedDomainRecording(
   if (typeof request.tabId !== "number" || !Number.isInteger(request.tabId) || request.tabId < 0) {
     return buildRelatedDomainRecordingResponse(
       "error",
-      "Could not identify the active tab for diagnostic recording.",
+      getMessage("recordingTabUnavailable"),
       undefined,
       {
         currentDomain: target.domain
@@ -294,7 +295,7 @@ async function handleStartRelatedDomainRecording(
     if (existingState.tabId !== tabId) {
       return buildRelatedDomainRecordingResponse(
         "active_in_other_tab",
-        `Diagnostic recording is already active for ${existingState.currentDomain} in another tab. Return to that tab to stop and preview, or cancel it.`,
+        getMessage("recordingActiveOtherTab", [existingState.currentDomain]),
         existingState,
         {
           currentDomain: existingState.currentDomain
@@ -304,7 +305,7 @@ async function handleStartRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "success",
-      `Diagnostic recording is already active for ${existingState.currentDomain}.`,
+      getMessage("recordingAlreadyActive", [existingState.currentDomain]),
       existingState,
       {
         currentDomain: existingState.currentDomain
@@ -320,7 +321,7 @@ async function handleStartRelatedDomainRecording(
     if (!hasStartedRecorder(bridgeResults)) {
       return buildRelatedDomainRecordingResponse(
         "collection_unavailable",
-        bridgeResults[0]?.message ?? "Could not start the diagnostic recording bridge on this page.",
+        bridgeResults[0]?.message ?? getMessage("recordingBridgeFailed"),
         existingState,
         {
           currentDomain: target.domain
@@ -347,7 +348,7 @@ async function handleStartRelatedDomainRecording(
 
       return buildRelatedDomainRecordingResponse(
         "collection_unavailable",
-        mainWorldResults[0]?.message ?? "Could not start MAIN-world request capture on this page.",
+        mainWorldResults[0]?.message ?? getMessage("recordingMainCaptureFailed"),
         existingState,
         {
           currentDomain: target.domain
@@ -373,7 +374,7 @@ async function handleStartRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "success",
-      `Diagnostic recording started for ${target.domain}. Perform the action, then reopen the popup and choose Stop and preview. No rules will be saved automatically.`,
+      getMessage("recordingStarted", [target.domain]),
       relatedDomainRecordingSessionState(session),
       {
         currentDomain: target.domain
@@ -382,7 +383,7 @@ async function handleStartRelatedDomainRecording(
   } catch {
     return buildRelatedDomainRecordingResponse(
       "collection_unavailable",
-      "Could not start automatic request recording on this page. Chrome may not allow temporary script access here.",
+      getMessage("recordingAutomaticFailed"),
       existingState,
       {
         currentDomain: target.domain
@@ -398,13 +399,13 @@ async function handleStopRelatedDomainRecording(
   const state = relatedDomainRecordingSessionState(metadata);
 
   if (!metadata || state.status === "idle") {
-    return buildRelatedDomainRecordingResponse("not_found", "No diagnostic recording is active.", state);
+    return buildRelatedDomainRecordingResponse("not_found", getMessage("recordingNoActive"), state);
   }
 
   if (typeof request.tabId !== "number" || !Number.isInteger(request.tabId) || request.tabId < 0) {
     return buildRelatedDomainRecordingResponse(
       "error",
-      "Could not identify the active tab for diagnostic recording.",
+      getMessage("recordingTabUnavailable"),
       state,
       {
         currentDomain: state.currentDomain
@@ -417,7 +418,7 @@ async function handleStopRelatedDomainRecording(
   if (state.tabId !== tabId) {
     return buildRelatedDomainRecordingResponse(
       "active_in_other_tab",
-      `Diagnostic recording belongs to ${state.currentDomain} in another tab. Return to that tab to stop and preview, or cancel it.`,
+      getMessage("recordingBelongsOtherTab", [state.currentDomain]),
       state,
       {
         currentDomain: state.currentDomain
@@ -434,7 +435,7 @@ async function handleStopRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "expired",
-      `Diagnostic recording for ${state.currentDomain} expired because the tab navigated or reloaded. Start a new recording on the loaded page.`,
+      getMessage("recordingExpiredNavigation", [state.currentDomain]),
       { status: "idle" },
       {
         currentDomain: state.currentDomain
@@ -468,7 +469,7 @@ async function handleStopRelatedDomainRecording(
 
       return buildRelatedDomainRecordingResponse(
         "expired",
-        `Diagnostic recording for ${state.currentDomain} expired because the page reloaded, navigated, or replaced the recorded document. Start a new recording on the loaded page.`,
+        getMessage("recordingExpiredDocument", [state.currentDomain]),
         { status: "idle" },
         {
           currentDomain: state.currentDomain
@@ -491,8 +492,8 @@ async function handleStopRelatedDomainRecording(
     return buildRelatedDomainRecordingResponse(
       expired ? "expired" : "success",
       expired
-        ? `Diagnostic recording for ${state.currentDomain} expired. Previewing hosts captured before expiration. No rules were saved.`
-        : `Diagnostic recording stopped for ${state.currentDomain}. Previewing recorded hosts. No rules were saved.`,
+        ? getMessage("recordingExpiredPreview", [state.currentDomain])
+        : getMessage("recordingStoppedPreview", [state.currentDomain]),
       { status: "idle" },
       {
         currentDomain: state.currentDomain,
@@ -508,7 +509,7 @@ async function handleStopRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "collection_unavailable",
-      "Could not stop and preview this recording. Temporary hooks were cancelled where the page remained accessible.",
+      getMessage("recordingStopPreviewFailed"),
       { status: "idle" },
       {
         currentDomain: state.currentDomain
@@ -524,7 +525,7 @@ async function handleCancelRelatedDomainRecording(
   const state = relatedDomainRecordingSessionState(metadata);
 
   if (!metadata || state.status === "idle") {
-    return buildRelatedDomainRecordingResponse("success", "No diagnostic recording is active.", state);
+    return buildRelatedDomainRecordingResponse("success", getMessage("recordingNoActive"), state);
   }
 
   await Promise.allSettled([
@@ -536,7 +537,7 @@ async function handleCancelRelatedDomainRecording(
 
   return buildRelatedDomainRecordingResponse(
     "success",
-    `Diagnostic recording for ${state.currentDomain} was cancelled. No candidates were returned and no rules were saved.`,
+    getMessage("recordingCancelled", [state.currentDomain]),
     { status: "idle" },
     {
       currentDomain: state.currentDomain
@@ -627,7 +628,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       .catch((error: unknown) => {
         const response: CurrentSiteDiagnosticResponse = {
           status: "error",
-          message: error instanceof Error ? error.message : "Could not complete the proxy check."
+          message: error instanceof Error ? error.message : getMessage("popupCouldNotCheckProxy")
         };
 
         sendResponse(response);
@@ -654,7 +655,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       .catch((error: unknown) => {
         const response: CurrentPageResourceHostsResponse = {
           status: "error",
-          message: error instanceof Error ? error.message : "Could not preview related domains."
+          message: error instanceof Error ? error.message : getMessage("popupCouldNotPreviewRelated")
         };
 
         sendResponse(response);
@@ -671,7 +672,7 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
       .catch((error: unknown) => {
         const response: RelatedDomainRecordingResponse = {
           status: "error",
-          message: error instanceof Error ? error.message : "Could not handle diagnostic recording.",
+          message: error instanceof Error ? error.message : getMessage("popupCouldNotHandleRecording"),
           state: { status: "idle" }
         };
 

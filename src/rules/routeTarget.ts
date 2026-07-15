@@ -1,5 +1,6 @@
 import { normalizeDomain } from "./normalizeDomain";
 import type { DomainRule, RuleAction } from "./ruleTypes";
+import { getMessage } from "../i18n/i18n";
 
 export type RouteTarget = Pick<DomainRule, "domain" | "includeSubdomains">;
 
@@ -58,7 +59,9 @@ export function sameRouteTarget(first: RouteTarget, second: RouteTarget): boolea
 export function describeRouteTarget(target: RouteTarget): string {
   const domain = normalizedTargetDomain(target.domain);
 
-  return target.includeSubdomains ? `${domain} and its subdomains` : `${domain} (exact hostname)`;
+  return target.includeSubdomains
+    ? getMessage("ruleTargetWithSubdomains", [domain])
+    : getMessage("ruleTargetExact", [domain]);
 }
 
 export function checkRouteTargetAddition(
@@ -173,7 +176,7 @@ export function resolveRouteTargetConflict(
   if (!conflict) {
     return {
       ok: false,
-      error: "That route-target conflict is no longer available. Refresh and try again."
+      error: getMessage("ruleConflictNoLongerAvailable")
     };
   }
 
@@ -182,7 +185,9 @@ export function resolveRouteTargetConflict(
   if (!keptRule) {
     return {
       ok: false,
-      error: `No ${keepAction === "proxy" ? "Proxy" : "Direct"} rule is available for that route target.`
+      error: getMessage("ruleConflictNoAction", [
+        keepAction === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect")
+      ])
     };
   }
 

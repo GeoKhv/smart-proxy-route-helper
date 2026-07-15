@@ -1,0 +1,1047 @@
+{
+  "extensionName": { "message": "Smart Proxy Route Helper" },
+  "extensionDescription": { "message": "Управление прокси-маршрутизацией по доменам через локальный прокси, настроенный пользователем." },
+  "optionsDocumentTitle": { "message": "Настройки Smart Proxy Route Helper" },
+  "commonProxy": { "message": "Прокси" },
+  "commonDirect": { "message": "Напрямую" },
+  "commonEdit": { "message": "Изменить" },
+  "commonRemove": { "message": "Удалить" },
+  "commonCancel": { "message": "Отмена" },
+  "commonAdded": { "message": "Добавлено" },
+  "commonCurrentRule": { "message": "Текущее правило" },
+  "commonProposedRule": { "message": "Новое правило" },
+  "commonCoverage": { "message": "Область действия:" },
+  "commonExactHostname": { "message": "Точный домен" },
+  "commonHostnameAndSubdomains": { "message": "Этот домен и его поддомены" },
+  "commonDomainAndSubdomains": { "message": "Этот домен и все поддомены" },
+  "commonParentDomainAndSubdomains": { "message": "Родительский домен и все поддомены" },
+  "commonNotAvailable": { "message": "Недоступно" },
+  "commonThisPage": { "message": "Эта страница" },
+  "commonAndMore": {
+    "message": "$DOMAINS$ и ещё $COUNT$",
+    "description": "Shared UI message. DOMAINS is a displayed hostname list and must remain unchanged; COUNT is the displayed numeric count.",
+    "placeholders": {
+      "domains": { "content": "$1", "example": "api.example.com, cdn.example.com" },
+      "count": { "content": "$2", "example": "3" }
+    }
+  },
+
+  "validationEnterDomain": { "message": "Введите домен." },
+  "validationOnlyHttpHttps": { "message": "Можно нормализовать только URL с http или https." },
+  "validationInvalidHostname": { "message": "Введите корректный домен или URL." },
+  "validationUnsupportedProxyScheme": { "message": "Выберите поддерживаемый протокол локального прокси." },
+  "validationProxyHostRequired": { "message": "Введите адрес локального прокси." },
+  "validationProxyHostInvalid": { "message": "Введите адрес локального прокси без пробелов и разделителей PAC." },
+  "validationProxyPortInvalid": { "message": "Введите порт локального прокси от 1 до 65535." },
+  "validationInternalPageCannotRoute": { "message": "Внутренние страницы браузера нельзя маршрутизировать." },
+  "validationLocalhostCannotRoute": { "message": "Localhost нельзя маршрутизировать." },
+  "validationLoopbackCannotRoute": { "message": "Loopback-адреса нельзя маршрутизировать." },
+  "validationPrivateCannotRoute": { "message": "Адреса частной сети нельзя маршрутизировать." },
+  "validationInternalDomainCannotRoute": { "message": "Внутренние локальные домены нельзя маршрутизировать." },
+  "validationPublicDomainRequired": { "message": "Введите публичный домен с точкой." },
+  "validationOpenPublicDomain": { "message": "Откройте публичный домен с точкой, чтобы управлять правилом сайта." },
+  "validationOpenValidSite": { "message": "Откройте корректный сайт с http или https, чтобы управлять правилом." },
+  "validationSiteCannotRoute": { "message": "Этот сайт нельзя маршрутизировать." },
+  "validationDomainCannotRoute": { "message": "Этот домен нельзя маршрутизировать." },
+  "validationProtocolCannotRoute": {
+    "message": "Страницы $PROTOCOL$ нельзя маршрутизировать. Сначала откройте сайт с http или https.",
+    "description": "Validation message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+
+  "ruleActionProxyLower": { "message": "через прокси" },
+  "ruleActionDirectLower": { "message": "напрямую" },
+  "ruleProxyRoute": { "message": "Через прокси" },
+  "ruleDirectRoute": { "message": "Напрямую" },
+  "ruleProxyRouteLower": { "message": "через прокси" },
+  "ruleDirectRouteLower": { "message": "напрямую" },
+  "ruleIncludesSubdomains": { "message": "включая поддомены" },
+  "ruleExactDomainOnly": { "message": "только точный домен" },
+  "ruleDomainAndSubdomainsLower": { "message": "домен и его поддомены" },
+  "ruleExactDomainLower": { "message": "точный домен" },
+  "ruleSource": {
+    "message": "источник: $SOURCE$",
+    "description": "Route-rule message. SOURCE is the stored technical source value.",
+    "placeholders": { "source": { "content": "$1", "example": "manual" } }
+  },
+  "ruleScopeMoreHostsWarning": { "message": "Правило будет применяться к большему числу доменов." },
+  "ruleOtherSubdomains": {
+    "message": "Другие поддомены $HOSTNAME$",
+    "description": "Route-rule message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleTargetWithSubdomains": {
+    "message": "$HOSTNAME$ и его поддомены",
+    "description": "Route-rule message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleTargetExact": {
+    "message": "$HOSTNAME$ (точный домен)",
+    "description": "Route-rule message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleDuplicateEditExisting": { "message": "Такое правило уже существует. Оставьте существующее правило и отмените изменение." },
+  "ruleNoLongerAvailableRefresh": { "message": "Правило больше недоступно. Обновите список правил и повторите попытку." },
+  "ruleIdentityAmbiguous": { "message": "Не удалось однозначно определить правило. Изменения не сохранены." },
+  "ruleBroaderScopeUnavailable": { "message": "Для этого домена недоступна более широкая область. Выберите безопасный точный домен или домен с поддоменами." },
+  "ruleNoChanges": { "message": "Нет изменений для сохранения." },
+  "ruleNoLongerAvailable": { "message": "Правило больше недоступно. Изменения не сохранены." },
+  "ruleHostnameCannotRoute": { "message": "Этот домен нельзя маршрутизировать." },
+  "ruleConflictNoLongerAvailable": { "message": "Этот конфликт маршрута больше недоступен. Обновите страницу и повторите попытку." },
+  "ruleConflictNoAction": {
+    "message": "Для этого маршрута нет правила «$ACTION$».",
+    "description": "Route-rule message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Прокси" } }
+  },
+  "ruleSameActionExists": {
+    "message": "Такое же правило «$ACTION$» уже существует для области «$SCOPE$».",
+    "description": "Route-rule message. ACTION is the localized route action; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "через прокси" },
+      "scope": { "content": "$2", "example": "точный домен" }
+    }
+  },
+  "ruleCoveredBy": {
+    "message": "$PARENT$ уже охватывает маршрут «$ACTION$» для области «$SCOPE$».",
+    "description": "Route-rule message. PARENT is a normalized parent hostname and must remain unchanged; ACTION is the localized route action; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "parent": { "content": "$1", "example": "example.com" },
+      "action": { "content": "$2", "example": "через прокси" },
+      "scope": { "content": "$3", "example": "точный домен" }
+    }
+  },
+  "ruleExistingParentSameRoute": {
+    "message": "Существующее родительское правило $PARENT$ уже задаёт такой маршрут.",
+    "description": "Route-rule message. PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": { "parent": { "content": "$1", "example": "example.com" } }
+  },
+  "ruleOverridesParentWarning": {
+    "message": "Это правило «$ACTION$» переопределит более широкое правило «$PARENT_ACTION$» для $PARENT$ в своей области.",
+    "description": "Route-rule message. ACTION is the localized route action; PARENT_ACTION is the localized parent route action; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "parent_action": { "content": "$2", "example": "Напрямую" },
+      "parent": { "content": "$3", "example": "example.com" }
+    }
+  },
+  "ruleChildRedundantWarning": {
+    "message": "Это более широкое правило «$ACTION$» сделает правило $CHILD$ избыточным. Оно не будет удалено автоматически.",
+    "description": "Route-rule message. ACTION is the localized route action; CHILD is a normalized child hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "child": { "content": "$2", "example": "api.example.com" }
+    }
+  },
+  "ruleChildExceptionWarning": {
+    "message": "Это более широкое правило «$ACTION$» будет содержать дочернее исключение «$CHILD_ACTION$» для $CHILD$. Дочернее исключение продолжит действовать.",
+    "description": "Route-rule message. ACTION is the localized route action; CHILD_ACTION is the localized child route action; CHILD is a normalized child hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "child_action": { "content": "$2", "example": "Напрямую" },
+      "child": { "content": "$3", "example": "api.example.com" }
+    }
+  },
+  "ruleOppositeActionExists": {
+    "message": "Для того же домена и области уже существует правило с противоположным действием «$ACTION$». Измените его.",
+    "description": "Route-rule message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Напрямую" } }
+  },
+  "ruleConflictSaveBlocked": { "message": "Перед сохранением синхронизируемых настроек явно разрешите конфликты правил маршрутизации." },
+  "ruleProxyDirectExists": { "message": "Для этого домена и области уже существует правило Прокси/Напрямую. Измените существующее правило." },
+  "ruleConflictUseKeep": { "message": "Явно разрешите конфликт с помощью «Оставить Прокси» или «Оставить Напрямую»." },
+  "ruleConflictResolveBeforeEdit": { "message": "Перед изменением разрешите конфликт маршрута с помощью «Оставить Прокси» или «Оставить Напрямую»." },
+  "ruleActionExistsForScope": {
+    "message": "Для этого домена и области уже существует правило «$ACTION$». Измените существующее правило.",
+    "description": "Route-rule message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Прокси" } }
+  },
+  "ruleActionExistsForDomainScope": {
+    "message": "Для $HOSTNAME$ уже существует правило «$ACTION$» с такой же областью. Измените существующее правило.",
+    "description": "Route-rule message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Напрямую" },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+
+  "popupIntro": { "message": "Управляйте текущим сайтом с помощью явных синхронизируемых правил Прокси или Напрямую." },
+  "popupCurrentSiteTitle": { "message": "Текущий сайт" },
+  "popupLoadingCurrentSite": { "message": "Загрузка..." },
+  "popupRouteStatusTitle": { "message": "Статус маршрута" },
+  "popupCheckingCurrentSite": { "message": "Проверка текущего сайта..." },
+  "popupCheckingCurrentSiteAria": { "message": "Проверяется текущий сайт" },
+  "popupActionsTitle": { "message": "Действия" },
+  "popupProxyThisHostname": { "message": "Направить домен через прокси" },
+  "popupDirectThisHostname": { "message": "Направить домен напрямую" },
+  "popupExactScopeCopy": { "message": "Применяется только к этому точному домену." },
+  "popupChangeScope": { "message": "Изменить область" },
+  "popupRemoveExactRule": { "message": "Удалить точное правило" },
+  "popupRuleScopeLabel": { "message": "Область правила" },
+  "popupConfirmScopeChange": { "message": "Подтвердить изменение области" },
+  "popupCheckViaProxy": { "message": "Проверить через прокси" },
+  "popupPreviewRelatedDomains": { "message": "Показать связанные домены" },
+  "popupStartRecording": { "message": "Начать запись" },
+  "popupStopAndPreview": { "message": "Остановить и показать" },
+  "popupCancelRecording": { "message": "Отменить запись" },
+  "popupAddCheckedRule": { "message": "Добавить проверенный сайт" },
+  "popupOpenOptions": { "message": "Открыть настройки" },
+  "popupLoadingActions": { "message": "Загрузка действий..." },
+  "popupStatusThroughProxy": { "message": "Через прокси" },
+  "popupStatusDirect": { "message": "Напрямую" },
+  "popupStatusNotConfigured": { "message": "Не настроено" },
+  "popupStatusProxyUnavailable": { "message": "Прокси недоступен" },
+  "popupStatusConflictingRules": { "message": "Конфликт правил" },
+  "popupStatusUnavailable": { "message": "Недоступно" },
+  "popupNoMatchingRule": { "message": "Подходящего правила нет. По умолчанию маршрут прямой." },
+  "popupConflictExactSource": {
+    "message": "точное правило $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupConflictParentSource": {
+    "message": "родительское правило $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupConflictExplanation": {
+    "message": "Сейчас действует «$ACTION$» через $SOURCE$. Разрешите конфликт в настройках.",
+    "description": "Popup UI message. ACTION is the localized route action; SOURCE is the stored technical source value.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "source": { "content": "$2", "example": "точное правило example.com" }
+    }
+  },
+  "popupWarningAria": {
+    "message": "Предупреждение: $LABEL$. $EXPLANATION$",
+    "description": "Popup UI message. LABEL is a localized control label; EXPLANATION is a localized route explanation.",
+    "placeholders": {
+      "label": { "content": "$1", "example": "Прокси недоступен" },
+      "explanation": { "content": "$2", "example": "Локальный прокси отключён." }
+    }
+  },
+  "popupExactProxyExplanation": {
+    "message": "Точное правило для $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentProxyExplanation": {
+    "message": "Охватывается родительским правилом $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupExactDirectExplanation": {
+    "message": "Точное прямое правило для $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentDirectExplanation": {
+    "message": "Напрямую по родительскому правилу $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupProxyDisabledExplanation": {
+    "message": "$EXPLANATION$. Локальный прокси отключён или некорректно настроен на этом устройстве.",
+    "description": "Popup UI message. EXPLANATION is a localized route explanation.",
+    "placeholders": { "explanation": { "content": "$1", "example": "Точное правило для example.com" } }
+  },
+  "popupAriaRouteStatus": {
+    "message": "$LABEL$. $EXPLANATION$",
+    "description": "Popup UI message. LABEL is a localized control label; EXPLANATION is a localized route explanation.",
+    "placeholders": {
+      "label": { "content": "$1", "example": "Через прокси" },
+      "explanation": { "content": "$2", "example": "example.com направляется через прокси." }
+    }
+  },
+  "popupSyncedDenylistBlocked": {
+    "message": "$HOSTNAME$ заблокирован синхронизируемым списком запретов. Откройте настройки, чтобы проверить сохранённые списки.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupConflictEffective": {
+    "message": "Конфликт правил. Сейчас действует «$ACTION$», но конфликт нужно разрешить в настройках.",
+    "description": "Popup UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Прокси" } }
+  },
+  "popupExactProxy": {
+    "message": "$HOSTNAME$ направляется через прокси по точному синхронизируемому правилу.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupExactDirect": {
+    "message": "$HOSTNAME$ направляется напрямую по точному синхронизируемому правилу.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentProxy": {
+    "message": "$HOSTNAME$ направляется через прокси по родительскому правилу $PARENT$. Изменить его можно в настройках.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "parent": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupParentDirect": {
+    "message": "$HOSTNAME$ направляется напрямую по родительскому правилу $PARENT$. Изменить его можно в настройках.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "parent": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupDefaultDirect": {
+    "message": "$HOSTNAME$ использует прямой маршрут по умолчанию.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupOpenSupportedSite": { "message": "Откройте поддерживаемый сайт, чтобы управлять правилом прокси-маршрутизации." },
+  "popupOpenRegularWebsite": { "message": "Откройте обычную вкладку сайта, чтобы добавить прокси-маршрут." },
+  "popupUseExplicitControls": { "message": "Используйте явные действия для изменения синхронизируемых правил сайта." },
+  "popupExactRuleGone": { "message": "Точное правило больше недоступно. Откройте всплывающее окно заново и повторите попытку." },
+  "popupOnlyExactExpandable": { "message": "Здесь можно расширить только точное правило." },
+  "popupChooseBroaderScope": { "message": "Выберите более широкую область и проверьте изменения перед подтверждением." },
+  "popupScopeChangeCancelled": { "message": "Изменение области отменено. Правило не изменено." },
+  "popupScopeActionPreserved": {
+    "message": "Действие «$ACTION$» будет сохранено.",
+    "description": "Popup UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Прокси" } }
+  },
+  "popupScopeChanged": {
+    "message": "Синхронизируемое правило для $HOSTNAME$ обновлено с выбранной областью.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupRuleAlreadyExists": {
+    "message": "Для $HOSTNAME$ уже есть такое синхронизируемое правило «$ACTION$».",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; ACTION is the localized route action.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "example.com" },
+      "action": { "content": "$2", "example": "через прокси" }
+    }
+  },
+  "popupRuleInherited": {
+    "message": "$HOSTNAME$ уже направляется $ACTION$ по родительскому правилу $PARENT$. Изменить его можно в настройках.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; ACTION is the localized route action; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "action": { "content": "$2", "example": "через прокси" },
+      "parent": { "content": "$3", "example": "example.com" }
+    }
+  },
+  "popupRuleAdded": {
+    "message": "Добавлен синхронизируемый маршрут $ACTION$ для $HOSTNAME$.",
+    "description": "Popup UI message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "через прокси" },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupExactRuleRemoved": {
+    "message": "Точное синхронизируемое правило для $HOSTNAME$ удалено.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupNoExactRule": {
+    "message": "Для $HOSTNAME$ нет точного синхронизируемого правила.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupParentRuleEdit": {
+    "message": "$HOSTNAME$ маршрутизируется родительским правилом $PARENT$. Изменить родительские правила можно в настройках.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged; PARENT is a normalized parent hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "status.example.com" },
+      "parent": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "popupDiagnosticResolveConflict": { "message": "Перед добавлением правила по результатам проверки разрешите конфликты в настройках." },
+  "popupDiagnosticReachableCanAdd": { "message": "Сайт доступен через локальный прокси. Его можно добавить как синхронизируемый прокси-маршрут." },
+  "popupDiagnosticReachableCovered": { "message": "Сайт доступен через локальный прокси. Его уже охватывает синхронизируемое правило." },
+  "popupDiagnosticUnreachableCovered": { "message": "Сайт охвачен синхронизируемым правилом, но не отвечает через локальный прокси. Проверьте настройки локального прокси." },
+  "popupDiagnosticUnreachable": { "message": "Сайт не отвечает через локальный прокси." },
+  "popupCheckingProxy": { "message": "Проверка через настроенный локальный прокси..." },
+  "popupOpenSiteBeforeCheck": { "message": "Перед проверкой прокси откройте поддерживаемый сайт." },
+  "popupRunSuccessfulCheck": { "message": "Перед добавлением правила успешно проверьте сайт через прокси." },
+  "popupRunCheckAgain": { "message": "Перед добавлением правила повторите проверку прокси для текущего сайта." },
+
+  "popupRelatedTitle": { "message": "Связанные домены" },
+  "popupRelatedBack": { "message": "Вернуться к статусу сайта" },
+  "popupRelatedMoreActions": { "message": "Другие действия" },
+  "popupRelatedGroupStrong": { "message": "Надёжные кандидаты" },
+  "popupRelatedGroupMedium": { "message": "Проверить вручную" },
+  "popupRelatedGroupCovered": { "message": "Уже охвачены" },
+  "popupRelatedGroupIgnored": { "message": "Игнорируются" },
+  "popupRelatedNotCovered": { "message": "пока не охвачен" },
+  "popupRelatedAlreadyCovered": { "message": "уже охвачен" },
+  "popupRelatedCoveredBy": {
+    "message": "уже охвачен правилом $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "popupRelatedHostnameAndSubdomains": { "message": "домен и поддомены" },
+  "popupRelatedExactHostname": { "message": "точный домен" },
+  "popupRelatedAddExact": {
+    "message": "Добавить $HOSTNAME$",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "status.openai.com" } }
+  },
+  "popupRelatedAddParent": {
+    "message": "Добавить $HOSTNAME$ и поддомены",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
+  "popupRelatedBatchAddOne": {
+    "message": "Добавить $COUNT$ выбранный домен",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedBatchAddFew": {
+    "message": "Добавить $COUNT$ выбранных домена",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "popupRelatedBatchAddMany": {
+    "message": "Добавить $COUNT$ выбранных доменов",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "5" } }
+  },
+  "popupRelatedBatchAddOther": {
+    "message": "Добавить $COUNT$ выбранных домена",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "popupRelatedSelectAria": {
+    "message": "Выбрать: $ACTION$",
+    "description": "Popup UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Добавить status.openai.com" } }
+  },
+  "popupRelatedIgnoreGlobally": { "message": "Игнорировать везде" },
+  "popupRelatedReviewGlobally": { "message": "Проверять везде" },
+  "popupRelatedSuggestForSite": { "message": "Предлагать для сайта" },
+  "popupRelatedIgnoreForSite": { "message": "Игнорировать для сайта" },
+  "popupRelatedReasonSameSite": { "message": "ресурсы того же сайта" },
+  "popupRelatedReasonKnown": { "message": "известный связанный домен" },
+  "popupRelatedReasonResource": { "message": "ресурс текущей страницы" },
+  "popupRelatedReasonAnalytics": { "message": "аналитика или отслеживание" },
+  "popupRelatedReasonShared": { "message": "общая инфраструктура" },
+  "popupRelatedReasonLocalHelper": { "message": "локальный или блокирующий помощник" },
+  "popupRelatedReasonSystemHelper": { "message": "системный домен или схема" },
+  "popupRelatedReasonSiblings": { "message": "несколько родственных доменов" },
+  "popupRelatedReasonGenerated": { "message": "семейство сгенерированных поддоменов" },
+  "popupRelatedObservedHosts": {
+    "message": "наблюдаемые домены: $HOSTNAMES$",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com, cdn.example.com" } }
+  },
+  "popupRelatedAddedAria": {
+    "message": "$HOSTNAME$ добавлен как маршрут через прокси",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedOverrideIgnoredSaved": {
+    "message": "$HOSTNAME$ будет игнорироваться везде. Список обновлён.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "popupRelatedOverrideReviewSaved": {
+    "message": "$HOSTNAME$ останется на ручной проверке для всех сайтов. Список обновлён.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "cdn.example.net" } }
+  },
+  "popupRelatedOverrideSuggestedSaved": {
+    "message": "$HOSTNAME$ будет предлагаться для этого сайта. Список обновлён.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "cdn.example.net" } }
+  },
+  "popupRelatedOverrideSiteIgnoredSaved": {
+    "message": "$HOSTNAME$ будет игнорироваться для этого сайта. Список обновлён.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "popupRelatedNoRequestHosts": { "message": "За эту сессию не записано ни одного домена запроса. Некоторые запросы worker, service worker или браузера могут быть недоступны этому приватному механизму записи." },
+  "popupRelatedNoResourceHosts": { "message": "Домены ресурсов страницы не найдены. Перезагрузите страницу и повторите просмотр." },
+  "popupRelatedOnlyIgnored": { "message": "Найдены домены ресурсов, но они похожи на аналитику, рекламу, локальные или служебные домены. Правила не сохранены." },
+  "popupRelatedNoCandidates": { "message": "Найдены домены ресурсов, но новых связанных кандидатов нет. Правила не сохранены." },
+  "popupRelatedAllCovered": { "message": "Найденные домены ресурсов уже охвачены существующими правилами. Правила не сохранены." },
+  "popupRelatedSelectOne": { "message": "Перед добавлением выберите хотя бы один связанный домен." },
+  "popupRelatedNoNewRules": { "message": "Новые правила для связанных доменов не добавлены: выбранные домены уже охвачены." },
+  "popupRelatedAddedRoutes": {
+    "message": "Добавлены синхронизируемые прокси-маршруты для $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com, cdn.example.com" } }
+  },
+  "popupRelatedAddedRoute": {
+    "message": "Добавлен синхронизируемый прокси-маршрут для $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedPreviewIntro": {
+    "message": "Найдены кандидаты в связанные домены. Правила ещё не сохранены. $DETAILS$.",
+    "description": "Popup UI message. DETAILS is a localized summary.",
+    "placeholders": { "details": { "content": "$1", "example": "Вероятно связан: api.example.com" } }
+  },
+  "popupRelatedLikely": {
+    "message": "Вероятно связаны: $HOSTNAMES$",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedReview": {
+    "message": "Проверить вручную: $HOSTNAMES$",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "cdn.example.net" } }
+  },
+  "popupRelatedIgnoredCount": {
+    "message": "Игнорируются домены аналитики, помощников или инфраструктуры: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedIgnoredCountOne": {
+    "message": "Игнорируется домен аналитики, помощника или инфраструктуры: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedCoveredCount": {
+    "message": "Уже охваченных кандидатов: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedCoveredCountOne": {
+    "message": "Уже охваченных кандидатов: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedHiddenSaveable": {
+    "message": "Скрыто ещё кандидатов для сохранения: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedHiddenSaveableOne": {
+    "message": "Скрыт ещё $COUNT$ кандидат для сохранения",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedHiddenCovered": {
+    "message": "Скрыто уже охваченных кандидатов: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedHiddenCoveredOne": {
+    "message": "Скрыт $COUNT$ уже охваченный кандидат",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupRelatedHiddenIgnored": {
+    "message": "Скрыто игнорируемых кандидатов: $COUNT$",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "popupRelatedHiddenIgnoredOne": {
+    "message": "Скрыт $COUNT$ игнорируемый кандидат",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "1" } }
+  },
+  "popupPreviewDetails": {
+    "message": "Детали просмотра: проверено — $INSPECTED$; инициировано запросов — $REQUESTS$; performance-записей — $PERFORMANCE$; DOM-атрибутов ресурсов — $ATTRIBUTES$; значений, похожих на URL, — $VALUES$; очищенных доменов — $HOSTS$; игнорируемых или внутренних — $IGNORED$; уже охваченных — $COVERED$; доступных для сохранения — $SAVEABLE$.",
+    "description": "Popup UI message. INSPECTED is the inspected-element count; REQUESTS is the recorded-request count; PERFORMANCE is the performance-entry count; ATTRIBUTES is the inspected attribute count; VALUES is a displayed normalized-domain list and must remain unchanged; HOSTS is the collected-host count; IGNORED is the ignored-item count; COVERED is the number of covered candidates; SAVEABLE is the saveable-candidate count.",
+    "placeholders": {
+      "inspected": { "content": "$1", "example": "12" },
+      "requests": { "content": "$2", "example": "8" },
+      "performance": { "content": "$3", "example": "5" },
+      "attributes": { "content": "$4", "example": "3" },
+      "values": { "content": "$5", "example": "9" },
+      "hosts": { "content": "$6", "example": "6" },
+      "ignored": { "content": "$7", "example": "2" },
+      "covered": { "content": "$8", "example": "1" },
+      "saveable": { "content": "$9", "example": "3" }
+    }
+  },
+  "popupPreviewDropped": {
+    "message": " Пропущено performance-записей по данным браузера: $COUNT$.",
+    "description": "Popup UI message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "popupPreviewHosts": {
+    "message": " Домены: $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com, cdn.example.com" } }
+  },
+  "popupRelatedPreviewAgainOverride": { "message": "Перед сохранением исключения снова покажите связанные домены для текущего сайта." },
+  "popupRelatedChooseOverride": { "message": "Выберите поддерживаемое действие для классификации." },
+  "popupRelatedSavingOverride": { "message": "Сохранение правила классификации..." },
+  "popupRelatedRefreshing": { "message": "Обновление связанных доменов..." },
+  "popupRelatedPreviewAgainAdd": { "message": "Перед добавлением снова покажите связанные домены для текущего сайта." },
+  "popupShowingSiteStatus": { "message": "Показан статус текущего сайта." },
+  "popupPreviewingRelated": { "message": "Поиск связанных доменов среди ресурсов текущей страницы..." },
+  "popupRecordingStarting": { "message": "Запускается запись для этой вкладки..." },
+  "popupRecordingStopping": { "message": "Запись останавливается, готовится просмотр..." },
+  "popupRecordingCancelling": { "message": "Запись отменяется..." },
+  "popupOpenSiteBeforePreview": { "message": "Перед просмотром связанных доменов откройте поддерживаемый сайт." },
+  "popupOpenSiteBeforeRecording": { "message": "Перед началом записи откройте поддерживаемый сайт." },
+  "popupOpenRecordedSite": { "message": "Перед остановкой записи откройте записываемый сайт." },
+  "popupRecordedSession": {
+    "message": "Записано в этой сессии. $MESSAGE$",
+    "description": "Popup UI message. MESSAGE is a localized nested status message.",
+    "placeholders": { "message": { "content": "$1", "example": "Найдены связанные домены." } }
+  },
+  "popupCouldNotUpdateScope": { "message": "Не удалось изменить область правила." },
+  "popupCouldNotAddSite": { "message": "Не удалось добавить текущий сайт." },
+  "popupCouldNotAddDirect": { "message": "Не удалось добавить прямой маршрут." },
+  "popupCouldNotRemoveSite": { "message": "Не удалось удалить текущий сайт." },
+  "popupCouldNotCheckProxy": { "message": "Не удалось завершить проверку прокси." },
+  "popupCouldNotPreviewRelated": { "message": "Не удалось показать связанные домены." },
+  "popupCouldNotStartRecording": { "message": "Не удалось начать запись." },
+  "popupCouldNotStopRecording": { "message": "Не удалось остановить запись." },
+  "popupCouldNotCancelRecording": { "message": "Не удалось отменить запись." },
+  "popupCouldNotHandleRecording": { "message": "Не удалось обработать запись." },
+  "popupCouldNotAddRelated": { "message": "Не удалось добавить связанный домен." },
+  "popupCouldNotAddSelected": { "message": "Не удалось добавить выбранные связанные домены." },
+  "popupCouldNotSaveOverride": { "message": "Не удалось сохранить правило классификации." },
+  "popupCouldNotAddChecked": { "message": "Не удалось добавить проверенный сайт." },
+  "popupCouldNotLoad": { "message": "Не удалось загрузить текущий сайт." },
+
+  "optionsIntro": { "message": "Настройте локальный прокси для этого устройства и управляйте синхронизируемыми маршрутами Прокси и Напрямую." },
+  "optionsLocalProxyTitle": { "message": "Настройки локального прокси" },
+  "optionsLocalProxyDescription": { "message": "Хранятся только в этой установке Chrome. Адрес и порт не синхронизируются с другими устройствами." },
+  "optionsEnableProxy": { "message": "Включить прокси-маршрутизацию на этом устройстве" },
+  "optionsProxySchemeLabel": { "message": "Протокол" },
+  "optionsProxyHostLabel": { "message": "Адрес" },
+  "optionsProxyPortLabel": { "message": "Порт" },
+  "optionsSuggestedProxy": { "message": "Рекомендуемое локальное значение: socks5 127.0.0.1:10808." },
+  "optionsSaveLocal": { "message": "Сохранить локальные настройки" },
+  "optionsRulesTitle": { "message": "Синхронизируемые правила доменов" },
+  "optionsRulesDescription": { "message": "Хранятся в Chrome Sync. Добавление и удаление всегда выполняется явно; расширение не добавляет домены автоматически." },
+  "optionsDomainLabel": { "message": "Домен или URL" },
+  "optionsRouteActionLabel": { "message": "Действие маршрута" },
+  "optionsRouteThroughProxy": { "message": "Направить через прокси" },
+  "optionsRouteDirectly": { "message": "Направить напрямую" },
+  "optionsRuleScopeHint": { "message": "Явно выберите область действия; родительский домен не определяется автоматически." },
+  "optionsAddRule": { "message": "Добавить правило домена" },
+  "optionsConflictsTitle": { "message": "Конфликт правил" },
+  "optionsConflictsDescription": { "message": "Для одного домена и области настроены Прокси и Напрямую. Выберите единственный маршрут; автоматически ничего не удаляется." },
+  "optionsEditRuleTitle": { "message": "Изменить правило маршрута" },
+  "optionsHostnameLabel": { "message": "Домен" },
+  "optionsSafeParentHint": { "message": "Безопасная область родительского домена появляется только тогда, когда её допускает проверка PSL." },
+  "optionsPreviewChanges": { "message": "Предпросмотр" },
+  "optionsSaveChanges": { "message": "Сохранить изменения" },
+  "optionsPreviewBeforeSave": { "message": "Перед сохранением выполните предпросмотр." },
+  "optionsOptimizeTitle": { "message": "Оптимизация правил" },
+  "optionsOptimizeDescription": { "message": "Найдите дочерние правила с тем же действием, уже охваченные более широкими родительскими правилами. Автоматически ничего не удаляется." },
+  "optionsFindRedundant": { "message": "Найти избыточные правила" },
+  "optionsDenylistTitle": { "message": "Запрещённые и игнорируемые домены" },
+  "optionsDenylistDescription": { "message": "В этом срезе доступен только просмотр. Редактирование списков при необходимости будет добавлено отдельно." },
+  "optionsLoadingLists": { "message": "Загрузка сохранённых списков..." },
+  "optionsOverridesTitle": { "message": "Исключения классификации" },
+  "optionsOverridesDescription": { "message": "Хранятся в Chrome Sync как личные предпочтения для доменов. Удаление исключения не меняет правила маршрутизации." },
+  "optionsBackupTitle": { "message": "Резервная копия и восстановление" },
+  "optionsBackupDescription": { "message": "Экспортируйте и импортируйте локальные резервные копии. Они не отправляются в облако и не содержат телеметрию, данные сервера, полные URL, диагностические сессии или содержимое страниц." },
+  "optionsExportTitle": { "message": "Экспорт настроек" },
+  "optionsIncludeLocalProxy": { "message": "Включить конфигурацию локального прокси этого устройства" },
+  "optionsLocalProxyBackupHint": { "message": "Адрес и порт локального прокси зависят от устройства и по умолчанию исключены. Включайте их только в резервную копию под вашим контролем." },
+  "optionsExportButton": { "message": "Экспортировать настройки" },
+  "optionsExportJsonLabel": { "message": "JSON экспорта" },
+  "optionsImportTitle": { "message": "Импорт настроек" },
+  "optionsImportJsonLabel": { "message": "JSON импорта" },
+  "optionsImportPlaceholder": { "message": "Вставьте JSON экспорта настроек Smart Proxy Route Helper" },
+  "optionsPreviewImport": { "message": "Предпросмотр импорта" },
+  "optionsApplyImport": { "message": "Применить импорт" },
+  "optionsNoImportPreview": { "message": "Предпросмотра импорта ещё нет." },
+  "optionsNoRules": { "message": "Синхронизируемых правил маршрута пока нет." },
+  "optionsResolveConflictsForList": { "message": "Разрешите конфликты маршрутов выше, чтобы вернуться к обычному списку правил." },
+  "optionsEditRuleAria": {
+    "message": "Изменить правило маршрута для $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRemoveRuleAria": {
+    "message": "Удалить правило маршрута для $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsConflictDetail": {
+    "message": "Настроены и Прокси, и Напрямую. $DETAIL$",
+    "description": "Options UI message. DETAIL is a localized status detail.",
+    "placeholders": { "detail": { "content": "$1", "example": "Временно действует Прокси." } }
+  },
+  "optionsConflictEffective": {
+    "message": "Временно действует «$ACTION$»: побеждает самое новое значение createdAt, а при равенстве — более поздняя позиция в хранилище.",
+    "description": "Options UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "Прокси" } }
+  },
+  "optionsConflictTieBreaker": { "message": "Среда выполнения по-прежнему использует детерминированное правило разрешения конфликта." },
+  "optionsKeepProxy": { "message": "Оставить Прокси" },
+  "optionsKeepDirect": { "message": "Оставить Напрямую" },
+  "optionsKeepProxyAria": {
+    "message": "Оставить Прокси для $TARGET$ и удалить соседнее правило Напрямую",
+    "description": "Options UI message. TARGET is a localized route-target description.",
+    "placeholders": { "target": { "content": "$1", "example": "example.com с точной областью" } }
+  },
+  "optionsKeepDirectAria": {
+    "message": "Оставить Напрямую для $TARGET$ и удалить соседнее правило Прокси",
+    "description": "Options UI message. TARGET is a localized route-target description.",
+    "placeholders": { "target": { "content": "$1", "example": "example.com с точной областью" } }
+  },
+  "optionsNoRedundant": { "message": "Избыточных правил маршрута не найдено." },
+  "optionsCoveredBy": {
+    "message": "$REASON$ Охватывается правилом $HOSTNAME$.",
+    "description": "Options UI message. REASON is a localized candidate reason; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "reason": { "content": "$1", "example": "Это правило избыточно." },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "optionsRemoveSuggestion": { "message": "Удалить предложенное" },
+  "optionsRemoveSuggestionAria": {
+    "message": "Удалить избыточное правило для $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "api.example.com" } }
+  },
+  "optionsDenylistValues": {
+    "message": "Список запретов: $HOSTNAMES$.",
+    "description": "Options UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "localhost, internal" } }
+  },
+  "optionsDenylistEmpty": { "message": "Список запретов: нет сохранённых записей." },
+  "optionsIgnoredValues": {
+    "message": "Игнорируемые домены: $HOSTNAMES$.",
+    "description": "Options UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "optionsIgnoredEmpty": { "message": "Игнорируемые домены: нет сохранённых записей." },
+  "optionsOverrideIgnored": { "message": "игнорировать" },
+  "optionsOverrideReview": { "message": "проверять вручную" },
+  "optionsOverrideSuggested": { "message": "предлагать" },
+  "optionsGlobalOverride": {
+    "message": "глобальное исключение · $ACTION$",
+    "description": "Options UI message. ACTION is the localized route action.",
+    "placeholders": { "action": { "content": "$1", "example": "игнорировать" } }
+  },
+  "optionsSiteOverride": {
+    "message": "исключение для $SITE$ · $ACTION$",
+    "description": "Options UI message. SITE is a normalized site hostname and must remain unchanged; ACTION is the localized route action.",
+    "placeholders": {
+      "site": { "content": "$1", "example": "example.com" },
+      "action": { "content": "$2", "example": "предлагать" }
+    }
+  },
+  "optionsNoOverrides": { "message": "Синхронизируемых исключений классификации пока нет." },
+  "optionsRemoveOverrideAria": {
+    "message": "Удалить исключение для $HOSTNAME$ на сайте $SITE$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged; SITE is a normalized site hostname and must remain unchanged.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "cdn.example.net" },
+      "site": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "optionsRemoveGlobalOverrideAria": {
+    "message": "Удалить глобальное исключение для $HOSTNAME$",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "metrics.example.com" } }
+  },
+  "optionsFixProxy": { "message": "Исправьте выделенный параметр локального прокси перед сохранением." },
+  "optionsProxySaved": { "message": "Настройки локального прокси сохранены на этом устройстве." },
+  "optionsRuleDuplicate": {
+    "message": "Для $HOSTNAME$ уже есть такое синхронизируемое правило маршрута.",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRuleAdded": {
+    "message": "Добавлено синхронизируемое правило $ACTION$ для $HOSTNAME$.",
+    "description": "Options UI message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "через прокси" },
+      "hostname": { "content": "$2", "example": "example.com" }
+    }
+  },
+  "optionsConflictResolved": {
+    "message": "Для $TARGET$ останется «$ACTION$». Противоречащих соседних правил удалено одной синхронизируемой записью: $COUNT$.",
+    "description": "Options UI message. ACTION is the localized route action; TARGET is a localized route-target description; COUNT is the displayed numeric count.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "target": { "content": "$2", "example": "example.com с точной областью" },
+      "count": { "content": "$3", "example": "2" }
+    }
+  },
+  "optionsConflictResolvedOne": {
+    "message": "Для $TARGET$ останется «$ACTION$». Одной синхронизируемой записью удалено $COUNT$ противоречащее соседнее правило.",
+    "description": "Options UI message. ACTION is the localized route action; TARGET is a localized route-target description; COUNT is the displayed numeric count.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "target": { "content": "$2", "example": "example.com с точной областью" },
+      "count": { "content": "$3", "example": "1" }
+    }
+  },
+  "optionsChangesNotSaved": { "message": "Изменения ещё не сохранены. Выполните предпросмотр." },
+  "optionsChooseRule": { "message": "Сначала выберите правило для изменения." },
+  "optionsPreviewValidEdit": { "message": "Перед сохранением выполните предпросмотр корректного изменения." },
+  "optionsRuleUpdated": {
+    "message": "$HOSTNAME$ обновлён атомарно. Идентификатор и метаданные существующего правила сохранены.",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRuleGone": { "message": "Правило больше недоступно. Обновите страницу и повторите попытку." },
+  "optionsEditingRule": {
+    "message": "Изменяется $HOSTNAME$. До нажатия «Сохранить изменения» ничего не изменится.",
+    "description": "Options UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "optionsRuleRemoved": { "message": "Синхронизируемое правило удалено." },
+  "optionsRedundantRemoved": { "message": "Избыточное правило удалено после подтверждения." },
+  "optionsCleanupComplete": { "message": "Поиск избыточных правил завершён. Автоматически ничего не удалено." },
+  "optionsOverrideRemoveUnknown": { "message": "Не удалось определить исключение классификации для удаления." },
+  "optionsOverrideRemoved": { "message": "Исключение классификации удалено." },
+  "optionsExportWithProxy": { "message": "JSON экспорта создан с конфигурацией локального прокси." },
+  "optionsExportWithoutProxy": { "message": "JSON экспорта создан без конфигурации локального прокси." },
+  "optionsCouldNotExport": { "message": "Не удалось экспортировать настройки." },
+  "optionsFixImport": { "message": "Исправьте JSON импорта перед применением изменений." },
+  "optionsImportPreviewReady": { "message": "Предпросмотр импорта готов. Проверьте его перед применением." },
+  "optionsCouldNotPreviewImport": { "message": "Не удалось выполнить предпросмотр импорта." },
+  "optionsPreviewValidImport": { "message": "Перед применением выполните предпросмотр корректного импорта." },
+  "optionsProxyRestored": { "message": "Настройки локального прокси восстановлены на этом устройстве." },
+  "optionsImportApplied": { "message": "Импорт применён после явного подтверждения." },
+  "optionsCouldNotApplyImport": { "message": "Не удалось применить импорт." },
+  "optionsImportCleared": { "message": "Предпросмотр импорта очищен." },
+  "optionsLoadedLocal": { "message": "Локальные настройки загружены." },
+  "optionsLoadedRules": { "message": "Синхронизируемые правила загружены." },
+  "optionsRunCleanup": { "message": "Запустите поиск избыточных правил маршрута." },
+  "optionsLoadedOverrides": { "message": "Исключения классификации загружены." },
+  "optionsBackupReady": { "message": "Экспорт резервной копии готов." },
+  "optionsPasteImport": { "message": "Вставьте JSON экспорта для предпросмотра импорта." },
+  "optionsCouldNotPreviewEdit": { "message": "Не удалось выполнить предпросмотр изменения правила." },
+  "optionsCouldNotSaveEdit": { "message": "Не удалось сохранить изменение правила." },
+  "optionsEditCancelled": { "message": "Изменение правила отменено. Правило не изменено." },
+  "optionsCouldNotLoad": { "message": "Не удалось загрузить настройки." },
+  "optionsImportRouteSummary": {
+    "message": "Правила маршрута: доступно для импорта — $IMPORTABLE$, новых — $ADDED$, совпадений — $DUPLICATES$, пропущено — $SKIPPED$.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; ADDED is the number of added items; DUPLICATES is the duplicate-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "added": { "content": "$2", "example": "2" },
+      "duplicates": { "content": "$3", "example": "1" },
+      "skipped": { "content": "$4", "example": "0" }
+    }
+  },
+  "optionsImportOverrideSummary": {
+    "message": "Исключения классификации: доступно для импорта — $IMPORTABLE$, добавлено или обновлено — $UPDATED$, пропущено — $SKIPPED$.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; UPDATED is the updated-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "updated": { "content": "$2", "example": "2" },
+      "skipped": { "content": "$3", "example": "1" }
+    }
+  },
+  "optionsImportIgnoredSummary": {
+    "message": "Игнорируемые домены: доступно для импорта — $IMPORTABLE$, новых — $ADDED$, совпадений — $DUPLICATES$, пропущено — $SKIPPED$.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; ADDED is the number of added items; DUPLICATES is the duplicate-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "added": { "content": "$2", "example": "2" },
+      "duplicates": { "content": "$3", "example": "1" },
+      "skipped": { "content": "$4", "example": "0" }
+    }
+  },
+  "optionsImportDenylistSummary": {
+    "message": "Список запретов: доступно для импорта — $IMPORTABLE$, новых — $ADDED$, совпадений — $DUPLICATES$, пропущено — $SKIPPED$.",
+    "description": "Options UI message. IMPORTABLE is the importable-item count; ADDED is the number of added items; DUPLICATES is the duplicate-item count; SKIPPED is the skipped-item count.",
+    "placeholders": {
+      "importable": { "content": "$1", "example": "3" },
+      "added": { "content": "$2", "example": "2" },
+      "duplicates": { "content": "$3", "example": "1" },
+      "skipped": { "content": "$4", "example": "0" }
+    }
+  },
+  "optionsImportProxyIncluded": { "message": "Конфигурация локального прокси включена и будет применена после подтверждения." },
+  "optionsImportProxyExcluded": { "message": "Конфигурация локального прокси не включена." },
+  "optionsImportNoWarnings": { "message": "Предупреждений нет." },
+
+  "backupProxyShapeSkipped": { "message": "Настройки локального прокси пропущены: их структура не поддерживается." },
+  "backupProxyInvalidSkipped": { "message": "Настройки локального прокси пропущены: адрес, протокол или порт некорректны." },
+  "backupRulesSkipped": {
+    "message": "Пропущено некорректных или защищённых правил маршрута: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupRuleDuplicates": {
+    "message": "В импортируемом файле найдено совпадений правил с одинаковым действием: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupScopeIncludeSubdomains": { "message": "и его поддоменов" },
+  "backupScopeExact": { "message": "(точный домен)" },
+  "backupImportedConflict": {
+    "message": "Импортируемые правила содержат Прокси и Напрямую для $HOSTNAME$ $SCOPE$. Перед применением оставьте в файле одно действие.",
+    "description": "Settings backup or import message. HOSTNAME is a normalized hostname and must remain unchanged; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "hostname": { "content": "$1", "example": "example.com" },
+      "scope": { "content": "$2", "example": "точный домен" }
+    }
+  },
+  "backupIgnoredSkipped": {
+    "message": "Пропущено некорректных, повторяющихся или защищённых игнорируемых доменов: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupDenylistSkipped": {
+    "message": "Пропущено некорректных, повторяющихся или защищённых записей списка запретов: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupOverridesSkipped": {
+    "message": "Пропущено некорректных или защищённых исключений классификации: $COUNT$.",
+    "description": "Settings backup or import message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "2" } }
+  },
+  "backupRuleConflictExisting": {
+    "message": "Импортируемое правило «$ACTION$» конфликтует с существующим правилом «$EXISTING_ACTION$» для $HOSTNAME$ $SCOPE$.",
+    "description": "Settings backup or import message. ACTION is the localized route action; EXISTING_ACTION is the localized stored route action; HOSTNAME is a normalized hostname and must remain unchanged; SCOPE is the localized rule scope.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "Прокси" },
+      "existing_action": { "content": "$2", "example": "Напрямую" },
+      "hostname": { "content": "$3", "example": "example.com" },
+      "scope": { "content": "$4", "example": "точный домен" }
+    }
+  },
+  "backupResolveConflictsExport": { "message": "Перед экспортом разрешите конфликты правил маршрута. Резервная копия не создана." },
+  "backupPasteJson": { "message": "Перед предпросмотром импорта вставьте JSON экспорта настроек." },
+  "backupJsonParseFailed": { "message": "Не удалось разобрать JSON импорта." },
+  "backupJsonObjectRequired": { "message": "JSON импорта должен быть объектом." },
+  "backupWrongFormat": { "message": "JSON импорта не является экспортом настроек Smart Proxy Route Helper." },
+  "backupUnsupportedVersion": { "message": "JSON импорта использует неподдерживаемую версию формата." },
+  "backupMissingSyncData": { "message": "JSON импорта не содержит поддерживаемых синхронизируемых настроек." },
+  "backupResolveConflictsImport": { "message": "Перед применением импорта разрешите существующие конфликты правил маршрута." },
+  "backupPreviewValid": { "message": "Перед применением выполните предпросмотр корректного импорта настроек." },
+  "backupResolveThenPreview": { "message": "Разрешите существующие конфликты правил и повторите предпросмотр импорта." },
+  "backupRulesChanged": { "message": "После предпросмотра синхронизируемые правила изменились. Повторите предпросмотр импорта." },
+  "backupSettingsChanged": { "message": "После предпросмотра синхронизируемые настройки изменились. Повторите предпросмотр импорта." },
+
+  "diagnosticConfigureProxy": { "message": "Сначала настройте локальный прокси в настройках." },
+  "diagnosticReachable": { "message": "Сайт доступен через локальный прокси." },
+  "diagnosticUnreachable": { "message": "Сайт не отвечает через локальный прокси." },
+  "diagnosticCheckFailed": { "message": "Не удалось завершить проверку прокси." },
+  "diagnosticRestoreFailed": {
+    "message": "Проверка завершена, но восстановить прокси-маршрутизацию не удалось: $ERROR$",
+    "description": "Current-site diagnostic message. ERROR is a localized error detail.",
+    "placeholders": { "error": { "content": "$1", "example": "Операция с настройками прокси завершилась ошибкой" } }
+  },
+  "diagnosticOpenValidSite": { "message": "Перед проверкой прокси откройте корректный сайт с http или https." },
+  "diagnosticInternalPage": { "message": "Внутренние страницы браузера нельзя проверять через прокси." },
+  "diagnosticLocalhost": { "message": "Localhost нельзя проверять через прокси." },
+  "diagnosticLoopback": { "message": "Loopback-адреса нельзя проверять через прокси." },
+  "diagnosticPrivate": { "message": "Адреса частной сети нельзя проверять через прокси." },
+  "diagnosticInternalDomain": { "message": "Внутренние локальные домены нельзя проверять через прокси." },
+  "diagnosticOpenPublicDomain": { "message": "Перед проверкой прокси откройте публичный домен с точкой." },
+  "diagnosticSiteCannotCheck": { "message": "Этот сайт нельзя проверить через прокси." },
+  "diagnosticOpenSupportedSite": { "message": "Перед проверкой прокси откройте поддерживаемый сайт." },
+  "diagnosticProtocolCannotCheck": {
+    "message": "Страницы $PROTOCOL$ нельзя проверять через прокси. Сначала откройте сайт с http или https.",
+    "description": "Current-site diagnostic message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+  "recordingNoActive": { "message": "Активной диагностической записи нет." },
+  "recordingExpiredAction": {
+    "message": "Запись для $HOSTNAME$ истекла. Остановите её с просмотром в той вкладке или отмените.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingActive": {
+    "message": "Идёт запись для $HOSTNAME$. Данные не сохраняются, пока вы явно не добавите правило.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingActiveOtherTab": {
+    "message": "В другой вкладке уже идёт запись для $HOSTNAME$. Вернитесь туда, чтобы остановить и просмотреть её, либо отмените запись.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingAlreadyActive": {
+    "message": "Запись для $HOSTNAME$ уже идёт.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingStarted": {
+    "message": "Запись для $HOSTNAME$ начата. Выполните нужное действие, снова откройте всплывающее окно и выберите «Остановить и показать». Правила не сохраняются автоматически.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingBelongsOtherTab": {
+    "message": "Запись относится к $HOSTNAME$ в другой вкладке. Вернитесь туда, чтобы остановить и просмотреть её, либо отмените запись.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingExpiredNavigation": {
+    "message": "Запись для $HOSTNAME$ истекла из-за перехода или перезагрузки вкладки. Начните новую запись на загруженной странице.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingExpiredDocument": {
+    "message": "Запись для $HOSTNAME$ истекла: страница была перезагружена, сменилась или заменила записываемый документ. Начните новую запись.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingExpiredPreview": {
+    "message": "Запись для $HOSTNAME$ истекла. Показаны домены, записанные до истечения. Правила не сохранены.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingStoppedPreview": {
+    "message": "Запись для $HOSTNAME$ остановлена. Показаны записанные домены. Правила не сохранены.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingCancelled": {
+    "message": "Запись для $HOSTNAME$ отменена. Кандидаты не возвращены, правила не сохранены.",
+    "description": "Diagnostic recording message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
+  },
+  "recordingTabUnavailable": { "message": "Не удалось определить активную вкладку для диагностической записи." },
+  "recordingBridgeFailed": { "message": "Не удалось запустить мост диагностической записи на этой странице." },
+  "recordingBridgeMissing": { "message": "На этой странице не найден подходящий мост диагностической записи." },
+  "recordingBridgeInvalidRequest": { "message": "Некорректный запрос к мосту диагностической записи." },
+  "recordingMainMissing": { "message": "На этой странице не найден подходящий регистратор MAIN world." },
+  "recordingMainInvalidRequest": { "message": "Некорректный запрос к диагностическому регистратору MAIN world." },
+  "recordingMainCaptureFailed": { "message": "Не удалось запустить перехват запросов в MAIN world на этой странице." },
+  "recordingAutomaticFailed": { "message": "Не удалось запустить автоматическую запись запросов на этой странице. Chrome может запрещать временный доступ скрипта." },
+  "recordingStopPreviewFailed": { "message": "Не удалось остановить запись и подготовить просмотр. Временные хуки отменены там, где страница оставалась доступной." },
+  "recordingOpenValidSite": { "message": "Перед началом записи откройте корректный сайт с http или https." },
+  "recordingInternalPage": { "message": "Внутренние страницы браузера нельзя использовать для диагностической записи." },
+  "recordingLocalhost": { "message": "Localhost нельзя использовать для диагностической записи." },
+  "recordingLoopback": { "message": "Loopback-адреса нельзя использовать для диагностической записи." },
+  "recordingPrivate": { "message": "Адреса частной сети нельзя использовать для диагностической записи." },
+  "recordingInternalDomain": { "message": "Внутренние локальные домены нельзя использовать для диагностической записи." },
+  "recordingOpenPublicDomain": { "message": "Перед записью откройте публичный домен с точкой." },
+  "recordingSiteCannotUse": { "message": "Этот сайт нельзя использовать для диагностической записи." },
+  "recordingOpenSupportedSite": { "message": "Перед записью откройте поддерживаемый сайт." },
+  "recordingProtocolCannotUse": {
+    "message": "Страницы $PROTOCOL$ нельзя использовать для диагностической записи. Сначала откройте сайт с http или https.",
+    "description": "Diagnostic recording message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+  "previewCollectFailed": { "message": "Не удалось собрать домены ресурсов этой страницы." },
+  "previewCollectFailedDetail": {
+    "message": "Не удалось собрать домены ресурсов этой страницы: $ERROR$",
+    "description": "Related-domain preview message. ERROR is a localized error detail.",
+    "placeholders": { "error": { "content": "$1", "example": "Страница недоступна" } }
+  },
+  "previewHostsChecked": {
+    "message": "Проверено доменов ресурсов для поиска связанных доменов: $COUNT$. Правила не сохранены.",
+    "description": "Related-domain preview message. COUNT is the displayed numeric count.",
+    "placeholders": { "count": { "content": "$1", "example": "3" } }
+  },
+  "previewErrorPageWarning": { "message": "Похоже, открыта страница ошибки или защиты, поэтому связанные домены могут не относиться к целевому сайту. Направьте или проверьте сайт через прокси, перезагрузите страницу и повторите просмотр." },
+  "previewOpenValidSite": { "message": "Перед просмотром связанных доменов откройте корректный сайт с http или https." },
+  "previewInternalPage": { "message": "Внутренние страницы браузера нельзя использовать для просмотра связанных доменов." },
+  "previewLocalhost": { "message": "Localhost нельзя использовать для просмотра связанных доменов." },
+  "previewLoopback": { "message": "Loopback-адреса нельзя использовать для просмотра связанных доменов." },
+  "previewPrivate": { "message": "Адреса частной сети нельзя использовать для просмотра связанных доменов." },
+  "previewInternalDomain": { "message": "Внутренние локальные домены нельзя использовать для просмотра связанных доменов." },
+  "previewOpenPublicDomain": { "message": "Перед просмотром связанных доменов откройте публичный домен с точкой." },
+  "previewSiteCannotUse": { "message": "Этот сайт нельзя использовать для просмотра связанных доменов." },
+  "previewOpenSupportedSite": { "message": "Перед просмотром связанных доменов откройте поддерживаемый сайт." },
+  "previewTabUnavailable": { "message": "Не удалось определить активную вкладку для просмотра связанных доменов." },
+  "previewProtocolCannotUse": {
+    "message": "Страницы $PROTOCOL$ нельзя использовать для просмотра связанных доменов. Сначала откройте сайт с http или https.",
+    "description": "Related-domain preview message. PROTOCOL is a technical URL scheme and must remain unchanged.",
+    "placeholders": { "protocol": { "content": "$1", "example": "chrome://" } }
+  },
+  "proxyOperationFailed": { "message": "Операция с настройками прокси завершилась ошибкой." },
+  "overrideCandidateInvalid": { "message": "Перед сохранением исключения выберите корректный публичный домен-кандидат." },
+  "overrideSiteInvalid": { "message": "Перед сохранением исключения сайта выберите корректный публичный домен сайта." }
+}

@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current `main` architecture, which continues beyond the immutable published `v0.1.0` baseline. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the current `main` architecture, which continues beyond the immutable published release baseline. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 
@@ -55,6 +55,18 @@ Options page:
 - Provide Backup and restore controls for versioned local settings export/import.
 - Keep import preview separate from import apply; no imported settings are written until the user explicitly confirms.
 
+### Localization
+
+- Chrome selects the UI locale from the browser language. The extension does not expose a language selector or store a language preference.
+- `_locales/en/messages.json` is the default and test fallback catalog; `_locales/ru/messages.json` provides the Russian UI.
+- Manifest name, description, and action title use standard `__MSG_*__` references. The production build copies both bundled locale directories into `dist/`.
+- Popup and Options static markup uses `data-i18n*` attributes. Their TypeScript modules call one shared typed helper for dynamic text, placeholders, title attributes, and accessibility labels.
+- User-visible messages produced by pure modules and the service worker use the same DOM-independent helper. Internal log text, storage keys, protocol values, message types, enum values, CSS classes, and DOM IDs remain technical constants.
+- The helper delegates to `chrome.i18n.getMessage` in Chrome. In tests it accepts an injected adapter and otherwise falls back to the bundled English catalog. Missing locale entries warn and fall back to English; unknown keys warn and render a visible development marker instead of silently creating an empty UI.
+- Hostnames and other dynamic values are passed as Chrome i18n substitutions and assigned as text, never inserted through `innerHTML`.
+- English selected-domain counts use `one` and `other`. Russian counts use explicit `one`, `few`, and `many` selection with the 11–14 exception and values such as 21, 22, 25, 111, and 112 covered by unit tests.
+- Locale files are bundled extension resources. Localization adds no runtime translation requests, backend dependency, storage state, or permissions.
+
 ### Extension Service Worker
 
 The service worker currently coordinates:
@@ -76,6 +88,7 @@ It does not yet report current apply status to the UI.
 
 Core logic is isolated from Chrome APIs where practical:
 
+- Locale lookup, English fallback formatting, and English/Russian plural-form selection.
 - Domain normalization and validation.
 - Proxy configuration validation.
 - Domain rule model and migrations.

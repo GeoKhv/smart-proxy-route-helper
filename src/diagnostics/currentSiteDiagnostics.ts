@@ -1,4 +1,5 @@
 import type { ApplyProxySettingsResult, ProxySettingsAdapter } from "../proxy/applyProxySettings";
+import { getMessage } from "../i18n/i18n";
 import { buildPacScript } from "../proxy/buildPac";
 import { checkDenylistedHost } from "../rules/denylist";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
@@ -67,9 +68,9 @@ export type RunCurrentSiteDiagnosticOptions = {
 };
 
 const defaultDiagnosticTimeoutMs = 7000;
-const configureLocalProxyMessage = "Configure local proxy in Options first.";
-const reachableMessage = "This site appears reachable through your local proxy.";
-const unreachableMessage = "This site did not appear reachable through your local proxy.";
+const configureLocalProxyMessage = (): string => getMessage("diagnosticConfigureProxy");
+const reachableMessage = (): string => getMessage("diagnosticReachable");
+const unreachableMessage = (): string => getMessage("diagnosticUnreachable");
 
 function response(
   status: CurrentSiteDiagnosticStatus,
@@ -97,32 +98,32 @@ function errorMessage(error: unknown): string {
     return error;
   }
 
-  return "Could not complete the proxy check.";
+  return getMessage("diagnosticCheckFailed");
 }
 
 function unsupportedUrlMessage(url: string): string {
   try {
     const protocol = new URL(url).protocol.replace(/:$/, "");
-    const protocolLabel = protocol ? `${protocol}://` : "This page";
+    const protocolLabel = protocol ? `${protocol}://` : getMessage("commonThisPage");
 
-    return `${protocolLabel} pages cannot be checked through proxy. Open an http or https site first.`;
+    return getMessage("diagnosticProtocolCannotCheck", [protocolLabel]);
   } catch {
-    return "Open a valid http or https site before checking proxy reachability.";
+    return getMessage("diagnosticOpenValidSite");
   }
 }
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
-    "internal-scheme": "Internal browser pages cannot be checked through proxy.",
-    localhost: "Localhost cannot be checked through proxy.",
-    "loopback-ip": "Loopback addresses cannot be checked through proxy.",
-    "private-ip": "Private network addresses cannot be checked through proxy.",
-    "internal-suffix": "Internal local domains cannot be checked through proxy.",
-    "single-label-host": "Open a public domain with a dot before checking proxy reachability.",
-    "invalid-host": "Open a valid http or https site before checking proxy reachability."
+    "internal-scheme": getMessage("diagnosticInternalPage"),
+    localhost: getMessage("diagnosticLocalhost"),
+    "loopback-ip": getMessage("diagnosticLoopback"),
+    "private-ip": getMessage("diagnosticPrivate"),
+    "internal-suffix": getMessage("diagnosticInternalDomain"),
+    "single-label-host": getMessage("diagnosticOpenPublicDomain"),
+    "invalid-host": getMessage("diagnosticOpenValidSite")
   };
 
-  return messages[reason] ?? "This site cannot be checked through proxy.";
+  return messages[reason] ?? getMessage("diagnosticSiteCannotCheck");
 }
 
 function isStoredDenylistedDomain(domain: string, denylist: readonly string[]): boolean {
@@ -164,7 +165,7 @@ export function getCurrentSiteDiagnosticTarget(url: string | undefined): Current
   if (!url) {
     return {
       ok: false,
-      response: response("unsupported_url", "Open a supported site before checking proxy reachability.")
+      response: response("unsupported_url", getMessage("diagnosticOpenSupportedSite"))
     };
   }
 
@@ -175,7 +176,7 @@ export function getCurrentSiteDiagnosticTarget(url: string | undefined): Current
   } catch {
     return {
       ok: false,
-      response: response("unsupported_url", "Open a valid http or https site before checking proxy reachability.")
+      response: response("unsupported_url", getMessage("diagnosticOpenValidSite"))
     };
   }
 
@@ -252,7 +253,7 @@ export function buildCurrentSiteDiagnosticPlan(input: {
       ok: false,
       response: response(
         "unsupported_url",
-        `${target.domain} is blocked by the synced denylist. Open Options to review stored lists.`,
+        getMessage("popupSyncedDenylistBlocked", [target.domain]),
         target.domain
       )
     };
@@ -261,7 +262,7 @@ export function buildCurrentSiteDiagnosticPlan(input: {
   if (!hasUsableLocalProxyConfig(input.localSettings)) {
     return {
       ok: false,
-      response: response("missing_proxy_config", configureLocalProxyMessage, target.domain)
+      response: response("missing_proxy_config", configureLocalProxyMessage(), target.domain)
     };
   }
 
@@ -274,7 +275,7 @@ export function buildCurrentSiteDiagnosticPlan(input: {
   if (!pacResult.ok) {
     return {
       ok: false,
-      response: response("missing_proxy_config", configureLocalProxyMessage, target.domain)
+      response: response("missing_proxy_config", configureLocalProxyMessage(), target.domain)
     };
   }
 
@@ -318,13 +319,13 @@ async function restoreAfterProbe(options: RunCurrentSiteDiagnosticOptions): Prom
     if (!restoreResult.ok) {
       return response(
         "error",
-        `Diagnostic finished, but proxy routing could not be restored: ${restoreResult.errorMessage}`
+        getMessage("diagnosticRestoreFailed", [restoreResult.errorMessage])
       );
     }
 
     return null;
   } catch (error) {
-    return response("error", `Diagnostic finished, but proxy routing could not be restored: ${errorMessage(error)}`);
+    return response("error", getMessage("diagnosticRestoreFailed", [errorMessage(error)]));
   }
 }
 
@@ -357,7 +358,7 @@ export async function runCurrentSiteDiagnostic(
 
   let diagnosticResponse: CurrentSiteDiagnosticResponse = response(
     "error",
-    "Could not complete the proxy check.",
+    getMessage("diagnosticCheckFailed"),
     plan.domain
   );
   let appliedProbe = false;
@@ -370,8 +371,8 @@ export async function runCurrentSiteDiagnostic(
     const reachable = await fetchWithTimeout(fetcher, plan.probeUrl, options.timeoutMs ?? defaultDiagnosticTimeoutMs);
 
     diagnosticResponse = reachable
-      ? response("proxy_reachable", reachableMessage, plan.domain)
-      : response("proxy_unreachable", unreachableMessage, plan.domain);
+      ? response("proxy_reachable", reachableMessage(), plan.domain)
+      : response("proxy_unreachable", unreachableMessage(), plan.domain);
   } catch (error) {
     diagnosticResponse = response("error", errorMessage(error), plan.domain);
   } finally {

@@ -1935,7 +1935,7 @@ describe("popup runtime boundaries", () => {
     expect(popupSource).toContain('addButton.dataset.relatedDomainBatchAdd = "true"');
     expect(popupSource).toContain('summary.setAttribute("aria-expanded", "false")');
     expect(popupSource).toContain('summary.setAttribute("aria-controls", actionsId)');
-    expect(popupSource).toContain('backButton.textContent = "Back to site status"');
+    expect(popupSource).toContain('backButton.textContent = getMessage("popupRelatedBack")');
     expect(popupHtml).toContain('.candidate-row[data-selected="true"]');
     expect(popupHtml).toContain(".candidate-batch-panel");
     expect(popupHtml).toContain("position: sticky");
@@ -1950,9 +1950,9 @@ describe("popup runtime boundaries", () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
 
-    expect(popupHtml).toContain("Proxy this hostname");
-    expect(popupHtml).toContain("Route this hostname directly");
-    expect(popupHtml).toContain("Applies to this exact hostname only.");
+    expect(popupHtml).toContain('data-i18n="popupProxyThisHostname"');
+    expect(popupHtml).toContain('data-i18n="popupDirectThisHostname"');
+    expect(popupHtml).toContain('data-i18n="popupExactScopeCopy"');
     expect(popupHtml).toContain('id="change-current-site-scope"');
     expect(popupHtml).toContain('id="confirm-scope-change"');
     expect(popupHtml).toContain('role="status"');

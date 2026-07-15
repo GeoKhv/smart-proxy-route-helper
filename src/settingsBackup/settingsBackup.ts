@@ -1,4 +1,5 @@
 import { sanitizeUserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
+import { getMessage } from "../i18n/i18n";
 import type { UserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import { checkDenylistedHost } from "../rules/denylist";
@@ -315,7 +316,7 @@ function parseImportableDeviceProxy(input: unknown): ImportableDeviceProxyResult
     return {
       ok: false,
       skipped: true,
-      warning: "Local proxy settings were skipped because their shape is not supported."
+      warning: getMessage("backupProxyShapeSkipped")
     };
   }
 
@@ -335,7 +336,7 @@ function parseImportableDeviceProxy(input: unknown): ImportableDeviceProxyResult
     return {
       ok: false,
       skipped: true,
-      warning: "Local proxy settings were skipped because the proxy host, scheme, or port is invalid."
+      warning: getMessage("backupProxyInvalidSkipped")
     };
   }
 
@@ -371,32 +372,35 @@ function sanitizeImportedSyncSettings(
   const classificationSkipped = Math.max(0, rawClassificationCount - sanitizedClassificationCount);
 
   if (rules.skipped > 0) {
-    warnings.push(`${rules.skipped} route rule item(s) were skipped because they were invalid or protected.`);
+    warnings.push(getMessage("backupRulesSkipped", [rules.skipped]));
   }
 
   if (rules.duplicates > 0) {
-    warnings.push(`${rules.duplicates} same-action route rule duplicate(s) were detected in the imported file.`);
+    warnings.push(getMessage("backupRuleDuplicates", [rules.duplicates]));
   }
 
   for (const conflict of findRouteTargetConflicts(rules.rules)) {
     errors.push(
-      `Imported rules contain both Proxy and Direct for ${conflict.domain}${
-        conflict.includeSubdomains ? " and its subdomains" : " with exact-host scope"
-      }. Choose one action in the import file before applying.`
+      getMessage("backupImportedConflict", [
+        conflict.domain,
+        conflict.includeSubdomains
+          ? getMessage("backupScopeIncludeSubdomains")
+          : getMessage("backupScopeExact")
+      ])
     );
   }
 
   if (ignoredDomains.skipped > 0) {
-    warnings.push(`${ignoredDomains.skipped} ignored domain item(s) were skipped because they were invalid, duplicated, or protected.`);
+    warnings.push(getMessage("backupIgnoredSkipped", [ignoredDomains.skipped]));
   }
 
   if (denylist.skipped > 0) {
-    warnings.push(`${denylist.skipped} denylist item(s) were skipped because they were invalid, duplicated, or protected.`);
+    warnings.push(getMessage("backupDenylistSkipped", [denylist.skipped]));
   }
 
   if (classificationSkipped > 0) {
     warnings.push(
-      `${classificationSkipped} classification override item(s) were skipped because they were invalid or protected.`
+      getMessage("backupOverridesSkipped", [classificationSkipped])
     );
   }
 
@@ -464,9 +468,12 @@ function mergeRules(
 
     if (oppositeRule) {
       conflicts.push(
-        `Imported ${rule.action === "proxy" ? "Proxy" : "Direct"} rule conflicts with the existing ${
-          oppositeRule.action === "proxy" ? "Proxy" : "Direct"
-        } rule for ${rule.domain}${rule.includeSubdomains ? " and its subdomains" : " with exact-host scope"}.`
+        getMessage("backupRuleConflictExisting", [
+          rule.action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect"),
+          oppositeRule.action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect"),
+          rule.domain,
+          rule.includeSubdomains ? getMessage("backupScopeIncludeSubdomains") : getMessage("backupScopeExact")
+        ])
       );
       continue;
     }
@@ -575,7 +582,7 @@ export function buildSettingsExportDocument(
   const sanitizedSyncSettings = sanitizeExportSyncSettings(syncSettings);
 
   if (findRouteTargetConflicts(sanitizedSyncSettings.rules).length > 0) {
-    throw new Error("Resolve conflicting route rules before exporting settings. No backup was generated.");
+    throw new Error(getMessage("backupResolveConflictsExport"));
   }
 
   const document: SettingsExportDocument = {
@@ -618,7 +625,7 @@ export function previewSettingsImport(
       ok: false,
       summary,
       warnings: [],
-      errors: ["Paste a settings export JSON document before previewing import."]
+      errors: [getMessage("backupPasteJson")]
     };
   }
 
@@ -631,19 +638,19 @@ export function previewSettingsImport(
       ok: false,
       summary,
       warnings: [],
-      errors: ["Import JSON could not be parsed."]
+      errors: [getMessage("backupJsonParseFailed")]
     };
   }
 
   if (!isRecord(parsed)) {
-    errors.push("Import JSON must be an object.");
+    errors.push(getMessage("backupJsonObjectRequired"));
   } else {
     if (parsed.format !== settingsExportFormat) {
-      errors.push("Import JSON is not a Smart Proxy Route Helper settings export.");
+      errors.push(getMessage("backupWrongFormat"));
     }
 
     if (parsed.version !== settingsExportVersion) {
-      errors.push("Import JSON uses an unsupported settings export version.");
+      errors.push(getMessage("backupUnsupportedVersion"));
     }
   }
 
@@ -661,7 +668,7 @@ export function previewSettingsImport(
       ok: false,
       summary,
       warnings: [],
-      errors: ["Import JSON does not contain supported synced settings data."]
+      errors: [getMessage("backupMissingSyncData")]
     };
   }
 
@@ -680,7 +687,7 @@ export function previewSettingsImport(
   const currentConflicts = findRouteTargetConflicts(currentSync.rules);
 
   if (currentConflicts.length > 0) {
-    importErrors.push("Resolve the existing conflicting route rules before applying an import.");
+    importErrors.push(getMessage("backupResolveConflictsImport"));
   }
 
   importErrors.push(...mergedRules.conflicts);
@@ -688,7 +695,7 @@ export function previewSettingsImport(
 
   if ("localSettings" in parsed.data) {
     if (!isRecord(parsed.data.localSettings)) {
-      warnings.push("Local proxy settings were skipped because their shape is not supported.");
+      warnings.push(getMessage("backupProxyShapeSkipped"));
     } else {
       const deviceProxy = parseImportableDeviceProxy(parsed.data.localSettings.deviceProxy);
 
@@ -758,20 +765,20 @@ export async function applySettingsImportPreview(
   localSettings: LocalSettings | null;
 }> {
   if (!preview.ok) {
-    throw new Error("Preview a valid settings import before applying it.");
+    throw new Error(getMessage("backupPreviewValid"));
   }
 
   const currentSyncSettings = await getSyncSettings(adapters.syncStorage);
   const currentConflicts = findRouteTargetConflicts(currentSyncSettings.rules);
 
   if (currentConflicts.length > 0) {
-    throw new Error("Resolve the existing conflicting route rules, then preview the import again.");
+    throw new Error(getMessage("backupResolveThenPreview"));
   }
 
   const mergedRules = mergeRules(currentSyncSettings.rules, preview.importedSyncSettings.rules);
 
   if (mergedRules.conflicts.length > 0) {
-    throw new Error("Synced route rules changed after preview. Preview the import again before applying it.");
+    throw new Error(getMessage("backupRulesChanged"));
   }
 
   const mergedIgnoredDomains = mergeDomainLists(
@@ -791,7 +798,7 @@ export async function applySettingsImportPreview(
   });
 
   if (JSON.stringify(finalSyncSettings) !== JSON.stringify(preview.nextSyncSettings)) {
-    throw new Error("Synced settings changed after preview. Preview the import again before applying it.");
+    throw new Error(getMessage("backupSettingsChanged"));
   }
 
   const syncSettings = await setSyncSettings(finalSyncSettings, adapters.syncStorage);

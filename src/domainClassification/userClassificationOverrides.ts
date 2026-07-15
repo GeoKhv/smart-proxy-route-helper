@@ -1,4 +1,5 @@
 import { isDenylistedHost } from "../rules/denylist";
+import { getMessage } from "../i18n/i18n";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainCandidateUserOverride, DomainCandidateUserOverrideAction } from "./domainClassificationTypes";
 
@@ -170,7 +171,7 @@ function normalizedOverrideOrError(
 
   if (!domain) {
     return {
-      error: "Choose a valid public candidate domain before saving a classification override."
+      error: getMessage("overrideCandidateInvalid")
     };
   }
 
@@ -185,7 +186,7 @@ function normalizedOverrideOrError(
 
   if (!siteDomain) {
     return {
-      error: "Choose a valid public site domain before saving a site classification override."
+      error: getMessage("overrideSiteInvalid")
     };
   }
 
@@ -221,7 +222,7 @@ export function upsertUserClassificationOverride(
     if (!siteDomain) {
       return {
         ok: false,
-        error: "Choose a valid public site domain before saving a site classification override."
+        error: getMessage("overrideSiteInvalid")
       };
     }
 

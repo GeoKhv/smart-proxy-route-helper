@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Proxy Route Helper</title>
+    <title data-i18n="extensionName"></title>
     <style>
       :root {
         color-scheme: light dark;
@@ -372,47 +372,52 @@
   </head>
   <body>
     <main>
-      <h1>Smart Proxy Route Helper</h1>
-      <p>Manage the current site with explicit synced proxy or direct route rules.</p>
+      <h1 data-i18n="extensionName"></h1>
+      <p data-i18n="popupIntro"></p>
 
       <section aria-labelledby="current-site-title">
-        <h2 id="current-site-title">Current site</h2>
-        <div class="domain" id="current-domain" aria-live="polite">Loading...</div>
+        <h2 id="current-site-title" data-i18n="popupCurrentSiteTitle"></h2>
+        <div class="domain" id="current-domain" aria-live="polite" data-i18n="popupLoadingCurrentSite"></div>
       </section>
 
       <section aria-labelledby="route-status-title">
-        <h2 id="route-status-title">Route status</h2>
-        <div class="status route-status" id="route-status" role="status" aria-live="polite" aria-label="Checking current site">
-          Checking current site...
-        </div>
+        <h2 id="route-status-title" data-i18n="popupRouteStatusTitle"></h2>
+        <div
+          class="status route-status"
+          id="route-status"
+          role="status"
+          aria-live="polite"
+          data-i18n="popupCheckingCurrentSite"
+          data-i18n-aria-label="popupCheckingCurrentSiteAria"
+        ></div>
       </section>
 
       <section class="actions" aria-labelledby="actions-title">
-        <h2 id="actions-title">Actions</h2>
-        <button type="button" id="add-current-site" hidden>Proxy this hostname</button>
-        <button type="button" id="add-current-site-direct" hidden>Route this hostname directly</button>
-        <p class="microcopy" id="quick-action-scope-copy">Applies to this exact hostname only.</p>
-        <button type="button" id="change-current-site-scope" hidden>Change scope</button>
-        <button type="button" id="remove-current-site" hidden>Remove exact rule</button>
+        <h2 id="actions-title" data-i18n="popupActionsTitle"></h2>
+        <button type="button" id="add-current-site" hidden data-i18n="popupProxyThisHostname"></button>
+        <button type="button" id="add-current-site-direct" hidden data-i18n="popupDirectThisHostname"></button>
+        <p class="microcopy" id="quick-action-scope-copy" data-i18n="popupExactScopeCopy"></p>
+        <button type="button" id="change-current-site-scope" hidden data-i18n="popupChangeScope"></button>
+        <button type="button" id="remove-current-site" hidden data-i18n="popupRemoveExactRule"></button>
         <div class="scope-editor" id="scope-change-editor" hidden>
-          <strong>Change scope</strong>
+          <strong data-i18n="popupChangeScope"></strong>
           <p id="scope-change-action"></p>
           <label>
-            Rule scope
+            <span data-i18n="popupRuleScopeLabel"></span>
             <select id="scope-change-select"></select>
           </label>
           <div class="status scope-preview" id="scope-change-preview" aria-live="polite"></div>
-          <button type="button" id="confirm-scope-change" disabled>Confirm scope change</button>
-          <button type="button" id="cancel-scope-change">Cancel</button>
+          <button type="button" id="confirm-scope-change" disabled data-i18n="popupConfirmScopeChange"></button>
+          <button type="button" id="cancel-scope-change" data-i18n="commonCancel"></button>
         </div>
-        <button type="button" id="check-via-proxy" hidden>Check via proxy</button>
-        <button type="button" id="preview-related-domains" hidden>Preview related domains</button>
-        <button type="button" id="start-related-domain-recording" hidden>Start recording</button>
-        <button type="button" id="stop-related-domain-recording" hidden>Stop and preview</button>
-        <button type="button" id="cancel-related-domain-recording" hidden>Cancel recording</button>
-        <button type="button" id="save-diagnostic-rule" hidden>Add checked site as rule</button>
-        <button type="button" id="open-options" class="secondary">Open Options</button>
-        <div class="status" id="action-status" aria-live="polite">Loading actions...</div>
+        <button type="button" id="check-via-proxy" hidden data-i18n="popupCheckViaProxy"></button>
+        <button type="button" id="preview-related-domains" hidden data-i18n="popupPreviewRelatedDomains"></button>
+        <button type="button" id="start-related-domain-recording" hidden data-i18n="popupStartRecording"></button>
+        <button type="button" id="stop-related-domain-recording" hidden data-i18n="popupStopAndPreview"></button>
+        <button type="button" id="cancel-related-domain-recording" hidden data-i18n="popupCancelRecording"></button>
+        <button type="button" id="save-diagnostic-rule" hidden data-i18n="popupAddCheckedRule"></button>
+        <button type="button" id="open-options" class="secondary" data-i18n="popupOpenOptions"></button>
+        <div class="status" id="action-status" aria-live="polite" data-i18n="popupLoadingActions"></div>
         <div class="status" id="related-domain-preview" aria-live="polite" hidden></div>
       </section>
     </main>

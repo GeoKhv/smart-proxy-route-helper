@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Proxy Route Helper Options</title>
+    <title data-i18n="optionsDocumentTitle"></title>
     <style>
       :root {
         color-scheme: light dark;
@@ -287,24 +287,22 @@
   </head>
   <body>
     <main>
-      <h1>Smart Proxy Route Helper</h1>
-      <p>
-        Configure the local proxy for this device and manage synced proxy and direct route rules.
-      </p>
+      <h1 data-i18n="extensionName"></h1>
+      <p data-i18n="optionsIntro"></p>
 
       <section aria-labelledby="local-proxy-title">
-        <h2 id="local-proxy-title">Local proxy settings</h2>
-        <p>Stored only on this Chrome installation. Host and port are not synced to other devices.</p>
+        <h2 id="local-proxy-title" data-i18n="optionsLocalProxyTitle"></h2>
+        <p data-i18n="optionsLocalProxyDescription"></p>
 
         <form id="local-proxy-form" novalidate>
           <label class="checkbox-row">
             <input id="proxy-enabled" name="enabled" type="checkbox" />
-            Enable proxy routing on this device
+            <span data-i18n="optionsEnableProxy"></span>
           </label>
 
           <div class="grid">
             <label>
-              Scheme
+              <span data-i18n="optionsProxySchemeLabel"></span>
               <select id="proxy-scheme" name="scheme">
                 <option value="socks5">socks5</option>
                 <option value="socks4">socks4</option>
@@ -315,66 +313,63 @@
             </label>
 
             <label>
-              Host
+              <span data-i18n="optionsProxyHostLabel"></span>
               <input id="proxy-host" name="host" type="text" autocomplete="off" placeholder="127.0.0.1" />
               <span class="error" id="proxy-host-error" aria-live="polite"></span>
             </label>
 
             <label>
-              Port
+              <span data-i18n="optionsProxyPortLabel"></span>
               <input id="proxy-port" name="port" type="number" inputmode="numeric" min="1" max="65535" placeholder="10808" />
               <span class="error" id="proxy-port-error" aria-live="polite"></span>
             </label>
           </div>
 
-          <p class="hint">Suggested local default: socks5 127.0.0.1:10808.</p>
+          <p class="hint" data-i18n="optionsSuggestedProxy"></p>
           <div>
-            <button type="submit">Save local settings</button>
+            <button type="submit" data-i18n="optionsSaveLocal"></button>
           </div>
         </form>
         <p class="status" id="local-proxy-status" aria-live="polite"></p>
       </section>
 
       <section aria-labelledby="rules-title">
-        <h2 id="rules-title">Synced domain rules</h2>
-        <p>Stored in Chrome Sync. Adding or removing a rule requires an explicit action; the extension does not auto-add domains.</p>
+        <h2 id="rules-title" data-i18n="optionsRulesTitle"></h2>
+        <p data-i18n="optionsRulesDescription"></p>
 
         <form id="rule-form" novalidate>
           <label>
-            Domain or URL
+            <span data-i18n="optionsDomainLabel"></span>
             <input id="rule-domain" name="domain" type="text" autocomplete="off" placeholder="letterboxd.com" />
             <span class="error" id="rule-domain-error" aria-live="polite"></span>
           </label>
 
           <label>
-            Route action
+            <span data-i18n="optionsRouteActionLabel"></span>
             <select id="rule-action" name="action">
-              <option value="proxy">Route through proxy</option>
-              <option value="direct">Route directly</option>
+              <option value="proxy" data-i18n="optionsRouteThroughProxy"></option>
+              <option value="direct" data-i18n="optionsRouteDirectly"></option>
             </select>
           </label>
 
           <label>
-            Rule scope
+            <span data-i18n="popupRuleScopeLabel"></span>
             <select id="rule-scope" name="scope">
-              <option value="exact">Exact hostname only</option>
-              <option value="hostname-and-subdomains">This hostname and its subdomains</option>
+              <option value="exact" data-i18n="commonExactHostname"></option>
+              <option value="hostname-and-subdomains" data-i18n="commonHostnameAndSubdomains"></option>
             </select>
-            <span class="hint">Choose the exact coverage explicitly; no parent domain is inferred.</span>
+            <span class="hint" data-i18n="optionsRuleScopeHint"></span>
           </label>
 
           <div>
-            <button type="submit">Add domain rule</button>
+            <button type="submit" data-i18n="optionsAddRule"></button>
           </div>
         </form>
         <p class="status" id="rule-status" aria-live="polite"></p>
 
         <div class="conflict-panel" id="route-rule-conflicts" role="alert" hidden>
-          <h3>Conflicting route rules</h3>
-          <p>
-            Both Proxy and Direct are configured for the same hostname and scope. Choose the one route that should
-            remain; nothing is removed automatically.
-          </p>
+          <h3 data-i18n="optionsConflictsTitle"></h3>
+          <p data-i18n="optionsConflictsDescription"></p>
           <ul class="rule-list" id="route-rule-conflict-list"></ul>
           <p class="status" id="route-rule-conflict-status" aria-live="polite"></p>
         </div>
@@ -382,101 +377,92 @@
         <ul class="rule-list" id="rule-list"></ul>
 
         <div class="rule-editor" id="rule-editor" aria-labelledby="rule-editor-title" hidden>
-          <h3 id="rule-editor-title">Edit route rule</h3>
+          <h3 id="rule-editor-title" data-i18n="optionsEditRuleTitle"></h3>
           <label>
-            Hostname or domain
+            <span data-i18n="optionsHostnameLabel"></span>
             <input id="rule-edit-domain" type="text" autocomplete="off" />
             <span class="error" id="rule-edit-domain-error" aria-live="polite"></span>
           </label>
           <label>
-            Route action
+            <span data-i18n="optionsRouteActionLabel"></span>
             <select id="rule-edit-action">
-              <option value="proxy">Proxy</option>
-              <option value="direct">Direct</option>
+              <option value="proxy" data-i18n="commonProxy"></option>
+              <option value="direct" data-i18n="commonDirect"></option>
             </select>
           </label>
           <label>
-            Rule scope
+            <span data-i18n="popupRuleScopeLabel"></span>
             <select id="rule-edit-scope"></select>
-            <span class="hint">A safe parent-domain option appears only when PSL-aware planning permits it.</span>
+            <span class="hint" data-i18n="optionsSafeParentHint"></span>
           </label>
           <div class="actions">
-            <button id="preview-rule-edit" type="button">Preview changes</button>
-            <button id="save-rule-edit" type="button" disabled>Save changes</button>
-            <button id="cancel-rule-edit" type="button">Cancel</button>
+            <button id="preview-rule-edit" type="button" data-i18n="optionsPreviewChanges"></button>
+            <button id="save-rule-edit" type="button" disabled data-i18n="optionsSaveChanges"></button>
+            <button id="cancel-rule-edit" type="button" data-i18n="commonCancel"></button>
           </div>
-          <div class="rule-edit-preview" id="rule-edit-preview" aria-live="polite">Preview the edit before saving.</div>
+          <div class="rule-edit-preview" id="rule-edit-preview" aria-live="polite" data-i18n="optionsPreviewBeforeSave"></div>
         </div>
       </section>
 
       <section aria-labelledby="rule-cleanup-title">
-        <h2 id="rule-cleanup-title">Optimize rules</h2>
-        <p>Find same-action child rules already covered by broader parent rules. Nothing is removed automatically.</p>
+        <h2 id="rule-cleanup-title" data-i18n="optionsOptimizeTitle"></h2>
+        <p data-i18n="optionsOptimizeDescription"></p>
         <div class="actions">
-          <button id="find-redundant-rules" type="button">Find redundant rules</button>
+          <button id="find-redundant-rules" type="button" data-i18n="optionsFindRedundant"></button>
         </div>
         <p class="status" id="rule-cleanup-status" aria-live="polite"></p>
         <ul class="rule-list" id="rule-cleanup-list"></ul>
       </section>
 
       <section aria-labelledby="denylist-title">
-        <h2 id="denylist-title">Denylist and ignored domains</h2>
-        <p>Read-only in this slice. Editing these lists will be added separately if needed.</p>
-        <div id="denylist-summary" class="empty">Loading stored lists...</div>
+        <h2 id="denylist-title" data-i18n="optionsDenylistTitle"></h2>
+        <p data-i18n="optionsDenylistDescription"></p>
+        <div id="denylist-summary" class="empty" data-i18n="optionsLoadingLists"></div>
       </section>
 
       <section aria-labelledby="classification-overrides-title">
-        <h2 id="classification-overrides-title">Classification overrides</h2>
-        <p>
-          Stored in Chrome Sync as domain-level personal preferences. Removing an override does not change proxy routing
-          rules.
-        </p>
+        <h2 id="classification-overrides-title" data-i18n="optionsOverridesTitle"></h2>
+        <p data-i18n="optionsOverridesDescription"></p>
         <p class="status" id="classification-overrides-status" aria-live="polite"></p>
         <ul class="rule-list" id="classification-overrides-list"></ul>
       </section>
 
       <section aria-labelledby="backup-restore-title">
-        <h2 id="backup-restore-title">Backup and restore</h2>
-        <p>
-          Export and import local user-controlled backups. No cloud upload, telemetry, backend, raw URLs, diagnostic
-          sessions, or page content are included.
-        </p>
+        <h2 id="backup-restore-title" data-i18n="optionsBackupTitle"></h2>
+        <p data-i18n="optionsBackupDescription"></p>
 
         <div class="stack">
-          <h3>Export settings</h3>
+          <h3 data-i18n="optionsExportTitle"></h3>
           <label class="checkbox-row">
             <input id="backup-include-local-proxy" name="includeLocalProxyConfig" type="checkbox" />
-            Include local proxy config for this device
+            <span data-i18n="optionsIncludeLocalProxy"></span>
           </label>
-          <p class="hint">
-            Local proxy host and port are device-specific and are excluded by default. Include them only for a backup you
-            control.
-          </p>
+          <p class="hint" data-i18n="optionsLocalProxyBackupHint"></p>
           <div class="actions">
-            <button id="export-settings-button" type="button">Export settings</button>
+            <button id="export-settings-button" type="button" data-i18n="optionsExportButton"></button>
           </div>
           <label>
-            Export JSON
+            <span data-i18n="optionsExportJsonLabel"></span>
             <textarea id="export-settings-output" readonly spellcheck="false"></textarea>
           </label>
           <p class="status" id="export-settings-status" aria-live="polite"></p>
         </div>
 
         <div class="stack">
-          <h3>Import settings</h3>
+          <h3 data-i18n="optionsImportTitle"></h3>
           <label>
-            Import JSON
+            <span data-i18n="optionsImportJsonLabel"></span>
             <textarea
               id="import-settings-input"
               spellcheck="false"
-              placeholder="Paste a Smart Proxy Route Helper settings export JSON document"
+              data-i18n-placeholder="optionsImportPlaceholder"
             ></textarea>
           </label>
           <div class="actions">
-            <button id="preview-import-button" type="button">Preview import</button>
-            <button id="apply-import-button" type="button" disabled>Apply import</button>
+            <button id="preview-import-button" type="button" data-i18n="optionsPreviewImport"></button>
+            <button id="apply-import-button" type="button" disabled data-i18n="optionsApplyImport"></button>
           </div>
-          <div id="import-preview" class="empty" aria-live="polite">No import preview yet.</div>
+          <div id="import-preview" class="empty" aria-live="polite" data-i18n="optionsNoImportPreview"></div>
           <p class="status" id="import-settings-status" aria-live="polite"></p>
         </div>
       </section>

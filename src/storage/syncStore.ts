@@ -1,4 +1,5 @@
 import { sanitizeSyncSettings } from "./sanitize";
+import { getMessage } from "../i18n/i18n";
 import { getRuleStableId, replaceRuleAtomically } from "../rules/ruleEditing";
 import {
   checkRouteTargetAddition,
@@ -52,7 +53,7 @@ export async function setSyncSettings(
   const conflicts = findRouteTargetConflicts(sanitizedSettings.rules);
 
   if (conflicts.length > 0) {
-    throw new Error("Conflicting route rules must be resolved explicitly before these synced settings can be saved.");
+    throw new Error(getMessage("ruleConflictSaveBlocked"));
   }
 
   await storageArea.set(sanitizedSettings);
@@ -83,14 +84,14 @@ export async function updateSyncSettings(
   const introducedConflict = nextConflicts.find((conflict) => !currentConflictKeys.has(conflict.key));
 
   if (introducedConflict) {
-    throw new Error("A Proxy/Direct rule already exists for this hostname and scope. Edit the existing rule instead.");
+    throw new Error(getMessage("ruleProxyDirectExists"));
   }
 
   for (const conflict of currentConflicts) {
     const nextConflict = nextConflicts.find((candidate) => candidate.key === conflict.key);
 
     if (!nextConflict || conflictRuleSnapshot(conflict.rules) !== conflictRuleSnapshot(nextConflict.rules)) {
-      throw new Error("Use Keep Proxy or Keep Direct to resolve conflicting route rules explicitly.");
+      throw new Error(getMessage("ruleConflictUseKeep"));
     }
   }
 
@@ -132,7 +133,9 @@ export async function addSyncRules(
         reason: "conflict",
         existingRule: check.existingRule,
         proposedRule,
-        error: `A ${check.existingRule.action === "proxy" ? "Proxy" : "Direct"} rule already exists for this hostname and scope. Edit existing rule instead.`
+        error: getMessage("ruleActionExistsForScope", [
+          check.existingRule.action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect")
+        ])
       };
     }
 
@@ -194,7 +197,7 @@ export async function updateSyncRule(
     return {
       ok: false,
       settings: currentSettings,
-      error: "Resolve this conflicting route target with Keep Proxy or Keep Direct before editing it."
+      error: getMessage("ruleConflictResolveBeforeEdit")
     };
   }
 

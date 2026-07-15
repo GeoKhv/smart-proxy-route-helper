@@ -1,5 +1,6 @@
 import type { DomainRule, RuleAction } from "./ruleTypes";
 import { sameRouteTarget } from "./routeTarget";
+import { getMessage } from "../i18n/i18n";
 
 function normalizeForMatching(domain: string): string {
   return domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.+$/, "");
@@ -154,14 +155,19 @@ function ruleCoversRuleTarget(coveringRule: DomainRule, targetRule: DomainRule):
 }
 
 function redundancyReason(redundantRule: DomainRule, coveringRule: DomainRule): string {
-  const action = ruleAction(redundantRule) === "proxy" ? "proxy route" : "direct route";
-  const scope = redundantRule.includeSubdomains ? "domain and its subdomains" : "exact domain";
+  const action =
+    ruleAction(redundantRule) === "proxy"
+      ? getMessage("ruleProxyRouteLower")
+      : getMessage("ruleDirectRouteLower");
+  const scope = redundantRule.includeSubdomains
+    ? getMessage("ruleDomainAndSubdomainsLower")
+    : getMessage("ruleExactDomainLower");
 
   if (sameRouteTarget(redundantRule, coveringRule)) {
-    return `The same ${action} already exists for this ${scope}.`;
+    return getMessage("ruleSameActionExists", [action, scope]);
   }
 
-  return `${coveringRule.domain} already covers this ${action} for the ${scope}.`;
+  return getMessage("ruleCoveredBy", [coveringRule.domain, action, scope]);
 }
 
 export function findRedundantDomainRules(rules: readonly DomainRule[]): RedundantDomainRuleSuggestion[] {

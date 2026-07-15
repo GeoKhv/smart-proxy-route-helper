@@ -2,6 +2,7 @@ import {
   buildCurrentPageResourceHostPreview,
   type CurrentPageResourceHostsResponse
 } from "./currentPageResourceHosts";
+import { getMessage } from "../i18n/i18n";
 import type { RelatedDomainRecorderSummary } from "./actionRequestRecorder";
 import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
 import { checkDenylistedHost } from "../rules/denylist";
@@ -93,26 +94,26 @@ export function buildRelatedDomainRecordingResponse(
 function unsupportedUrlMessage(url: string): string {
   try {
     const protocol = new URL(url).protocol.replace(/:$/, "");
-    const protocolLabel = protocol ? `${protocol}://` : "This page";
+    const protocolLabel = protocol ? `${protocol}://` : getMessage("commonThisPage");
 
-    return `${protocolLabel} pages cannot be used for diagnostic recording. Open an http or https site first.`;
+    return getMessage("recordingProtocolCannotUse", [protocolLabel]);
   } catch {
-    return "Open a valid http or https site before starting diagnostic recording.";
+    return getMessage("recordingOpenValidSite");
   }
 }
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
-    "internal-scheme": "Internal browser pages cannot be used for diagnostic recording.",
-    localhost: "Localhost cannot be used for diagnostic recording.",
-    "loopback-ip": "Loopback addresses cannot be used for diagnostic recording.",
-    "private-ip": "Private network addresses cannot be used for diagnostic recording.",
-    "internal-suffix": "Internal local domains cannot be used for diagnostic recording.",
-    "single-label-host": "Open a public domain with a dot before starting diagnostic recording.",
-    "invalid-host": "Open a valid http or https site before starting diagnostic recording."
+    "internal-scheme": getMessage("recordingInternalPage"),
+    localhost: getMessage("recordingLocalhost"),
+    "loopback-ip": getMessage("recordingLoopback"),
+    "private-ip": getMessage("recordingPrivate"),
+    "internal-suffix": getMessage("recordingInternalDomain"),
+    "single-label-host": getMessage("recordingOpenPublicDomain"),
+    "invalid-host": getMessage("recordingOpenValidSite")
   };
 
-  return messages[reason] ?? "This site cannot be used for diagnostic recording.";
+  return messages[reason] ?? getMessage("recordingSiteCannotUse");
 }
 
 export function getRelatedDomainRecordingTarget(url: string | undefined): RecordingTarget {
@@ -121,7 +122,7 @@ export function getRelatedDomainRecordingTarget(url: string | undefined): Record
       ok: false,
       response: buildRelatedDomainRecordingResponse(
         "unsupported_url",
-        "Open a supported site before starting diagnostic recording."
+        getMessage("recordingOpenSupportedSite")
       )
     };
   }
@@ -135,7 +136,7 @@ export function getRelatedDomainRecordingTarget(url: string | undefined): Record
       ok: false,
       response: buildRelatedDomainRecordingResponse(
         "unsupported_url",
-        "Open a valid http or https site before starting diagnostic recording."
+        getMessage("recordingOpenValidSite")
       )
     };
   }

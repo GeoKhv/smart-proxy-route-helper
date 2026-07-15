@@ -155,7 +155,7 @@ export function runRelatedDomainRecorderBridgeInPage(
 
   if (action === "cancel") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", "No matching diagnostic recording bridge was found in this page.");
+      return emptyResult("not_found", getMessage("recordingBridgeMissing"));
     }
 
     disconnect(existing);
@@ -165,7 +165,7 @@ export function runRelatedDomainRecorderBridgeInPage(
 
   if (action === "stop") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", "No matching diagnostic recording bridge was found in this page.");
+      return emptyResult("not_found", getMessage("recordingBridgeMissing"));
     }
 
     if (existing.expiresAt <= now) {
@@ -180,7 +180,7 @@ export function runRelatedDomainRecorderBridgeInPage(
   }
 
   if (action !== "start" || !validNonce(options.sessionNonce)) {
-    return emptyResult("error", "Invalid diagnostic recording bridge request.");
+    return emptyResult("error", getMessage("recordingBridgeInvalidRequest"));
   }
 
   if (
@@ -440,7 +440,7 @@ export function runRelatedDomainMainWorldRecorderInPage(
 
   if (action === "cancel") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", "No matching MAIN-world recorder was found in this page.");
+      return emptyResult("not_found", getMessage("recordingMainMissing"));
     }
 
     disconnect(existing);
@@ -450,7 +450,7 @@ export function runRelatedDomainMainWorldRecorderInPage(
 
   if (action === "stop") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", "No matching MAIN-world recorder was found in this page.");
+      return emptyResult("not_found", getMessage("recordingMainMissing"));
     }
 
     if (existing.expiresAt <= now) {
@@ -465,7 +465,7 @@ export function runRelatedDomainMainWorldRecorderInPage(
   }
 
   if (action !== "start" || !validNonce(options.sessionNonce)) {
-    return emptyResult("error", "Invalid MAIN-world diagnostic recorder request.");
+    return emptyResult("error", getMessage("recordingMainInvalidRequest"));
   }
 
   if (
@@ -792,3 +792,4 @@ export function isRelatedDomainMainWorldRecorderResult(
     (!("message" in input) || typeof input.message === "string")
   );
 }
+import { getMessage } from "../i18n/i18n";

@@ -1,4 +1,5 @@
 import { supportedLocalProxySchemes, validateLocalProxyConfig } from "../proxy/proxyConfig";
+import { getMessage, localizeDocument } from "../i18n/i18n";
 import type { LocalProxyConfig, LocalProxyScheme } from "../proxy/proxyConfig";
 import {
   listUserClassificationOverrideEntries,
@@ -146,16 +147,16 @@ export function parseLocalProxyForm(input: LocalProxyFormInput): LocalProxyFormR
 
 function denylistMessage(reason: string): string {
   const messages: Record<string, string> = {
-    "internal-scheme": "Internal browser pages cannot be routed.",
-    localhost: "Localhost cannot be routed.",
-    "loopback-ip": "Loopback addresses cannot be routed.",
-    "private-ip": "Private network addresses cannot be routed.",
-    "internal-suffix": "Internal local domains cannot be routed.",
-    "single-label-host": "Enter a public domain with a dot.",
-    "invalid-host": "Enter a valid domain or URL."
+    "internal-scheme": getMessage("validationInternalPageCannotRoute"),
+    localhost: getMessage("validationLocalhostCannotRoute"),
+    "loopback-ip": getMessage("validationLoopbackCannotRoute"),
+    "private-ip": getMessage("validationPrivateCannotRoute"),
+    "internal-suffix": getMessage("validationInternalDomainCannotRoute"),
+    "single-label-host": getMessage("validationPublicDomainRequired"),
+    "invalid-host": getMessage("validationInvalidHostname")
   };
 
-  return messages[reason] ?? "This domain cannot be routed.";
+  return messages[reason] ?? getMessage("validationDomainCannotRoute");
 }
 
 export function addDomainRule(
@@ -198,7 +199,7 @@ export function addDomainRule(
       ok: false,
       reason: "conflict",
       existingRule: targetCheck.existingRule,
-      error: `A ${displayAction(targetCheck.existingRule.action)} rule already exists for this hostname and scope. Edit existing rule instead.`
+      error: getMessage("ruleActionExistsForScope", [displayAction(targetCheck.existingRule.action)])
     };
   }
 
@@ -289,7 +290,7 @@ function renderRules(settings: SyncSettings): void {
     const empty = document.createElement("li");
     empty.className = "empty";
     empty.textContent =
-      conflicts.length > 0 ? "Resolve the conflicting route targets above to return to a normal rule list." : "No synced route rules yet.";
+      conflicts.length > 0 ? getMessage("optionsResolveConflictsForList") : getMessage("optionsNoRules");
     list.append(empty);
     return;
   }
@@ -306,9 +307,9 @@ function renderRules(settings: SyncSettings): void {
     const metadata = document.createElement("div");
     metadata.className = "metadata";
     metadata.textContent = [
-      rule.action === "direct" ? "Direct route" : "Proxy route",
-      `source: ${rule.source}`,
-      rule.includeSubdomains ? "includes subdomains" : "exact domain only"
+      rule.action === "direct" ? getMessage("ruleDirectRoute") : getMessage("ruleProxyRoute"),
+      getMessage("ruleSource", [rule.source]),
+      rule.includeSubdomains ? getMessage("ruleIncludesSubdomains") : getMessage("ruleExactDomainOnly")
     ].join(" · ");
 
     const actions = document.createElement("div");
@@ -316,13 +317,13 @@ function renderRules(settings: SyncSettings): void {
     const removeButton = document.createElement("button");
     actions.className = "rule-item-actions";
     editButton.type = "button";
-    editButton.textContent = "Edit";
+    editButton.textContent = getMessage("commonEdit");
     editButton.dataset.editRuleId = getRuleStableId(rule);
-    editButton.setAttribute("aria-label", `Edit route rule for ${rule.domain}`);
+    editButton.setAttribute("aria-label", getMessage("optionsEditRuleAria", [rule.domain]));
     removeButton.type = "button";
-    removeButton.textContent = "Remove";
+    removeButton.textContent = getMessage("commonRemove");
     removeButton.dataset.ruleIndex = String(index);
-    removeButton.setAttribute("aria-label", `Remove route rule for ${rule.domain}`);
+    removeButton.setAttribute("aria-label", getMessage("optionsRemoveRuleAria", [rule.domain]));
 
     actions.append(editButton, removeButton);
     summary.append(domain, metadata);
@@ -353,24 +354,24 @@ function renderRouteTargetConflicts(settings: SyncSettings): void {
     heading.className = "rule-domain";
     heading.textContent = describeRouteTarget(conflict);
     detail.className = "metadata";
-    detail.textContent = `Both Proxy and Direct are configured. ${
+    detail.textContent = getMessage("optionsConflictDetail", [
       effectiveRule
-        ? `${displayAction(effectiveRule.action)} is temporarily effective because the newest createdAt wins, then the later stored position breaks a tie.`
-        : "The runtime still uses its deterministic tie-breaker."
-    }`;
+        ? getMessage("optionsConflictEffective", [displayAction(effectiveRule.action)])
+        : getMessage("optionsConflictTieBreaker")
+    ]);
     actions.className = "rule-item-actions";
 
     keepProxy.type = "button";
-    keepProxy.textContent = "Keep Proxy";
+    keepProxy.textContent = getMessage("optionsKeepProxy");
     keepProxy.dataset.conflictTargetKey = conflict.key;
     keepProxy.dataset.keepAction = "proxy";
-    keepProxy.setAttribute("aria-label", `Keep Proxy for ${describeRouteTarget(conflict)} and remove the Direct sibling`);
+    keepProxy.setAttribute("aria-label", getMessage("optionsKeepProxyAria", [describeRouteTarget(conflict)]));
 
     keepDirect.type = "button";
-    keepDirect.textContent = "Keep Direct";
+    keepDirect.textContent = getMessage("optionsKeepDirect");
     keepDirect.dataset.conflictTargetKey = conflict.key;
     keepDirect.dataset.keepAction = "direct";
-    keepDirect.setAttribute("aria-label", `Keep Direct for ${describeRouteTarget(conflict)} and remove the Proxy sibling`);
+    keepDirect.setAttribute("aria-label", getMessage("optionsKeepDirectAria", [describeRouteTarget(conflict)]));
 
     summary.append(heading, detail);
     actions.append(keepProxy, keepDirect);
@@ -380,14 +381,14 @@ function renderRouteTargetConflicts(settings: SyncSettings): void {
 }
 
 function displayAction(action: RuleAction): string {
-  return action === "proxy" ? "Proxy" : "Direct";
+  return action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect");
 }
 
 function displayScope(rule: Pick<DomainRule, "includeSubdomains">): string {
-  return rule.includeSubdomains ? "This domain and all subdomains" : "Exact hostname only";
+  return rule.includeSubdomains ? getMessage("commonDomainAndSubdomains") : getMessage("commonExactHostname");
 }
 
-function resetRuleEditPreview(message = "Preview the edit before saving."): void {
+function resetRuleEditPreview(message = getMessage("optionsPreviewBeforeSave")): void {
   pendingRuleEditPlan = null;
   getElement<HTMLButtonElement>("#save-rule-edit").disabled = true;
   setStatus(getElement<HTMLElement>("#rule-edit-preview"), message, "neutral");
@@ -464,19 +465,19 @@ function renderRuleEditPlan(plan: RuleEditPlan): void {
   preview.dataset.kind = "neutral";
   appendRuleEditPreviewLine(
     preview,
-    "Current rule",
+    getMessage("commonCurrentRule"),
     `${plan.currentRule.domain} · ${displayScope(plan.currentRule)} · ${displayAction(plan.currentRule.action)}`
   );
   appendRuleEditPreviewLine(
     preview,
-    "Proposed rule",
+    getMessage("commonProposedRule"),
     `${plan.proposedRule.domain} · ${displayScope(plan.proposedRule)} · ${displayAction(plan.proposedRule.action)}`
   );
 
   if (plan.coverage.length > 0) {
     const coverageHeading = document.createElement("strong");
     const coverageList = document.createElement("ul");
-    coverageHeading.textContent = "Coverage:";
+    coverageHeading.textContent = getMessage("commonCoverage");
     coverageList.className = "preview-list";
     plan.coverage.forEach((entry) => {
       const item = document.createElement("li");
@@ -505,7 +506,7 @@ function renderRuleCleanupSuggestions(settings: SyncSettings): void {
     const empty = document.createElement("li");
 
     empty.className = "empty";
-    empty.textContent = "No redundant route rules found.";
+    empty.textContent = getMessage("optionsNoRedundant");
     list.append(empty);
     return;
   }
@@ -520,12 +521,12 @@ function renderRuleCleanupSuggestions(settings: SyncSettings): void {
     item.className = "rule-item";
     domain.className = "rule-domain";
     metadata.className = "metadata";
-    domain.textContent = `${suggestion.redundantRule.domain} (${suggestion.redundantRule.action})`;
-    metadata.textContent = `${suggestion.reason} Covered by ${suggestion.coveringRule.domain}.`;
+    domain.textContent = `${suggestion.redundantRule.domain} (${displayAction(suggestion.redundantRule.action)})`;
+    metadata.textContent = getMessage("optionsCoveredBy", [suggestion.reason, suggestion.coveringRule.domain]);
     removeButton.type = "button";
-    removeButton.textContent = "Remove suggestion";
+    removeButton.textContent = getMessage("optionsRemoveSuggestion");
     removeButton.dataset.cleanupRuleIndex = String(suggestion.redundantRuleIndex);
-    removeButton.setAttribute("aria-label", `Remove redundant rule for ${suggestion.redundantRule.domain}`);
+    removeButton.setAttribute("aria-label", getMessage("optionsRemoveSuggestionAria", [suggestion.redundantRule.domain]));
 
     summary.append(domain, metadata);
     item.append(summary, removeButton);
@@ -536,11 +537,13 @@ function renderRuleCleanupSuggestions(settings: SyncSettings): void {
 function renderStoredLists(settings: SyncSettings): void {
   const summary = getElement<HTMLElement>("#denylist-summary");
   const denylistText =
-    settings.denylist.length > 0 ? `Denylist: ${settings.denylist.join(", ")}` : "Denylist: no stored entries.";
+    settings.denylist.length > 0
+      ? getMessage("optionsDenylistValues", [settings.denylist.join(", ")])
+      : getMessage("optionsDenylistEmpty");
   const ignoredText =
     settings.ignoredDomains.length > 0
-      ? `Ignored domains: ${settings.ignoredDomains.join(", ")}`
-      : "Ignored domains: no stored entries.";
+      ? getMessage("optionsIgnoredValues", [settings.ignoredDomains.join(", ")])
+      : getMessage("optionsIgnoredEmpty");
 
   summary.textContent = `${denylistText} ${ignoredText}`;
 }
@@ -549,9 +552,9 @@ function classificationOverrideActionText(
   action: UserClassificationGlobalOverride | UserClassificationSiteOverride
 ): string {
   const labels: Record<UserClassificationGlobalOverride | UserClassificationSiteOverride, string> = {
-    ignored: "ignored",
-    review: "manual review",
-    suggested: "suggested"
+    ignored: getMessage("optionsOverrideIgnored"),
+    review: getMessage("optionsOverrideReview"),
+    suggested: getMessage("optionsOverrideSuggested")
   };
 
   return labels[action];
@@ -559,10 +562,10 @@ function classificationOverrideActionText(
 
 function classificationOverrideMetadata(entry: UserClassificationOverrideEntry): string {
   if (entry.scope === "global") {
-    return `global override · ${classificationOverrideActionText(entry.action)}`;
+    return getMessage("optionsGlobalOverride", [classificationOverrideActionText(entry.action)]);
   }
 
-  return `site override for ${entry.siteDomain} · ${classificationOverrideActionText(entry.action)}`;
+  return getMessage("optionsSiteOverride", [entry.siteDomain, classificationOverrideActionText(entry.action)]);
 }
 
 function overrideTargetFromButton(button: HTMLButtonElement): UserClassificationOverrideTarget | null {
@@ -598,7 +601,7 @@ function renderClassificationOverrides(settings: SyncSettings): void {
   if (entries.length === 0) {
     const empty = document.createElement("li");
     empty.className = "empty";
-    empty.textContent = "No synced classification overrides yet.";
+    empty.textContent = getMessage("optionsNoOverrides");
     list.append(empty);
     return;
   }
@@ -618,25 +621,21 @@ function renderClassificationOverrides(settings: SyncSettings): void {
 
     const removeButton = document.createElement("button");
     removeButton.type = "button";
-    removeButton.textContent = "Remove";
+    removeButton.textContent = getMessage("commonRemove");
     removeButton.dataset.overrideScope = entry.scope;
     removeButton.dataset.overrideDomain = entry.domain;
 
     if (entry.scope === "site") {
       removeButton.dataset.overrideSiteDomain = entry.siteDomain;
-      removeButton.setAttribute("aria-label", `Remove override for ${entry.domain} on ${entry.siteDomain}`);
+      removeButton.setAttribute("aria-label", getMessage("optionsRemoveOverrideAria", [entry.domain, entry.siteDomain]));
     } else {
-      removeButton.setAttribute("aria-label", `Remove global override for ${entry.domain}`);
+      removeButton.setAttribute("aria-label", getMessage("optionsRemoveGlobalOverrideAria", [entry.domain]));
     }
 
     summary.append(domain, metadata);
     item.append(summary, removeButton);
     list.append(item);
   });
-}
-
-function plural(value: number, singular: string, pluralValue = `${singular}s`): string {
-  return value === 1 ? singular : pluralValue;
 }
 
 function appendPreviewItem(list: HTMLUListElement, message: string, className?: string): void {
@@ -667,36 +666,48 @@ function renderImportPreview(preview: SettingsImportPreview): void {
 
   appendPreviewItem(
     list,
-    `Route rules: ${summary.routeRules.importable} ${plural(
+    getMessage("optionsImportRouteSummary", [
       summary.routeRules.importable,
-      "rule"
-    )} importable, ${summary.routeRules.added} new, ${summary.routeRules.duplicates} duplicate ${plural(
+      summary.routeRules.added,
       summary.routeRules.duplicates,
-      "match",
-      "matches"
-    )}, ${summary.routeRules.skipped} skipped.`
+      summary.routeRules.skipped
+    ])
   );
   appendPreviewItem(
     list,
-    `Classification overrides: ${summary.classificationOverrides.importable} importable, ${summary.classificationOverrides.addedOrUpdated} added or updated, ${summary.classificationOverrides.skipped} skipped.`
+    getMessage("optionsImportOverrideSummary", [
+      summary.classificationOverrides.importable,
+      summary.classificationOverrides.addedOrUpdated,
+      summary.classificationOverrides.skipped
+    ])
   );
   appendPreviewItem(
     list,
-    `Ignored domains: ${summary.ignoredDomains.importable} importable, ${summary.ignoredDomains.added} new, ${summary.ignoredDomains.duplicates} duplicate, ${summary.ignoredDomains.skipped} skipped.`
+    getMessage("optionsImportIgnoredSummary", [
+      summary.ignoredDomains.importable,
+      summary.ignoredDomains.added,
+      summary.ignoredDomains.duplicates,
+      summary.ignoredDomains.skipped
+    ])
   );
   appendPreviewItem(
     list,
-    `Denylist: ${summary.denylist.importable} importable, ${summary.denylist.added} new, ${summary.denylist.duplicates} duplicate, ${summary.denylist.skipped} skipped.`
+    getMessage("optionsImportDenylistSummary", [
+      summary.denylist.importable,
+      summary.denylist.added,
+      summary.denylist.duplicates,
+      summary.denylist.skipped
+    ])
   );
   appendPreviewItem(
     list,
     summary.localProxyWillBeApplied
-      ? "Local proxy config: included and will be applied after confirmation."
-      : "Local proxy config: not included."
+      ? getMessage("optionsImportProxyIncluded")
+      : getMessage("optionsImportProxyExcluded")
   );
 
   if (preview.warnings.length === 0) {
-    appendPreviewItem(list, "Warnings: none.");
+    appendPreviewItem(list, getMessage("optionsImportNoWarnings"));
   } else {
     preview.warnings.forEach((warning) => appendPreviewItem(list, warning));
   }
@@ -723,7 +734,7 @@ async function handleLocalProxySubmit(event: SubmitEvent): Promise<void> {
     setError("#proxy-scheme-error", parsed.errors.scheme);
     setError("#proxy-host-error", parsed.errors.host);
     setError("#proxy-port-error", parsed.errors.port);
-    setStatus(status, "Fix the highlighted local proxy setting before saving.", "error");
+    setStatus(status, getMessage("optionsFixProxy"), "error");
     return;
   }
 
@@ -732,7 +743,7 @@ async function handleLocalProxySubmit(event: SubmitEvent): Promise<void> {
     deviceProxy: parsed.deviceProxy
   }));
 
-  setStatus(status, "Local proxy settings saved on this device.", "success");
+  setStatus(status, getMessage("optionsProxySaved"), "success");
 }
 
 async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
@@ -761,7 +772,7 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
     renderStoredLists(current);
     renderClassificationOverrides(current);
     renderRuleCleanupSuggestions(current);
-    setStatus(status, `${addResult.normalizedDomain} already has that synced route rule.`, "neutral");
+    setStatus(status, getMessage("optionsRuleDuplicate", [addResult.normalizedDomain]), "neutral");
     return;
   }
 
@@ -785,12 +796,19 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
   renderRuleCleanupSuggestions(updated);
 
   if (finalAdd.addedRules.length === 0) {
-    setStatus(status, `${addResult.normalizedDomain} already has that synced route rule.`, "neutral");
+    setStatus(status, getMessage("optionsRuleDuplicate", [addResult.normalizedDomain]), "neutral");
     return;
   }
 
   input.value = "";
-  setStatus(status, `Added synced ${action} rule for ${addResult.normalizedDomain}.`, "success");
+  setStatus(
+    status,
+    getMessage("optionsRuleAdded", [
+      action === "proxy" ? getMessage("ruleActionProxyLower") : getMessage("ruleActionDirectLower"),
+      addResult.normalizedDomain
+    ]),
+    "success"
+  );
 }
 
 async function handleRouteTargetConflictClick(event: MouseEvent): Promise<void> {
@@ -818,7 +836,11 @@ async function handleRouteTargetConflictClick(event: MouseEvent): Promise<void> 
 
   setStatus(
     status,
-    `${displayAction(result.keptRule.action)} will remain for ${describeRouteTarget(result.keptRule)}. ${result.removedRules.length} contradictory sibling rule${result.removedRules.length === 1 ? " was" : "s were"} removed in one synced write.`,
+    getMessage(result.removedRules.length === 1 ? "optionsConflictResolvedOne" : "optionsConflictResolved", [
+      displayAction(result.keptRule.action),
+      describeRouteTarget(result.keptRule),
+      result.removedRules.length
+    ]),
     "success"
   );
 }
@@ -830,12 +852,12 @@ function handleRuleEditorInput(event: Event): void {
     renderRuleEditorScopeOptions(getElement<HTMLInputElement>("#rule-edit-domain").value);
   }
 
-  resetRuleEditPreview("Changes are not saved yet. Preview the edit to continue.");
+  resetRuleEditPreview(getMessage("optionsChangesNotSaved"));
 }
 
 async function handleRuleEditPreview(): Promise<void> {
   if (!editingRuleId) {
-    setStatus(getElement<HTMLElement>("#rule-edit-preview"), "Choose a rule to edit first.", "error");
+    setStatus(getElement<HTMLElement>("#rule-edit-preview"), getMessage("optionsChooseRule"), "error");
     return;
   }
 
@@ -864,7 +886,7 @@ async function handleRuleEditSave(): Promise<void> {
   const status = getElement<HTMLElement>("#rule-status");
 
   if (!plan) {
-    setStatus(status, "Preview a valid rule edit before saving.", "error");
+    setStatus(status, getMessage("optionsPreviewValidEdit"), "error");
     return;
   }
 
@@ -888,7 +910,7 @@ async function handleRuleEditSave(): Promise<void> {
   closeRuleEditor();
   setStatus(
     status,
-    `Updated ${updateResult.updatedRule.domain} atomically. The existing rule identity and metadata were preserved.`,
+    getMessage("optionsRuleUpdated", [updateResult.updatedRule.domain]),
     "success"
   );
 }
@@ -901,13 +923,13 @@ async function handleRuleListClick(event: MouseEvent): Promise<void> {
     const rule = settings.rules.find((candidate) => getRuleStableId(candidate) === editButton.dataset.editRuleId);
 
     if (!rule) {
-      setStatus(getElement<HTMLElement>("#rule-status"), "That rule is no longer available. Refresh and try again.", "error");
+      setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsRuleGone"), "error");
       renderRules(settings);
       return;
     }
 
     openRuleEditor(rule, settings);
-    setStatus(getElement<HTMLElement>("#rule-status"), `Editing ${rule.domain}. Nothing changes until Save changes.`, "neutral");
+    setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsEditingRule", [rule.domain]), "neutral");
     return;
   }
 
@@ -927,7 +949,7 @@ async function handleRuleListClick(event: MouseEvent): Promise<void> {
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
   closeRuleEditor();
-  setStatus(getElement<HTMLElement>("#rule-status"), "Synced rule removed.", "success");
+  setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsRuleRemoved"), "success");
   renderRuleCleanupSuggestions(updated);
 }
 
@@ -948,14 +970,14 @@ async function handleRuleCleanupClick(event: MouseEvent): Promise<void> {
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
   renderRuleCleanupSuggestions(updated);
-  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), "Redundant rule removed after confirmation.", "success");
+  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), getMessage("optionsRedundantRemoved"), "success");
 }
 
 async function handleFindRedundantRulesClick(): Promise<void> {
   const settings = await getSyncSettings();
 
   renderRuleCleanupSuggestions(settings);
-  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), "Rule cleanup scan complete. Nothing was removed automatically.", "success");
+  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), getMessage("optionsCleanupComplete"), "success");
 }
 
 async function handleClassificationOverrideListClick(event: MouseEvent): Promise<void> {
@@ -969,7 +991,7 @@ async function handleClassificationOverrideListClick(event: MouseEvent): Promise
   const status = getElement<HTMLElement>("#classification-overrides-status");
 
   if (!target) {
-    setStatus(status, "Could not identify the classification override to remove.", "error");
+    setStatus(status, getMessage("optionsOverrideRemoveUnknown"), "error");
     return;
   }
 
@@ -981,7 +1003,7 @@ async function handleClassificationOverrideListClick(event: MouseEvent): Promise
   renderRules(updated);
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
-  setStatus(status, "Classification override removed.", "success");
+  setStatus(status, getMessage("optionsOverrideRemoved"), "success");
 }
 
 async function handleSettingsExportClick(): Promise<void> {
@@ -998,12 +1020,12 @@ async function handleSettingsExportClick(): Promise<void> {
     setStatus(
       status,
       includeLocalProxyConfig
-        ? "Export JSON generated with local proxy config included."
-        : "Export JSON generated without local proxy config.",
+        ? getMessage("optionsExportWithProxy")
+        : getMessage("optionsExportWithoutProxy"),
       "success"
     );
   } catch (error) {
-    setStatus(status, error instanceof Error ? error.message : "Could not export settings.", "error");
+    setStatus(status, error instanceof Error ? error.message : getMessage("optionsCouldNotExport"), "error");
   }
 }
 
@@ -1024,17 +1046,17 @@ async function handleImportPreviewClick(): Promise<void> {
     if (!preview.ok) {
       pendingImportPreview = null;
       applyButton.disabled = true;
-      setStatus(status, "Fix the import JSON before applying changes.", "error");
+      setStatus(status, getMessage("optionsFixImport"), "error");
       return;
     }
 
     pendingImportPreview = preview;
     applyButton.disabled = false;
-    setStatus(status, "Import preview ready. Review it before applying changes.", "success");
+    setStatus(status, getMessage("optionsImportPreviewReady"), "success");
   } catch (error) {
     pendingImportPreview = null;
     applyButton.disabled = true;
-    setStatus(status, error instanceof Error ? error.message : "Could not preview import.", "error");
+    setStatus(status, error instanceof Error ? error.message : getMessage("optionsCouldNotPreviewImport"), "error");
   }
 }
 
@@ -1044,7 +1066,7 @@ async function handleApplyImportClick(): Promise<void> {
 
   if (!pendingImportPreview) {
     applyButton.disabled = true;
-    setStatus(status, "Preview a valid import before applying it.", "error");
+    setStatus(status, getMessage("optionsPreviewValidImport"), "error");
     return;
   }
 
@@ -1058,33 +1080,34 @@ async function handleApplyImportClick(): Promise<void> {
 
     if (result.localSettings) {
       renderLocalSettings(result.localSettings);
-      setStatus(getElement<HTMLElement>("#local-proxy-status"), "Local proxy settings restored on this device.", "success");
+      setStatus(getElement<HTMLElement>("#local-proxy-status"), getMessage("optionsProxyRestored"), "success");
     }
 
     pendingImportPreview = null;
     applyButton.disabled = true;
-    setStatus(status, "Import applied after explicit confirmation.", "success");
+    setStatus(status, getMessage("optionsImportApplied"), "success");
   } catch (error) {
-    setStatus(status, error instanceof Error ? error.message : "Could not apply import.", "error");
+    setStatus(status, error instanceof Error ? error.message : getMessage("optionsCouldNotApplyImport"), "error");
   }
 }
 
 function clearPendingImportPreview(): void {
   pendingImportPreview = null;
   getElement<HTMLButtonElement>("#apply-import-button").disabled = true;
-  getElement<HTMLElement>("#import-preview").textContent = "No import preview yet.";
-  setStatus(getElement<HTMLElement>("#import-settings-status"), "Import preview cleared.", "neutral");
+  getElement<HTMLElement>("#import-preview").textContent = getMessage("optionsNoImportPreview");
+  setStatus(getElement<HTMLElement>("#import-settings-status"), getMessage("optionsImportCleared"), "neutral");
 }
 
 async function initOptionsPage(): Promise<void> {
+  localizeDocument();
   const [localSettings] = await Promise.all([getLocalSettings(), refreshSyncView()]);
   renderLocalSettings(localSettings);
-  setStatus(getElement<HTMLElement>("#local-proxy-status"), "Loaded local settings.", "neutral");
-  setStatus(getElement<HTMLElement>("#rule-status"), "Loaded synced rules.", "neutral");
-  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), "Run a scan to find redundant route rules.", "neutral");
-  setStatus(getElement<HTMLElement>("#classification-overrides-status"), "Loaded classification overrides.", "neutral");
-  setStatus(getElement<HTMLElement>("#export-settings-status"), "Backup export ready.", "neutral");
-  setStatus(getElement<HTMLElement>("#import-settings-status"), "Paste export JSON to preview import.", "neutral");
+  setStatus(getElement<HTMLElement>("#local-proxy-status"), getMessage("optionsLoadedLocal"), "neutral");
+  setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsLoadedRules"), "neutral");
+  setStatus(getElement<HTMLElement>("#rule-cleanup-status"), getMessage("optionsRunCleanup"), "neutral");
+  setStatus(getElement<HTMLElement>("#classification-overrides-status"), getMessage("optionsLoadedOverrides"), "neutral");
+  setStatus(getElement<HTMLElement>("#export-settings-status"), getMessage("optionsBackupReady"), "neutral");
+  setStatus(getElement<HTMLElement>("#import-settings-status"), getMessage("optionsPasteImport"), "neutral");
 
   getElement<HTMLFormElement>("#local-proxy-form").addEventListener("submit", (event) => {
     void handleLocalProxySubmit(event);
@@ -1105,7 +1128,7 @@ async function initOptionsPage(): Promise<void> {
     void handleRuleEditPreview().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#rule-edit-preview"),
-        error instanceof Error ? error.message : "Could not preview the rule edit.",
+        error instanceof Error ? error.message : getMessage("optionsCouldNotPreviewEdit"),
         "error"
       );
     });
@@ -1114,14 +1137,14 @@ async function initOptionsPage(): Promise<void> {
     void handleRuleEditSave().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#rule-status"),
-        error instanceof Error ? error.message : "Could not save the rule edit.",
+        error instanceof Error ? error.message : getMessage("optionsCouldNotSaveEdit"),
         "error"
       );
     });
   });
   getElement<HTMLButtonElement>("#cancel-rule-edit").addEventListener("click", () => {
     closeRuleEditor();
-    setStatus(getElement<HTMLElement>("#rule-status"), "Rule edit cancelled. No rule was changed.", "neutral");
+    setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsEditCancelled"), "neutral");
   });
   getElement<HTMLButtonElement>("#find-redundant-rules").addEventListener("click", () => {
     void handleFindRedundantRulesClick();
@@ -1151,7 +1174,7 @@ if (typeof document !== "undefined") {
     void initOptionsPage().catch((error: unknown) => {
       setStatus(
         getElement<HTMLElement>("#local-proxy-status"),
-        error instanceof Error ? error.message : "Could not load options.",
+        error instanceof Error ? error.message : getMessage("optionsCouldNotLoad"),
         "error"
       );
     });
