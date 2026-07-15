@@ -9,6 +9,11 @@ type LocaleMessageEntry = {
 export type MessageKey = keyof typeof englishMessages;
 export type MessageSubstitution = string | number;
 
+export type LocalizedMessage = {
+  key: MessageKey;
+  substitutions?: MessageSubstitution[];
+};
+
 export type I18nAdapter = {
   getMessage(key: string, substitutions?: string | string[]): string;
   getUILanguage?(): string;
@@ -78,6 +83,32 @@ export function getMessage(key: MessageKey | string, substitutions: readonly Mes
 
   console.warn(`[i18n] Unknown message key: ${key}`);
   return `[missing:${key}]`;
+}
+
+export function localizedMessage(
+  key: MessageKey,
+  substitutions: readonly MessageSubstitution[] = []
+): LocalizedMessage {
+  return {
+    key,
+    ...(substitutions.length > 0 ? { substitutions: [...substitutions] } : {})
+  };
+}
+
+export function resolveLocalizedMessage(message: LocalizedMessage): string {
+  return getMessage(message.key, message.substitutions ?? []);
+}
+
+export function isLocalizedMessage(input: unknown): input is LocalizedMessage {
+  if (typeof input !== "object" || input === null || !("key" in input) || typeof input.key !== "string") {
+    return false;
+  }
+
+  return (
+    !("substitutions" in input) ||
+    (Array.isArray(input.substitutions) &&
+      input.substitutions.every((value) => typeof value === "string" || typeof value === "number"))
+  );
 }
 
 export function getUiLocale(): string {

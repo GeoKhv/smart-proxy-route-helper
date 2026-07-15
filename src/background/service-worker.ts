@@ -3,7 +3,7 @@ import {
   runCurrentSiteDiagnostic,
   type CurrentSiteDiagnosticResponse
 } from "../diagnostics/currentSiteDiagnostics";
-import { getMessage } from "../i18n/i18n";
+import { getMessage, localizedMessage } from "../i18n/i18n";
 import {
   collectCurrentPageResourceHostnamesFromDom,
   isCurrentPageResourceHostsRequest,
@@ -244,13 +244,13 @@ async function handleGetRelatedDomainRecordingState(): Promise<RelatedDomainReco
   }
 
   if (!metadata || state.status === "idle") {
-    return buildRelatedDomainRecordingResponse("success", getMessage("recordingNoActive"), state);
+    return buildRelatedDomainRecordingResponse("success", localizedMessage("recordingNoActive"), state);
   }
 
   if (state.status === "expired") {
     return buildRelatedDomainRecordingResponse(
       "expired",
-      getMessage("recordingExpiredAction", [state.currentDomain]),
+      localizedMessage("recordingExpiredAction", [state.currentDomain]),
       state,
       {
         currentDomain: state.currentDomain
@@ -260,7 +260,7 @@ async function handleGetRelatedDomainRecordingState(): Promise<RelatedDomainReco
 
   return buildRelatedDomainRecordingResponse(
     "success",
-    getMessage("recordingActive", [state.currentDomain]),
+    localizedMessage("recordingActive", [state.currentDomain]),
     state,
     {
       currentDomain: state.currentDomain
@@ -280,7 +280,7 @@ async function handleStartRelatedDomainRecording(
   if (typeof request.tabId !== "number" || !Number.isInteger(request.tabId) || request.tabId < 0) {
     return buildRelatedDomainRecordingResponse(
       "error",
-      getMessage("recordingTabUnavailable"),
+      localizedMessage("recordingTabUnavailable"),
       undefined,
       {
         currentDomain: target.domain
@@ -295,7 +295,7 @@ async function handleStartRelatedDomainRecording(
     if (existingState.tabId !== tabId) {
       return buildRelatedDomainRecordingResponse(
         "active_in_other_tab",
-        getMessage("recordingActiveOtherTab", [existingState.currentDomain]),
+        localizedMessage("recordingActiveOtherTab", [existingState.currentDomain]),
         existingState,
         {
           currentDomain: existingState.currentDomain
@@ -305,7 +305,7 @@ async function handleStartRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "success",
-      getMessage("recordingAlreadyActive", [existingState.currentDomain]),
+      localizedMessage("recordingAlreadyActive", [existingState.currentDomain]),
       existingState,
       {
         currentDomain: existingState.currentDomain
@@ -321,7 +321,7 @@ async function handleStartRelatedDomainRecording(
     if (!hasStartedRecorder(bridgeResults)) {
       return buildRelatedDomainRecordingResponse(
         "collection_unavailable",
-        bridgeResults[0]?.message ?? getMessage("recordingBridgeFailed"),
+        localizedMessage("recordingBridgeFailed"),
         existingState,
         {
           currentDomain: target.domain
@@ -348,7 +348,7 @@ async function handleStartRelatedDomainRecording(
 
       return buildRelatedDomainRecordingResponse(
         "collection_unavailable",
-        mainWorldResults[0]?.message ?? getMessage("recordingMainCaptureFailed"),
+        localizedMessage("recordingMainCaptureFailed"),
         existingState,
         {
           currentDomain: target.domain
@@ -374,7 +374,7 @@ async function handleStartRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "success",
-      getMessage("recordingStarted", [target.domain]),
+      localizedMessage("recordingStarted", [target.domain]),
       relatedDomainRecordingSessionState(session),
       {
         currentDomain: target.domain
@@ -383,7 +383,7 @@ async function handleStartRelatedDomainRecording(
   } catch {
     return buildRelatedDomainRecordingResponse(
       "collection_unavailable",
-      getMessage("recordingAutomaticFailed"),
+      localizedMessage("recordingAutomaticFailed"),
       existingState,
       {
         currentDomain: target.domain
@@ -399,13 +399,13 @@ async function handleStopRelatedDomainRecording(
   const state = relatedDomainRecordingSessionState(metadata);
 
   if (!metadata || state.status === "idle") {
-    return buildRelatedDomainRecordingResponse("not_found", getMessage("recordingNoActive"), state);
+    return buildRelatedDomainRecordingResponse("not_found", localizedMessage("recordingNoActive"), state);
   }
 
   if (typeof request.tabId !== "number" || !Number.isInteger(request.tabId) || request.tabId < 0) {
     return buildRelatedDomainRecordingResponse(
       "error",
-      getMessage("recordingTabUnavailable"),
+      localizedMessage("recordingTabUnavailable"),
       state,
       {
         currentDomain: state.currentDomain
@@ -418,7 +418,7 @@ async function handleStopRelatedDomainRecording(
   if (state.tabId !== tabId) {
     return buildRelatedDomainRecordingResponse(
       "active_in_other_tab",
-      getMessage("recordingBelongsOtherTab", [state.currentDomain]),
+      localizedMessage("recordingBelongsOtherTab", [state.currentDomain]),
       state,
       {
         currentDomain: state.currentDomain
@@ -435,7 +435,7 @@ async function handleStopRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "expired",
-      getMessage("recordingExpiredNavigation", [state.currentDomain]),
+      localizedMessage("recordingExpiredNavigation", [state.currentDomain]),
       { status: "idle" },
       {
         currentDomain: state.currentDomain
@@ -469,7 +469,7 @@ async function handleStopRelatedDomainRecording(
 
       return buildRelatedDomainRecordingResponse(
         "expired",
-        getMessage("recordingExpiredDocument", [state.currentDomain]),
+        localizedMessage("recordingExpiredDocument", [state.currentDomain]),
         { status: "idle" },
         {
           currentDomain: state.currentDomain
@@ -492,8 +492,8 @@ async function handleStopRelatedDomainRecording(
     return buildRelatedDomainRecordingResponse(
       expired ? "expired" : "success",
       expired
-        ? getMessage("recordingExpiredPreview", [state.currentDomain])
-        : getMessage("recordingStoppedPreview", [state.currentDomain]),
+        ? localizedMessage("recordingExpiredPreview", [state.currentDomain])
+        : localizedMessage("recordingStoppedPreview", [state.currentDomain]),
       { status: "idle" },
       {
         currentDomain: state.currentDomain,
@@ -509,7 +509,7 @@ async function handleStopRelatedDomainRecording(
 
     return buildRelatedDomainRecordingResponse(
       "collection_unavailable",
-      getMessage("recordingStopPreviewFailed"),
+      localizedMessage("recordingStopPreviewFailed"),
       { status: "idle" },
       {
         currentDomain: state.currentDomain
@@ -525,7 +525,7 @@ async function handleCancelRelatedDomainRecording(
   const state = relatedDomainRecordingSessionState(metadata);
 
   if (!metadata || state.status === "idle") {
-    return buildRelatedDomainRecordingResponse("success", getMessage("recordingNoActive"), state);
+    return buildRelatedDomainRecordingResponse("success", localizedMessage("recordingNoActive"), state);
   }
 
   await Promise.allSettled([
@@ -537,7 +537,7 @@ async function handleCancelRelatedDomainRecording(
 
   return buildRelatedDomainRecordingResponse(
     "success",
-    getMessage("recordingCancelled", [state.currentDomain]),
+    localizedMessage("recordingCancelled", [state.currentDomain]),
     { status: "idle" },
     {
       currentDomain: state.currentDomain
@@ -626,9 +626,12 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         sendResponse(result);
       })
       .catch((error: unknown) => {
+        console.warn(
+          `${extensionName} could not complete the proxy check: ${error instanceof Error ? error.message : "unknown error"}`
+        );
         const response: CurrentSiteDiagnosticResponse = {
           status: "error",
-          message: error instanceof Error ? error.message : getMessage("popupCouldNotCheckProxy")
+          message: getMessage("popupCouldNotCheckProxy")
         };
 
         sendResponse(response);
@@ -653,9 +656,12 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         sendResponse(result);
       })
       .catch((error: unknown) => {
+        console.warn(
+          `${extensionName} could not preview related domains: ${error instanceof Error ? error.message : "unknown error"}`
+        );
         const response: CurrentPageResourceHostsResponse = {
           status: "error",
-          message: error instanceof Error ? error.message : getMessage("popupCouldNotPreviewRelated")
+          message: getMessage("popupCouldNotPreviewRelated")
         };
 
         sendResponse(response);
@@ -670,9 +676,12 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
         sendResponse(result);
       })
       .catch((error: unknown) => {
+        console.warn(
+          `${extensionName} could not handle diagnostic recording: ${error instanceof Error ? error.message : "unknown error"}`
+        );
         const response: RelatedDomainRecordingResponse = {
           status: "error",
-          message: error instanceof Error ? error.message : getMessage("popupCouldNotHandleRecording"),
+          message: localizedMessage("popupCouldNotHandleRecording"),
           state: { status: "idle" }
         };
 

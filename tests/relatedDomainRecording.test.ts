@@ -3,11 +3,13 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  buildRelatedDomainRecordingResponse,
   buildRelatedDomainRecordingPreview,
   getRelatedDomainRecordingTarget,
   relatedDomainRecordingSessionState,
   sanitizeRelatedDomainRecordedHostname
 } from "../src/diagnostics/relatedDomainRecording";
+import { localizedMessage } from "../src/i18n/i18n";
 
 describe("related-domain diagnostic recording target", () => {
   it("accepts public http and https pages and rejects unsupported targets", () => {
@@ -57,6 +59,27 @@ describe("related-domain diagnostic recording target", () => {
     });
     expect(JSON.stringify(relatedDomainRecordingSessionState(metadata, 2_000))).not.toContain("sessionNonce");
     expect(relatedDomainRecordingSessionState(metadata, 3_000)).toMatchObject({ status: "expired" });
+  });
+
+  it("keeps background responses structured instead of embedding English UI text", () => {
+    const response = buildRelatedDomainRecordingResponse(
+      "success",
+      localizedMessage("recordingStarted", ["chatgpt.com"]),
+      {
+        status: "recording",
+        tabId: 7,
+        currentDomain: "chatgpt.com",
+        startedAt: 1_000,
+        expiresAt: 121_000,
+        maxDurationMs: 120_000
+      }
+    );
+
+    expect(response.message).toEqual({
+      key: "recordingStarted",
+      substitutions: ["chatgpt.com"]
+    });
+    expect(JSON.stringify(response)).not.toContain("Diagnostic recording started");
   });
 
   it("accepts hostnames only and rejects raw or signed URLs at the extension boundary", () => {

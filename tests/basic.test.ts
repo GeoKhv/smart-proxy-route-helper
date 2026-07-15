@@ -45,13 +45,21 @@ describe("extension release manifest", () => {
     const englishMessages = JSON.parse(
       await readFile(resolve(__dirname, "../_locales/en/messages.json"), "utf8")
     ) as Record<string, { message: string }>;
+    const russianMessages = JSON.parse(
+      await readFile(resolve(__dirname, "../_locales/ru/messages.json"), "utf8")
+    ) as Record<string, { message: string }>;
     const metadata = `${englishMessages.extensionName.message} ${englishMessages.extensionDescription.message}`.toLowerCase();
 
     expect(manifest.default_locale).toBe("en");
     expect(manifest.name).toBe("__MSG_extensionName__");
     expect(manifest.description).toBe("__MSG_extensionDescription__");
     expect(englishMessages.extensionName.message).toBe("Smart Proxy Route Helper");
-    expect(englishMessages.extensionDescription.message).toContain("per-domain proxy routing");
+    expect(englishMessages.extensionDescription.message).toBe(
+      "Routes selected sites through your local proxy while all other sites connect directly."
+    );
+    expect(russianMessages.extensionDescription.message).toBe(
+      "Направляет выбранные сайты через локальный прокси, а остальные открывает напрямую."
+    );
     expect(metadata).not.toContain("bypass");
     expect(metadata).not.toContain("unblock");
     expect(metadata).not.toContain("censorship");

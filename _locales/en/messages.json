@@ -1,6 +1,6 @@
 {
   "extensionName": { "message": "Smart Proxy Route Helper" },
-  "extensionDescription": { "message": "Manage per-domain proxy routing through a user-configured local proxy." },
+  "extensionDescription": { "message": "Routes selected sites through your local proxy while all other sites connect directly." },
   "optionsDocumentTitle": { "message": "Smart Proxy Route Helper Options" },
   "commonProxy": { "message": "Proxy" },
   "commonDirect": { "message": "Direct" },

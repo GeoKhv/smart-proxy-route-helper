@@ -1,6 +1,13 @@
 import { checkDenylistedHost } from "../rules/denylist";
 import { canonicalizeHostname } from "../rules/canonicalizeHostname";
-import { getMessage, localizeDocument, selectPluralForm, type MessageKey } from "../i18n/i18n";
+import {
+  getMessage,
+  localizedMessage,
+  localizeDocument,
+  resolveLocalizedMessage,
+  selectPluralForm,
+  type MessageKey
+} from "../i18n/i18n";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import {
   checkRouteTargetAddition,
@@ -2099,12 +2106,18 @@ async function requestRelatedDomainRecording(input: {
   if (!isRelatedDomainRecordingResponse(response)) {
     return {
       status: "error",
-      message: getMessage("popupCouldNotHandleRecording"),
+      message: localizedMessage("popupCouldNotHandleRecording"),
       state: { status: "idle" }
     };
   }
 
   return response;
+}
+
+export function relatedDomainRecordingResponseMessage(
+  response: Pick<RelatedDomainRecordingResponse, "message">
+): string {
+  return resolveLocalizedMessage(response.message);
 }
 
 async function refreshRelatedDomainRecordingControls(activeTab: ActiveTabSnapshot): Promise<void> {
@@ -2318,7 +2331,11 @@ async function handleStartRelatedDomainRecording(): Promise<void> {
     const controlView = buildRelatedDomainRecordingControlView(recording.state, activeTab.id);
 
     setRelatedDomainRecordingButtonVisibility(controlView);
-    setStatus(actionStatus, recording.message, recording.status === "unsupported_url" ? "error" : "neutral");
+    setStatus(
+      actionStatus,
+      relatedDomainRecordingResponseMessage(recording),
+      recording.status === "unsupported_url" ? "error" : "neutral"
+    );
   } finally {
     startButton.disabled = false;
   }
@@ -2367,7 +2384,7 @@ async function handleStopRelatedDomainRecording(): Promise<void> {
 
     setStatus(
       actionStatus,
-      recording.message,
+      relatedDomainRecordingResponseMessage(recording),
       recording.status === "not_found" || recording.status === "collection_unavailable" ? "error" : "neutral"
     );
   } finally {
@@ -2395,7 +2412,11 @@ async function handleCancelRelatedDomainRecording(): Promise<void> {
     const controlView = buildRelatedDomainRecordingControlView(recording.state, activeTab.id);
 
     setRelatedDomainRecordingButtonVisibility(controlView);
-    setStatus(actionStatus, recording.message, recording.status === "success" ? "neutral" : "error");
+    setStatus(
+      actionStatus,
+      relatedDomainRecordingResponseMessage(recording),
+      recording.status === "success" ? "neutral" : "error"
+    );
   } finally {
     cancelButton.disabled = false;
   }
@@ -2726,30 +2747,30 @@ function initPopupPage(): void {
   });
 
   getElement<HTMLButtonElement>("#start-related-domain-recording").addEventListener("click", () => {
-    void handleStartRelatedDomainRecording().catch((error: unknown) => {
+    void handleStartRelatedDomainRecording().catch(() => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : getMessage("popupCouldNotStartRecording"),
+        getMessage("popupCouldNotStartRecording"),
         "error"
       );
     });
   });
 
   getElement<HTMLButtonElement>("#stop-related-domain-recording").addEventListener("click", () => {
-    void handleStopRelatedDomainRecording().catch((error: unknown) => {
+    void handleStopRelatedDomainRecording().catch(() => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : getMessage("popupCouldNotStopRecording"),
+        getMessage("popupCouldNotStopRecording"),
         "error"
       );
     });
   });
 
   getElement<HTMLButtonElement>("#cancel-related-domain-recording").addEventListener("click", () => {
-    void handleCancelRelatedDomainRecording().catch((error: unknown) => {
+    void handleCancelRelatedDomainRecording().catch(() => {
       setStatus(
         getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : getMessage("popupCouldNotCancelRecording"),
+        getMessage("popupCouldNotCancelRecording"),
         "error"
       );
     });

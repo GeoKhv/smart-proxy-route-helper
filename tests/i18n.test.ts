@@ -6,13 +6,17 @@ import englishMessages from "../_locales/en/messages.json";
 import russianMessages from "../_locales/ru/messages.json";
 import {
   getMessage,
+  localizedMessage,
   selectPluralForm,
   setI18nAdapterForTests,
   type I18nAdapter
 } from "../src/i18n/i18n";
 import {
+  buildRelatedDomainRecordingControlView,
+  getRelatedDomainPreviewActionStatus,
   relatedDomainAddActionLabel,
-  relatedDomainBatchAddActionLabel
+  relatedDomainBatchAddActionLabel,
+  relatedDomainRecordingResponseMessage
 } from "../src/popup/popup";
 
 type LocaleMessage = {
@@ -180,6 +184,91 @@ describe("localized related-domain UI strings", () => {
     );
     expect(getMessage("backupRuleConflictExisting", ["Прокси", "Напрямую", "wikipedia.org", ""])).toContain(
       "wikipedia.org"
+    );
+  });
+});
+
+describe("localized action-specific recording UI strings", () => {
+  const hostname = "upload-fixture.example";
+  const activeState = {
+    status: "recording" as const,
+    tabId: 7,
+    currentDomain: hostname,
+    startedAt: 1_000,
+    expiresAt: 121_000,
+    maxDurationMs: 120_000
+  };
+
+  function responseMessage(key: Parameters<typeof localizedMessage>[0]): string {
+    return relatedDomainRecordingResponseMessage({
+      message: localizedMessage(key, [hostname])
+    });
+  }
+
+  it("renders English start, active, stop, cancel, expired, and error states", () => {
+    expect(responseMessage("recordingStarted")).toContain(`started for ${hostname}`);
+    expect(buildRelatedDomainRecordingControlView(activeState, 7).message).toContain(
+      `active for ${hostname}`
+    );
+    expect(responseMessage("recordingStoppedPreview")).toContain(`stopped for ${hostname}`);
+    expect(responseMessage("recordingCancelled")).toContain(`${hostname} was cancelled`);
+    expect(responseMessage("recordingExpiredNavigation")).toContain(
+      `${hostname} expired because the tab navigated or reloaded`
+    );
+    expect(
+      relatedDomainRecordingResponseMessage({ message: localizedMessage("recordingAutomaticFailed") })
+    ).toContain("Could not start automatic request recording");
+  });
+
+  it("renders the same restored and dynamic states in Russian without English recording text", () => {
+    setI18nAdapterForTests(catalogAdapter(russianMessages as LocaleCatalog, "ru"));
+
+    const messages = [
+      responseMessage("recordingStarted"),
+      buildRelatedDomainRecordingControlView(activeState, 7).message ?? "",
+      responseMessage("recordingStoppedPreview"),
+      responseMessage("recordingCancelled"),
+      responseMessage("recordingExpiredNavigation"),
+      relatedDomainRecordingResponseMessage({ message: localizedMessage("recordingAutomaticFailed") })
+    ];
+    const reopenedView = buildRelatedDomainRecordingControlView(activeState, 7);
+    const noHostsView = getRelatedDomainPreviewActionStatus({
+      status: "success",
+      message: "No request hostnames were captured during this session.",
+      captureMode: "recording",
+      currentDomain: hostname,
+      resultState: "no_resource_entries_collected",
+      summary: {
+        rawEntriesInspected: 0,
+        requestInitiationsInspected: 0,
+        hostsExtracted: 0,
+        hostsAfterSanitization: 0,
+        hostsIgnoredOrInternal: 0,
+        reviewableCandidates: 0,
+        ignoredCandidates: 0
+      },
+      collectedHosts: [],
+      candidates: {
+        currentDomain: hostname,
+        strongCandidates: [],
+        mediumCandidates: [],
+        ignoredCandidates: []
+      }
+    });
+
+    expect(messages).toEqual([
+      expect.stringContaining(`Запись для ${hostname} начата`),
+      expect.stringContaining(`Идёт запись для ${hostname}`),
+      expect.stringContaining(`Запись для ${hostname} остановлена`),
+      expect.stringContaining(`Запись для ${hostname} отменена`),
+      expect.stringContaining(`Запись для ${hostname} истекла`),
+      expect.stringContaining("Не удалось запустить автоматическую запись запросов")
+    ]);
+    expect(reopenedView.message).toContain(hostname);
+    expect(noHostsView.message).toContain("За эту сессию не записано ни одного домена запроса");
+    expect(noHostsView.message).not.toContain("No request hostnames");
+    expect(messages.join(" ")).not.toMatch(
+      /Diagnostic recording|Starting diagnostic|Stopping diagnostic|Cancelling diagnostic|Could not start automatic/i
     );
   });
 });

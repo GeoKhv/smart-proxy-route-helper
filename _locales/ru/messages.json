@@ -1,6 +1,6 @@
 {
   "extensionName": { "message": "Smart Proxy Route Helper" },
-  "extensionDescription": { "message": "Управление прокси-маршрутизацией по доменам через локальный прокси, настроенный пользователем." },
+  "extensionDescription": { "message": "Направляет выбранные сайты через локальный прокси, а остальные открывает напрямую." },
   "optionsDocumentTitle": { "message": "Настройки Smart Proxy Route Helper" },
   "commonProxy": { "message": "Прокси" },
   "commonDirect": { "message": "Напрямую" },

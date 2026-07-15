@@ -61,7 +61,7 @@ Options page:
 - `_locales/en/messages.json` is the default and test fallback catalog; `_locales/ru/messages.json` provides the Russian UI.
 - Manifest name, description, and action title use standard `__MSG_*__` references. The production build copies both bundled locale directories into `dist/`.
 - Popup and Options static markup uses `data-i18n*` attributes. Their TypeScript modules call one shared typed helper for dynamic text, placeholders, title attributes, and accessibility labels.
-- User-visible messages produced by pure modules and the service worker use the same DOM-independent helper. Internal log text, storage keys, protocol values, message types, enum values, CSS classes, and DOM IDs remain technical constants.
+- User-visible messages produced by pure modules and the service worker use the same DOM-independent helper. Diagnostic recording responses cross the service-worker boundary as a typed message key plus substitutions, and the Popup resolves that descriptor through the shared helper so the background context cannot inject a pre-localized English status into another UI locale. Internal log text, storage keys, protocol values, message types, enum values, CSS classes, and DOM IDs remain technical constants.
 - The helper delegates to `chrome.i18n.getMessage` in Chrome. In tests it accepts an injected adapter and otherwise falls back to the bundled English catalog. Missing locale entries warn and fall back to English; unknown keys warn and render a visible development marker instead of silently creating an empty UI.
 - Hostnames and other dynamic values are passed as Chrome i18n substitutions and assigned as text, never inserted through `innerHTML`.
 - English selected-domain counts use `one` and `other`. Russian counts use explicit `one`, `few`, and `many` selection with the 11–14 exception and values such as 21, 22, 25, 111, and 112 covered by unit tests.
@@ -80,6 +80,7 @@ The service worker currently coordinates:
 - Handling current-page related-domain preview messages from the popup.
 - Handling user-invoked diagnostic recording session messages from the popup.
 - Keeping only diagnostic recording metadata in `chrome.storage.session`: tab ID, current domain, start time, expiry time, duration cap, and status.
+- Returning structured diagnostic recording status descriptors; localized recording text is produced only when the Popup renders the response.
 - Reading synced classification overrides for explicit related-domain preview classification.
 
 It does not yet report current apply status to the UI.
@@ -173,6 +174,8 @@ Current session data:
 - Recording status.
 - Random session nonce.
 - Main-frame document identifier for reload/navigation detection.
+
+Localized recording text is not stored in session storage. Popup reopen restores the structured state and renders the active or expired message in the current Chrome UI locale.
 
 Do not store raw URLs, page text, form values, uploaded file contents, screenshots, cookies, auth/session data, collected host lists, candidate lists, diagnostic history, local proxy credentials, synced route rules, or permanent user preferences in session storage.
 

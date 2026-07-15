@@ -24,13 +24,11 @@ export type RelatedDomainRecorderBridgeResult = {
   hosts: string[];
   pageLooksLikeErrorOrProtection: boolean;
   summary: RelatedDomainRecorderSummary;
-  message?: string;
 };
 
 export type RelatedDomainMainWorldRecorderResult = {
   status: "started" | "already_recording" | "stopped" | "expired" | "cancelled" | "not_found" | "error";
   summary: RelatedDomainRecorderSummary;
-  message?: string;
 };
 
 /**
@@ -72,14 +70,12 @@ export function runRelatedDomainRecorderBridgeInPage(
     droppedPerformanceEntries: 0
   });
   const emptyResult = (
-    status: RelatedDomainRecorderBridgeResult["status"],
-    message?: string
+    status: RelatedDomainRecorderBridgeResult["status"]
   ): RelatedDomainRecorderBridgeResult => ({
     status,
     hosts: [],
     pageLooksLikeErrorOrProtection: false,
-    summary: emptySummary(),
-    ...(message ? { message } : {})
+    summary: emptySummary()
   });
   const snapshot = (
     status: RelatedDomainRecorderBridgeResult["status"],
@@ -155,7 +151,7 @@ export function runRelatedDomainRecorderBridgeInPage(
 
   if (action === "cancel") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", getMessage("recordingBridgeMissing"));
+      return emptyResult("not_found");
     }
 
     disconnect(existing);
@@ -165,7 +161,7 @@ export function runRelatedDomainRecorderBridgeInPage(
 
   if (action === "stop") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", getMessage("recordingBridgeMissing"));
+      return emptyResult("not_found");
     }
 
     if (existing.expiresAt <= now) {
@@ -180,7 +176,7 @@ export function runRelatedDomainRecorderBridgeInPage(
   }
 
   if (action !== "start" || !validNonce(options.sessionNonce)) {
-    return emptyResult("error", getMessage("recordingBridgeInvalidRequest"));
+    return emptyResult("error");
   }
 
   if (
@@ -323,12 +319,10 @@ export function runRelatedDomainMainWorldRecorderInPage(
     droppedPerformanceEntries: 0
   });
   const emptyResult = (
-    status: RelatedDomainMainWorldRecorderResult["status"],
-    message?: string
+    status: RelatedDomainMainWorldRecorderResult["status"]
   ): RelatedDomainMainWorldRecorderResult => ({
     status,
-    summary: emptySummary(),
-    ...(message ? { message } : {})
+    summary: emptySummary()
   });
   const snapshot = (
     status: RelatedDomainMainWorldRecorderResult["status"],
@@ -440,7 +434,7 @@ export function runRelatedDomainMainWorldRecorderInPage(
 
   if (action === "cancel") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", getMessage("recordingMainMissing"));
+      return emptyResult("not_found");
     }
 
     disconnect(existing);
@@ -450,7 +444,7 @@ export function runRelatedDomainMainWorldRecorderInPage(
 
   if (action === "stop") {
     if (!existing || existing.sessionNonce !== options.sessionNonce) {
-      return emptyResult("not_found", getMessage("recordingMainMissing"));
+      return emptyResult("not_found");
     }
 
     if (existing.expiresAt <= now) {
@@ -465,7 +459,7 @@ export function runRelatedDomainMainWorldRecorderInPage(
   }
 
   if (action !== "start" || !validNonce(options.sessionNonce)) {
-    return emptyResult("error", getMessage("recordingMainInvalidRequest"));
+    return emptyResult("error");
   }
 
   if (
@@ -774,8 +768,7 @@ export function isRelatedDomainRecorderBridgeResult(input: unknown): input is Re
     "pageLooksLikeErrorOrProtection" in input &&
     typeof input.pageLooksLikeErrorOrProtection === "boolean" &&
     "summary" in input &&
-    isRelatedDomainRecorderSummary(input.summary) &&
-    (!("message" in input) || typeof input.message === "string")
+    isRelatedDomainRecorderSummary(input.summary)
   );
 }
 
@@ -788,8 +781,6 @@ export function isRelatedDomainMainWorldRecorderResult(
     "status" in input &&
     isRecorderStatus(input.status) &&
     "summary" in input &&
-    isRelatedDomainRecorderSummary(input.summary) &&
-    (!("message" in input) || typeof input.message === "string")
+    isRelatedDomainRecorderSummary(input.summary)
   );
 }
-import { getMessage } from "../i18n/i18n";

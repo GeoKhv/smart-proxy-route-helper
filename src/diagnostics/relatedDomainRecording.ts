@@ -2,7 +2,11 @@ import {
   buildCurrentPageResourceHostPreview,
   type CurrentPageResourceHostsResponse
 } from "./currentPageResourceHosts";
-import { getMessage } from "../i18n/i18n";
+import {
+  isLocalizedMessage,
+  localizedMessage,
+  type LocalizedMessage
+} from "../i18n/i18n";
 import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import type { RelatedDomainRecorderSummary } from "./actionRequestRecorder";
 import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
@@ -55,7 +59,7 @@ export type RelatedDomainRecordingStatus =
 
 export type RelatedDomainRecordingResponse = {
   status: RelatedDomainRecordingStatus;
-  message: string;
+  message: LocalizedMessage;
   state: RelatedDomainRecordingSessionState;
   currentDomain?: string;
   preview?: CurrentPageResourceHostsResponse;
@@ -79,7 +83,7 @@ function idleState(): RelatedDomainRecordingSessionState {
 
 export function buildRelatedDomainRecordingResponse(
   status: RelatedDomainRecordingStatus,
-  message: string,
+  message: LocalizedMessage,
   state: RelatedDomainRecordingSessionState = idleState(),
   extra: Pick<RelatedDomainRecordingResponse, "currentDomain" | "preview"> = {}
 ): RelatedDomainRecordingResponse {
@@ -92,29 +96,30 @@ export function buildRelatedDomainRecordingResponse(
   };
 }
 
-function unsupportedUrlMessage(url: string): string {
+function unsupportedUrlMessage(url: string): LocalizedMessage {
   try {
     const protocol = new URL(url).protocol.replace(/:$/, "");
-    const protocolLabel = protocol ? `${protocol}://` : getMessage("commonThisPage");
 
-    return getMessage("recordingProtocolCannotUse", [protocolLabel]);
+    return protocol
+      ? localizedMessage("recordingProtocolCannotUse", [`${protocol}://`])
+      : localizedMessage("recordingOpenValidSite");
   } catch {
-    return getMessage("recordingOpenValidSite");
+    return localizedMessage("recordingOpenValidSite");
   }
 }
 
-function denylistMessage(reason: string): string {
-  const messages: Record<string, string> = {
-    "internal-scheme": getMessage("recordingInternalPage"),
-    localhost: getMessage("recordingLocalhost"),
-    "loopback-ip": getMessage("recordingLoopback"),
-    "private-ip": getMessage("recordingPrivate"),
-    "internal-suffix": getMessage("recordingInternalDomain"),
-    "single-label-host": getMessage("recordingOpenPublicDomain"),
-    "invalid-host": getMessage("recordingOpenValidSite")
+function denylistMessage(reason: string): LocalizedMessage {
+  const messages: Record<string, LocalizedMessage> = {
+    "internal-scheme": localizedMessage("recordingInternalPage"),
+    localhost: localizedMessage("recordingLocalhost"),
+    "loopback-ip": localizedMessage("recordingLoopback"),
+    "private-ip": localizedMessage("recordingPrivate"),
+    "internal-suffix": localizedMessage("recordingInternalDomain"),
+    "single-label-host": localizedMessage("recordingOpenPublicDomain"),
+    "invalid-host": localizedMessage("recordingOpenValidSite")
   };
 
-  return messages[reason] ?? getMessage("recordingSiteCannotUse");
+  return messages[reason] ?? localizedMessage("recordingSiteCannotUse");
 }
 
 export function getRelatedDomainRecordingTarget(url: string | undefined): RecordingTarget {
@@ -123,7 +128,7 @@ export function getRelatedDomainRecordingTarget(url: string | undefined): Record
       ok: false,
       response: buildRelatedDomainRecordingResponse(
         "unsupported_url",
-        getMessage("recordingOpenSupportedSite")
+        localizedMessage("recordingOpenSupportedSite")
       )
     };
   }
@@ -137,7 +142,7 @@ export function getRelatedDomainRecordingTarget(url: string | undefined): Record
       ok: false,
       response: buildRelatedDomainRecordingResponse(
         "unsupported_url",
-        getMessage("recordingOpenValidSite")
+        localizedMessage("recordingOpenValidSite")
       )
     };
   }
@@ -154,7 +159,10 @@ export function getRelatedDomainRecordingTarget(url: string | undefined): Record
   if (!normalized.ok) {
     return {
       ok: false,
-      response: buildRelatedDomainRecordingResponse("unsupported_url", normalized.error.message)
+      response: buildRelatedDomainRecordingResponse(
+        "unsupported_url",
+        localizedMessage("recordingOpenValidSite")
+      )
     };
   }
 
@@ -273,7 +281,7 @@ export function isRelatedDomainRecordingResponse(input: unknown): input is Relat
     "status" in input &&
     isSupportedStatus(input.status) &&
     "message" in input &&
-    typeof input.message === "string" &&
+    isLocalizedMessage(input.message) &&
     ((typeof state === "object" && state !== null && "status" in state && state.status === "idle") ||
       isRelatedDomainRecordingSessionMetadata(state)) &&
     (!("currentDomain" in input) || typeof input.currentDomain === "string") &&

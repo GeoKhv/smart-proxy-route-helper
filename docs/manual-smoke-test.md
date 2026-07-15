@@ -70,6 +70,8 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 7. Expand `More actions`, verify its buttons, then use `Back to site status` and confirm the main view is restored.
 8. Open Options from the popup and confirm the local proxy, route rules, conflict repair, classification overrides, cleanup, and Backup and restore sections are in English.
 9. Trigger safe validation and preview-only conflict/import paths. Confirm dynamic hostnames remain intact and the validation, warning, and preview summaries are in English.
+10. Start action-specific recording and confirm the starting and active statuses are in English. Reopen the Popup while recording and confirm the restored active status is still English.
+11. Cancel one recording, then start another and stop it after a safe page action. Confirm cancel, completed/preview, no-hosts, expired/reload, and any reachable error states use English text with intact hostnames and no raw message keys.
 
 ### Russian Profile
 
@@ -81,6 +83,8 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 6. Confirm `Другие действия` expands, `Вернуться к статусу сайта` works, the sticky action is not clipped, long labels wrap without leaving button boundaries, and no control overlaps another control.
 7. Open Options from the popup and confirm every main section, label, action, validation message, conflict repair action, export/import summary, and empty state is in Russian.
 8. Check keyboard focus and the accessibility tree for the primary route status, candidate selection, added state, More actions disclosure, Back button, and conflict-repair controls. Confirm localized labels are present and hostname substitutions are unchanged.
+9. Start action-specific recording and confirm the starting and active statuses are in Russian. Close and reopen the Popup while recording and confirm the restored active status remains Russian.
+10. Cancel one recording, then start another and stop it after a safe page action. Confirm cancel, completed/preview, no-hosts, expired/reload, and any reachable error states are in Russian, preserve every displayed hostname, contain no English recording sentence, and show no raw message keys or empty text.
 
 ### Locale Fallback and Build
 
