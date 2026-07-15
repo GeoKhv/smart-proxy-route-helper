@@ -15,7 +15,10 @@ import {
   getRelatedDomainSaveActionStatus,
   getRelatedDomainPreviewActionStatus,
   groupRelatedDomainCandidateViews,
-  removeCurrentSiteRule
+  relatedDomainAddActionLabel,
+  relatedDomainBatchAddActionLabel,
+  removeCurrentSiteRule,
+  updateRelatedDomainCandidateViewsAfterAdd
 } from "../src/popup/popup";
 import { getRuleStableId, replaceRuleAtomically } from "../src/rules/ruleEditing";
 import type { DomainRule } from "../src/rules/ruleTypes";
@@ -1170,7 +1173,7 @@ describe("popup related-domain recording controls", () => {
       stopVisible: true,
       cancelVisible: true,
       kind: "neutral",
-      message: "Diagnostic recording is active for chatgpt.com. No data is saved until you add selected domains."
+      message: "Diagnostic recording is active for chatgpt.com. No data is saved until you use an add action."
     });
   });
 
@@ -1218,6 +1221,138 @@ describe("popup related-domain recording controls", () => {
 });
 
 describe("popup related-domain selected save helper", () => {
+  it("names individual and batch add actions with the exact saved scope", () => {
+    expect(
+      relatedDomainAddActionLabel({
+        domain: "image.tmdb.org",
+        includeSubdomains: false
+      })
+    ).toBe("Add image.tmdb.org");
+    expect(
+      relatedDomainAddActionLabel({
+        domain: "oaiusercontent.com",
+        includeSubdomains: true
+      })
+    ).toBe("Add oaiusercontent.com and subdomains");
+    expect(relatedDomainBatchAddActionLabel(1)).toBe("Add 1 selected domain");
+    expect(relatedDomainBatchAddActionLabel(3)).toBe("Add 3 selected domains");
+  });
+
+  it("marks an individually added candidate without clearing another selection", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "2 public resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "chatgpt.com",
+        collectedHosts: ["files.oaiusercontent.com", "images.example.net"],
+        candidates: {
+          currentDomain: "chatgpt.com",
+          strongCandidates: [
+            {
+              domain: "oaiusercontent.com",
+              reason: "explicit-related-domain",
+              sourceHosts: ["files.oaiusercontent.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [
+            {
+              domain: "images.example.net",
+              reason: "third-party-resource",
+              sourceHosts: ["images.example.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [], denylist: [] }
+    );
+    const candidatesWithSecondSelected = view.candidates.map((candidate) => ({
+      ...candidate,
+      selected: true
+    }));
+    const updated = updateRelatedDomainCandidateViewsAfterAdd(
+      candidatesWithSecondSelected,
+      [manualRule("oaiusercontent.com", true)],
+      new Set(["oaiusercontent.com"]),
+      new Set(["oaiusercontent.com"]),
+      false
+    );
+
+    expect(updated[0]).toMatchObject({
+      domain: "oaiusercontent.com",
+      added: true,
+      selected: false,
+      saveable: false,
+      alreadyCovered: true
+    });
+    expect(updated[1]).toMatchObject({
+      domain: "images.example.net",
+      selected: true,
+      saveable: true,
+      alreadyCovered: false
+    });
+    expect(groupRelatedDomainCandidateViews(updated)).toMatchObject({
+      strong: [expect.objectContaining({ domain: "oaiusercontent.com", added: true })],
+      alreadyCovered: []
+    });
+  });
+
+  it("clears successful batch selections and makes added candidates unavailable", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "2 public resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "example.com",
+        collectedHosts: ["assets.example.net", "media.example.net"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [],
+          mediumCandidates: [
+            {
+              domain: "assets.example.net",
+              reason: "third-party-resource",
+              sourceHosts: ["assets.example.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "media.example.net",
+              reason: "third-party-resource",
+              sourceHosts: ["media.example.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [], denylist: [] }
+    );
+    const selectedDomains = new Set(["assets.example.net", "media.example.net"]);
+    const updated = updateRelatedDomainCandidateViewsAfterAdd(
+      view.candidates.map((candidate) => ({ ...candidate, selected: true })),
+      [manualRule("assets.example.net", false), manualRule("media.example.net", false)],
+      selectedDomains,
+      selectedDomains,
+      true
+    );
+
+    expect(updated).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ domain: "assets.example.net", added: true, selected: false, saveable: false }),
+        expect.objectContaining({ domain: "media.example.net", added: true, selected: false, saveable: false })
+      ])
+    );
+  });
+
   it("creates classification overrides without creating route rules", () => {
     const result = addRelatedDomainClassificationOverride(
       {
@@ -1764,7 +1899,7 @@ describe("popup runtime boundaries", () => {
       popupSource.indexOf("async function handleRelatedDomainClassificationOverride")
     );
     const saveHandler = popupSource.slice(
-      popupSource.indexOf("async function handleAddSelectedRelatedDomains"),
+      popupSource.indexOf("async function handleAddRelatedDomains"),
       popupSource.indexOf("async function handleSaveDiagnosticRule")
     );
 
@@ -1777,7 +1912,7 @@ describe("popup runtime boundaries", () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const overrideHandler = popupSource.slice(
       popupSource.indexOf("async function handleRelatedDomainClassificationOverride"),
-      popupSource.indexOf("async function handleAddSelectedRelatedDomains")
+      popupSource.indexOf("function renderRelatedDomainAddResult")
     );
 
     expect(overrideHandler).toContain("classificationOverrides: addResult.classificationOverrides");
@@ -1794,10 +1929,21 @@ describe("popup runtime boundaries", () => {
     expect(popupSource).toContain('const row = document.createElement("div")');
     expect(popupSource).toContain("if (candidate.saveable)");
     expect(popupSource).toContain("updateCandidateRowSelection(row, checkbox)");
-    expect(popupSource).toContain("button[data-override-action]");
+    expect(popupSource).toContain("button.dataset.overrideAction");
+    expect(popupSource).toContain("relatedDomainAddActionLabel(candidate)");
+    expect(popupSource).toContain('addButton.dataset.relatedDomainAdd = candidate.domain');
+    expect(popupSource).toContain('addButton.dataset.relatedDomainBatchAdd = "true"');
+    expect(popupSource).toContain('summary.setAttribute("aria-expanded", "false")');
+    expect(popupSource).toContain('summary.setAttribute("aria-controls", actionsId)');
+    expect(popupSource).toContain('backButton.textContent = "Back to site status"');
     expect(popupHtml).toContain('.candidate-row[data-selected="true"]');
+    expect(popupHtml).toContain(".candidate-batch-panel");
+    expect(popupHtml).toContain("position: sticky");
+    expect(popupHtml).toContain(".candidate-more-actions");
     expect(popupHtml).toContain(".candidate-action");
     expect(popupHtml).toContain("accent-color: Highlight");
+    expect(popupHtml).not.toContain('id="add-selected-related-domains"');
+    expect(popupHtml).not.toContain(">Add selected domains</button>");
   });
 
   it("exposes text, aria status, exact-host microcopy, and explicit scope confirmation controls", async () => {

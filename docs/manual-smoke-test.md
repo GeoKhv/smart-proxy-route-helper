@@ -66,7 +66,7 @@ Record:
 7. Confirm diagnostic recording starts only after the user clicks "Start recording".
 8. Confirm recording can be stopped with "Stop and preview" or cancelled with "Cancel recording".
 9. Confirm related-domain preview and recording do not store, sync, send, or automatically save collected hosts or diagnostic summary counts.
-10. Confirm related-domain suggestions are saved only after the user selects candidates and clicks "Add selected domains".
+10. Confirm related-domain suggestions are saved only after the user clicks a scope-specific candidate add action or selects candidates and confirms the sticky batch action.
 11. Confirm classification overrides are saved only after explicit candidate-row actions and do not create proxy routing rules.
 12. Confirm settings export/import is local and user-controlled, with preview before apply and no cloud upload.
 13. Confirm direct exceptions and redundant-rule cleanup require explicit user action and do not delete or add rules automatically.
@@ -347,8 +347,8 @@ await chrome.proxy.settings.get({ incognito: false });
 12. Confirm schema/helper hosts such as `www.w3.org` and `w3.org` are ignored or absent from the saveable candidate list.
 13. Confirm already-covered candidates are marked as covered, are not selected by default, and do not create duplicates.
 14. Confirm preview completion uses neutral/info styling and wording such as "No rules were saved yet", not green save-success styling.
-15. Confirm candidate-row classification override actions are explicit buttons, such as "Ignore globally", "Ignore for site", "Review globally", or "Suggest for site", when applicable.
-16. Click an override action for a candidate and confirm the preview refreshes with a success status.
+15. Confirm candidate-row classification override actions, such as "Ignore globally", "Ignore for site", "Review globally", or "Suggest for site", are visually secondary inside a keyboard-accessible "More actions" disclosure with correct expanded-state semantics.
+16. Expand "More actions", click an override action, and confirm the preview refreshes with a success status.
 17. Confirm the override is stored in `chrome.storage.sync.classificationOverrides` as normalized domains only:
 
 ```js
@@ -370,9 +370,13 @@ await chrome.storage.local.get(null);
 ```
 
 22. Confirm no domain rule is added after preview alone.
-23. Select one or more saveable candidates and click "Add selected domains".
-24. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
-25. Confirm only selected candidates are added to `chrome.storage.sync` as rules with:
+23. Confirm every saveable row has a primary add action that names the actual saved target and scope: exact hostname actions name that hostname, while parent rules explicitly say "and subdomains".
+24. Click one candidate's add action without selecting its checkbox. Confirm only that candidate is added, the row becomes `Added` and cannot be selected or added again, the preview remains open, and checkbox state on every other candidate is preserved.
+25. Select one candidate. Confirm a sticky footer appears at the bottom of the scrolling candidate view with `Add 1 selected domain` and remains visible while scrolling a long list.
+26. Select another candidate and then clear one selection. Confirm the footer count immediately changes between singular and plural and the footer does not cover the final candidate row.
+27. Use the sticky batch action. Confirm submitted checkboxes clear after success, the footer disappears, successfully added rows cannot be selected or added again, and unselected candidates remain available.
+28. Confirm the save completion uses green success styling and clearly says synced proxy routes were added.
+29. Confirm only explicitly added or batch-selected candidates are added to `chrome.storage.sync` as rules with:
 
 - `domain` matching the candidate's suggested rule domain, not necessarily the exact observed host.
 - `includeSubdomains` matching the candidate suggestion.
@@ -380,21 +384,22 @@ await chrome.storage.local.get(null);
 - `mode: "proxy"`.
 - `source: "diagnostic"`.
 
-26. Confirm local proxy settings in `chrome.storage.local` are unchanged.
-27. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
-28. Confirm the preview action alone and classification override actions do not create or modify proxy settings:
+30. Confirm local proxy settings in `chrome.storage.local` are unchanged.
+31. Confirm PAC re-application happens through the background storage listener, not through popup calls to `chrome.proxy.settings`.
+32. Confirm the preview action alone and classification override actions do not create or modify proxy settings:
 
 ```js
 await chrome.proxy.settings.get({ incognito: false });
 ```
 
-29. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
-30. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
-31. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
-32. If resource hosts were found but all are analytics/adtech/local helper/schema domains, confirm the popup says those hosts were filtered and no rules were saved.
-33. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
-34. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
-35. Confirm the preview, override, and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
+33. Click "Back to site status" and confirm the related-domain view closes and the ordinary current-site route status and actions remain available.
+34. Open unsupported or protected pages such as `chrome://extensions`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private/internal host if practical. Confirm the preview action is unavailable or returns a clear unsupported/protected-page message.
+35. If Chrome reports that the active tab is an error page, or the loaded page visibly shows a server/protection error such as "Error 403 Forbidden" or "Varnish cache server", confirm the popup shows friendly warning copy rather than raw Chrome error text or normal related-domain candidates.
+36. If preview finds no page resource hosts, confirm the popup says to reload the page and preview again and shows compact diagnostic counts such as inspected performance entries, inspected DOM attributes, URL-like values, sanitized hosts, and saveable candidates.
+37. If resource hosts were found but all are analytics/adtech/local helper/schema domains, confirm the popup says those hosts were filtered and no rules were saved.
+38. If resource hosts were found but all reviewable candidates are already covered by existing rules, confirm the popup says the hosts are already covered and no duplicate rules are saved.
+39. Confirm the manifest still has no `host_permissions`, no `<all_urls>`, no `webRequest`, no `webNavigation`, no notifications, and no persistent content scripts.
+40. Confirm the preview, override, and save flow does not contact a backend, load remote executable code, or fetch remote PAC data.
 
 ## Related-Domain Recording Checks
 
@@ -410,7 +415,7 @@ await chrome.proxy.settings.get({ incognito: false });
 10. Confirm new resource timing entries that occur after Start are observed without relying only on a Stop-time snapshot.
 11. If Chrome reports dropped resource timing entries, confirm the transient preview details report the count.
 12. Confirm stopping the recording alone does not add or change entries in `chrome.storage.sync.rules`.
-13. Confirm selected candidates are saved only after the user clicks "Add selected domains" and that new route actions default to proxy.
+13. Confirm candidates are saved only after a scope-specific individual add click or the sticky selected-candidate batch action and that new route actions default to proxy.
 14. Start another recording, reopen the popup on a different tab, and confirm the popup says the recording belongs to another tab.
 15. From the different tab, click "Cancel recording" and confirm no candidates are returned, original page request functions are restored, and no rules are saved.
 16. Start another recording and wait past the duration cap. Reopen the popup on the recorded tab and confirm the recording can be stopped and previewed or cancelled and that temporary hooks/listeners are no longer active.
@@ -454,7 +459,7 @@ await chrome.storage.session.get(null);
 11. Confirm a generated host such as `sdmntpritalynorth.oaiusercontent.com` was captured automatically without DevTools, console inspection, Network-panel inspection, URL copying, or manual hostname entry.
 12. Confirm the suggested route target is `oaiusercontent.com` with subdomains included, not an exact generated-host rule.
 13. Confirm no raw URL, file path, query, `sig`, `se`, `sp`, credentials, headers, body, cookie, response content, page text, or file content appears in the popup, storage, logs, or export.
-14. Confirm no route rule was saved automatically before "Add selected domains".
+14. Confirm no route rule was saved automatically before an explicit individual or batch add action.
 15. Do not save the rule unless this is isolated demo data and saving is explicitly part of the smoke.
 16. Delete the temporary text file.
 17. If the request is still not captured, record whether it appears to originate from a worker, service worker, extension, or browser context outside the standard page recorder. Do not add or recommend a manual paste field; treat broader opt-in deep diagnostics as a separate future design.
@@ -466,7 +471,7 @@ await chrome.storage.session.get(null);
 3. Open the popup and click "Preview related domains".
 4. If a generated host such as `sdmntpritalynorth.oaiusercontent.com` or `files.oaiusercontent.com` is observed, confirm the saveable candidate is `oaiusercontent.com`, not only the exact generated host.
 5. Confirm the candidate says subdomains will be included and lists the observed hostnames.
-6. Click "Add selected domains".
+6. Click `Add oaiusercontent.com and subdomains` on the candidate row.
 7. Confirm `chrome.storage.sync.rules` contains one diagnostic-sourced rule for `oaiusercontent.com` with `includeSubdomains: true`.
 8. Confirm an exact rule for a generated host such as `sdmntpritalynorth.oaiusercontent.com` does not cause the popup to treat `files.oaiusercontent.com` as covered.
 9. Confirm a rule for `oaiusercontent.com` with subdomains included covers sibling hosts such as `files.oaiusercontent.com`.
@@ -487,7 +492,7 @@ await chrome.storage.session.get(null);
 11. If every collected host is filtered noise, confirm the popup says resource hosts were found but look like analytics/adtech/local or schema helper domains.
 12. Confirm adtech/tracking/local/schema helper hosts such as `demdex.net`, `stickyadstv.com`, `3lift.com`, `33across.com`, `teads.tv`, `rubiconproject.com`, `local.adguard.org`, and `www.w3.org`, when observed, do not crowd the normal saveable list.
 13. If no saveable candidates appear, confirm the preview details show counts and only sanitized hostnames, never full URLs with paths, query strings, fragments, or credentials.
-14. Select `licdn.com`, then click "Add selected domains".
+14. Select `licdn.com`, then use the sticky selected-domain batch action.
 15. Confirm one synced proxy rule is added for `licdn.com` with `includeSubdomains: true` and that no ignored, already-covered, or unselected candidates are saved.
 
 ## Real-World Visible Route Checks

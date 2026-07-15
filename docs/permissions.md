@@ -92,7 +92,7 @@ These flows must:
 - Restore original request functions and remove temporary observers/listeners on stop, cancel, timeout, navigation, or tab close.
 - After timeout, allow only the bounded in-page hostname set needed for explicit expired-session preview; remove it on Stop, Cancel, navigation, or tab teardown.
 - Never create or save related-domain rules automatically.
-- Save only user-selected candidates after a separate explicit "Add selected domains" action, through synced storage helpers.
+- Save only explicitly added candidates after a scope-specific row action or sticky selected-candidate batch action, through synced storage helpers.
 - Store classification overrides as normalized domain-level preferences only.
 
 Chrome documents `activeTab` as temporary access after the user invokes the extension, and documents `scripting` as required for programmatic script injection with either host permissions or `activeTab`. This project uses the `activeTab` path and does not add host permissions.

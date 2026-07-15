@@ -259,7 +259,7 @@ async function handleGetRelatedDomainRecordingState(): Promise<RelatedDomainReco
 
   return buildRelatedDomainRecordingResponse(
     "success",
-    `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you add selected domains.`,
+    `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you use an add action.`,
     state,
     {
       currentDomain: state.currentDomain

@@ -168,6 +168,7 @@ export type RelatedDomainCandidateView = {
   selected: boolean;
   saveable: boolean;
   alreadyCovered: boolean;
+  added?: boolean;
   coveredBy?: string;
   overrideActions: DomainCandidateUserOverrideAction[];
 };
@@ -221,6 +222,7 @@ export type AddRelatedDomainClassificationOverrideResult = UpsertUserClassificat
 
 let checkedReachableDomain: string | null = null;
 let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
+let relatedDomainPopupView: RelatedDomainPopupView | null = null;
 let relatedDomainPreviewDomain: string | null = null;
 let currentSyncSettingsSnapshot: SyncSettings | null = null;
 let currentDeviceProxySettings: DeviceProxySettings = {
@@ -460,11 +462,67 @@ export function groupRelatedDomainCandidateViews(
   candidates: readonly RelatedDomainCandidateView[]
 ): Record<RelatedDomainCandidateGroupKey, RelatedDomainCandidateView[]> {
   return {
-    strong: candidates.filter((candidate) => candidate.category === "strong" && candidate.saveable),
-    medium: candidates.filter((candidate) => candidate.category === "medium" && candidate.saveable),
-    alreadyCovered: candidates.filter((candidate) => candidate.category !== "ignored" && candidate.alreadyCovered),
+    strong: candidates.filter(
+      (candidate) => candidate.category === "strong" && (candidate.saveable || candidate.added)
+    ),
+    medium: candidates.filter(
+      (candidate) => candidate.category === "medium" && (candidate.saveable || candidate.added)
+    ),
+    alreadyCovered: candidates.filter(
+      (candidate) => candidate.category !== "ignored" && candidate.alreadyCovered && !candidate.added
+    ),
     ignored: candidates.filter((candidate) => candidate.category === "ignored")
   };
+}
+
+export function relatedDomainAddActionLabel(
+  candidate: Pick<RelatedDomainCandidateView, "domain" | "includeSubdomains">
+): string {
+  return candidate.includeSubdomains
+    ? `Add ${candidate.domain} and subdomains`
+    : `Add ${candidate.domain}`;
+}
+
+export function relatedDomainBatchAddActionLabel(selectedCount: number): string {
+  return `Add ${selectedCount} selected domain${selectedCount === 1 ? "" : "s"}`;
+}
+
+export function updateRelatedDomainCandidateViewsAfterAdd(
+  candidates: readonly RelatedDomainCandidateView[],
+  currentRules: readonly DomainRule[],
+  requestedDomains: ReadonlySet<string>,
+  addedDomains: ReadonlySet<string>,
+  clearRequestedSelection: boolean
+): RelatedDomainCandidateView[] {
+  return candidates.map((candidate) => {
+    const coveringRule = findCoveringRouteTargetRule(
+      candidate.domain,
+      candidate.includeSubdomains,
+      "proxy",
+      currentRules
+    );
+
+    if (coveringRule) {
+      return {
+        ...candidate,
+        selected: false,
+        saveable: false,
+        alreadyCovered: true,
+        added: candidate.added === true || addedDomains.has(candidate.domain),
+        coveredBy: coveringRule.domain,
+        overrideActions: relatedDomainOverrideActions(candidate.category, true)
+      };
+    }
+
+    if (clearRequestedSelection && requestedDomains.has(candidate.domain)) {
+      return {
+        ...candidate,
+        selected: false
+      };
+    }
+
+    return candidate;
+  });
 }
 
 export function getCurrentTabDomain(url: string | undefined): CurrentTabDomainResult {
@@ -1423,8 +1481,8 @@ function resetRelatedDomainPreview(): void {
   const preview = getElement<HTMLElement>("#related-domain-preview");
 
   relatedDomainCandidateViews = [];
+  relatedDomainPopupView = null;
   relatedDomainPreviewDomain = null;
-  setButtonVisible(getElement<HTMLButtonElement>("#add-selected-related-domains"), false);
   preview.hidden = true;
   preview.textContent = "";
 }
@@ -1452,7 +1510,7 @@ export function buildRelatedDomainRecordingControlView(
       message:
         state.status === "expired"
           ? `Diagnostic recording for ${state.currentDomain} auto-expired. Stop and preview captured hosts, or cancel it.`
-          : `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you add selected domains.`,
+          : `Diagnostic recording is active for ${state.currentDomain}. No data is saved until you use an add action.`,
       kind: "neutral"
     };
   }
@@ -1486,7 +1544,7 @@ function candidateCoverageLabel(candidate: RelatedDomainCandidateView): string {
 }
 
 function candidateIncludeSubdomainsLabel(candidate: RelatedDomainCandidateView): string {
-  return candidate.includeSubdomains ? "include subdomains" : "exact domain";
+  return candidate.includeSubdomains ? "hostname and subdomains" : "exact hostname";
 }
 
 function formatObservedHosts(hosts: readonly string[], limit = 3): string {
@@ -1520,23 +1578,53 @@ function relatedDomainOverrideSavedMessage(action: DomainCandidateUserOverrideAc
 
 function updateCandidateRowSelection(row: HTMLElement, checkbox: HTMLInputElement): void {
   row.dataset.selected = checkbox.checked && !checkbox.disabled ? "true" : "false";
+  updateRelatedDomainBatchAction();
 }
 
-function updateRelatedDomainSaveButtonState(): void {
-  const saveButton = getElement<HTMLButtonElement>("#add-selected-related-domains");
+function selectedRelatedDomainSet(root: ParentNode = getElement<HTMLElement>("#related-domain-preview")): Set<string> {
+  const selectedDomains = new Set(
+    Array.from(root.querySelectorAll<HTMLInputElement>('input[data-related-domain]:checked:not(:disabled)')).map(
+      (checkbox) => checkbox.dataset.relatedDomain ?? ""
+    )
+  );
 
-  if (saveButton.hidden) {
+  selectedDomains.delete("");
+  return selectedDomains;
+}
+
+function syncRelatedDomainCandidateSelections(): void {
+  const selectedDomains = selectedRelatedDomainSet();
+
+  relatedDomainCandidateViews = relatedDomainCandidateViews.map((candidate) => ({
+    ...candidate,
+    selected: candidate.saveable && selectedDomains.has(candidate.domain)
+  }));
+
+  if (relatedDomainPopupView) {
+    relatedDomainPopupView = {
+      ...relatedDomainPopupView,
+      candidates: relatedDomainCandidateViews
+    };
+  }
+}
+
+function updateRelatedDomainBatchAction(): void {
+  const preview = getElement<HTMLElement>("#related-domain-preview");
+  const panel = preview.querySelector<HTMLElement>("[data-related-domain-batch-panel]");
+  const addButton = preview.querySelector<HTMLButtonElement>("#related-domain-batch-add");
+
+  if (!panel || !addButton) {
     return;
   }
 
-  const selectedCheckbox = getElement<HTMLElement>("#related-domain-preview").querySelector<HTMLInputElement>(
-    'input[data-related-domain]:checked:not(:disabled)'
-  );
+  const selectedCount = selectedRelatedDomainSet(preview).size;
 
-  saveButton.disabled = selectedCheckbox === null;
+  panel.hidden = selectedCount === 0;
+  addButton.disabled = selectedCount === 0;
+  addButton.textContent = relatedDomainBatchAddActionLabel(selectedCount);
 }
 
-function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView): HTMLElement {
+function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView, rowIndex: number): HTMLElement {
   const row = document.createElement("div");
 
   row.className = "candidate-row";
@@ -1552,9 +1640,9 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
     checkbox.checked = candidate.selected;
     checkbox.disabled = !candidate.saveable;
     checkbox.dataset.relatedDomain = candidate.domain;
+    checkbox.setAttribute("aria-label", `Select ${relatedDomainAddActionLabel(candidate)}`);
     checkbox.addEventListener("change", () => {
       updateCandidateRowSelection(row, checkbox);
-      updateRelatedDomainSaveButtonState();
     });
     row.append(checkbox);
   }
@@ -1578,10 +1666,34 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
   content.append(domain, meta);
   row.append(content);
 
-  if (candidate.overrideActions.length > 0) {
-    const actions = document.createElement("span");
+  if (candidate.saveable || candidate.added) {
+    const addButton = document.createElement("button");
 
+    addButton.type = "button";
+    addButton.className = "candidate-add-action";
+    addButton.textContent = candidate.added ? "Added" : relatedDomainAddActionLabel(candidate);
+    addButton.disabled = candidate.added === true;
+    addButton.dataset.relatedDomainAdd = candidate.domain;
+    addButton.dataset.state = candidate.added ? "added" : "available";
+    addButton.setAttribute(
+      "aria-label",
+      candidate.added ? `${candidate.domain} added` : relatedDomainAddActionLabel(candidate)
+    );
+    row.append(addButton);
+  }
+
+  if (candidate.overrideActions.length > 0) {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const actions = document.createElement("span");
+    const actionsId = `candidate-actions-${candidate.category}-${rowIndex}-${candidate.domain.replace(/[^a-z0-9-]/gi, "-")}`;
+
+    details.className = "candidate-more-actions";
+    summary.textContent = "More actions";
+    summary.setAttribute("aria-expanded", "false");
+    summary.setAttribute("aria-controls", actionsId);
     actions.className = "candidate-actions";
+    actions.id = actionsId;
 
     for (const action of candidate.overrideActions) {
       const actionButton = document.createElement("button");
@@ -1594,7 +1706,11 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView):
       actions.append(actionButton);
     }
 
-    row.append(actions);
+    details.addEventListener("toggle", () => {
+      summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+    });
+    details.append(summary, actions);
+    row.append(details);
   }
 
   return row;
@@ -1617,6 +1733,37 @@ function renderRelatedDomainCandidateGroup(
   heading.textContent = title;
   group.append(heading, ...candidates.map(createRelatedDomainCandidateRow));
   container.append(group);
+}
+
+function createRelatedDomainHeader(): HTMLElement {
+  const header = document.createElement("div");
+  const title = document.createElement("strong");
+  const backButton = document.createElement("button");
+
+  header.className = "related-domain-header";
+  title.textContent = "Related domains";
+  backButton.type = "button";
+  backButton.className = "related-domain-back";
+  backButton.textContent = "Back to site status";
+  backButton.dataset.relatedDomainBack = "true";
+  header.append(title, backButton);
+
+  return header;
+}
+
+function createRelatedDomainBatchPanel(): HTMLElement {
+  const panel = document.createElement("div");
+  const addButton = document.createElement("button");
+
+  panel.className = "candidate-batch-panel";
+  panel.dataset.relatedDomainBatchPanel = "true";
+  panel.hidden = true;
+  addButton.type = "button";
+  addButton.id = "related-domain-batch-add";
+  addButton.dataset.relatedDomainBatchAdd = "true";
+  panel.append(addButton);
+
+  return panel;
 }
 
 function createRelatedDomainDiagnosticSummary(summary: string): HTMLElement {
@@ -1672,9 +1819,17 @@ function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }
   setButtonVisible(getElement<HTMLButtonElement>("#preview-related-domains"), false);
 }
 
-function renderSupported(domain: string, settings: SyncSettings): void {
+function renderSupported(
+  domain: string,
+  settings: SyncSettings,
+  options: { preserveRelatedDomainPreview?: boolean } = {}
+): void {
   resetDiagnosticOffer();
-  resetRelatedDomainPreview();
+
+  if (!options.preserveRelatedDomainPreview) {
+    resetRelatedDomainPreview();
+  }
+
   resetPopupScopeEditor();
   currentSyncSettingsSnapshot = settings;
   const status = getPopupRuleStatus(domain, settings);
@@ -1912,45 +2067,47 @@ async function refreshRelatedDomainRecordingControls(activeTab: ActiveTabSnapsho
 
 function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?: string): void {
   const previewElement = getElement<HTMLElement>("#related-domain-preview");
-  const saveButton = getElement<HTMLButtonElement>("#add-selected-related-domains");
 
   relatedDomainCandidateViews = view.candidates;
+  relatedDomainPopupView = view;
   relatedDomainPreviewDomain = currentDomain ?? null;
   previewElement.replaceChildren();
 
   if (view.candidates.length === 0) {
-    relatedDomainPreviewDomain = null;
-    setButtonVisible(saveButton, false);
-
     if (view.diagnosticSummary) {
-      previewElement.append(createRelatedDomainDiagnosticSummary(view.diagnosticSummary));
+      previewElement.append(createRelatedDomainHeader(), createRelatedDomainDiagnosticSummary(view.diagnosticSummary));
       previewElement.hidden = false;
       return;
     }
 
+    relatedDomainPopupView = null;
+    relatedDomainPreviewDomain = null;
     previewElement.hidden = true;
     return;
   }
 
   const candidateGroups = groupRelatedDomainCandidateViews(view.candidates);
+  const candidateList = document.createElement("div");
+
+  candidateList.className = "candidate-list";
 
   renderRelatedDomainCandidateGroup(
-    previewElement,
+    candidateList,
     candidateGroupTitle("strong"),
     candidateGroups.strong
   );
   renderRelatedDomainCandidateGroup(
-    previewElement,
+    candidateList,
     candidateGroupTitle("medium"),
     candidateGroups.medium
   );
   renderRelatedDomainCandidateGroup(
-    previewElement,
+    candidateList,
     candidateGroupTitle("alreadyCovered"),
     candidateGroups.alreadyCovered
   );
   renderRelatedDomainCandidateGroup(
-    previewElement,
+    candidateList,
     candidateGroupTitle("ignored"),
     candidateGroups.ignored
   );
@@ -1972,16 +2129,16 @@ function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?
     ]
       .filter(Boolean)
       .join(". ");
-    previewElement.append(note);
+    candidateList.append(note);
   }
 
   if (view.diagnosticSummary) {
-    previewElement.append(createRelatedDomainDiagnosticSummary(view.diagnosticSummary));
+    candidateList.append(createRelatedDomainDiagnosticSummary(view.diagnosticSummary));
   }
 
+  previewElement.append(createRelatedDomainHeader(), candidateList, createRelatedDomainBatchPanel());
   previewElement.hidden = false;
-  setButtonVisible(saveButton, view.candidates.some((candidate) => candidate.saveable));
-  updateRelatedDomainSaveButtonState();
+  updateRelatedDomainBatchAction();
 }
 
 async function handleCheckViaProxy(): Promise<void> {
@@ -2237,7 +2394,38 @@ async function handleRelatedDomainClassificationOverride(button: HTMLButtonEleme
   }
 }
 
-async function handleAddSelectedRelatedDomains(): Promise<void> {
+function renderRelatedDomainAddResult(
+  currentDomain: string,
+  settings: SyncSettings,
+  requestedDomains: ReadonlySet<string>,
+  addedDomains: ReadonlySet<string>,
+  clearRequestedSelection: boolean
+): void {
+  relatedDomainCandidateViews = updateRelatedDomainCandidateViewsAfterAdd(
+    relatedDomainCandidateViews,
+    settings.rules,
+    requestedDomains,
+    addedDomains,
+    clearRequestedSelection
+  );
+
+  renderSupported(currentDomain, settings, { preserveRelatedDomainPreview: true });
+
+  if (relatedDomainPopupView) {
+    renderRelatedDomainPreview(
+      {
+        ...relatedDomainPopupView,
+        candidates: relatedDomainCandidateViews
+      },
+      currentDomain
+    );
+  }
+}
+
+async function handleAddRelatedDomains(
+  selectedDomains: ReadonlySet<string>,
+  mode: "individual" | "batch"
+): Promise<void> {
   resetDiagnosticOffer();
   const actionStatus = getElement<HTMLElement>("#action-status");
   const currentResult = getCurrentTabDomain(await getActiveTabUrl());
@@ -2252,20 +2440,12 @@ async function handleAddSelectedRelatedDomains(): Promise<void> {
     return;
   }
 
-  const selectedDomains = new Set(
-    Array.from(
-      getElement<HTMLElement>("#related-domain-preview").querySelectorAll<HTMLInputElement>(
-        'input[data-related-domain]:checked:not(:disabled)'
-      )
-    ).map((checkbox) => checkbox.dataset.relatedDomain ?? "")
-  );
-  selectedDomains.delete("");
-
   if (selectedDomains.size === 0) {
     setStatus(actionStatus, "Select at least one related domain before adding rules.", "neutral");
     return;
   }
 
+  syncRelatedDomainCandidateSelections();
   const current = await getSyncSettings();
   const addResult = addSelectedRelatedDomainRules(
     current,
@@ -2288,7 +2468,13 @@ async function handleAddSelectedRelatedDomains(): Promise<void> {
   }
 
   if (addResult.status === "no-new-rules") {
-    renderSupported(currentResult.domain, current);
+    renderRelatedDomainAddResult(
+      currentResult.domain,
+      current,
+      selectedDomains,
+      new Set(),
+      mode === "batch"
+    );
     setStatus(actionStatus, saveStatus.message, saveStatus.kind);
     return;
   }
@@ -2296,15 +2482,45 @@ async function handleAddSelectedRelatedDomains(): Promise<void> {
   const finalAdd = await addSyncRules(addResult.addedRules);
 
   if (!finalAdd.ok) {
-    renderSupported(currentResult.domain, finalAdd.settings);
+    renderSupported(currentResult.domain, finalAdd.settings, { preserveRelatedDomainPreview: true });
     setStatus(actionStatus, finalAdd.error, "error");
     return;
   }
 
   const updated = finalAdd.settings;
+  const addedDomains = new Set(finalAdd.addedRules.map((rule) => rule.domain));
+  const finalSaveStatus = getRelatedDomainSaveActionStatus(
+    finalAdd.addedRules.length > 0
+      ? {
+          ok: true,
+          status: "added",
+          rules: updated.rules,
+          addedRules: finalAdd.addedRules,
+          skippedDomains: [
+            ...addResult.skippedDomains,
+            ...finalAdd.duplicateRules.map((rule) => rule.domain)
+          ]
+        }
+      : {
+          ok: true,
+          status: "no-new-rules",
+          rules: updated.rules,
+          addedRules: [],
+          skippedDomains: [
+            ...addResult.skippedDomains,
+            ...finalAdd.duplicateRules.map((rule) => rule.domain)
+          ]
+        }
+  );
 
-  renderSupported(currentResult.domain, updated);
-  setStatus(actionStatus, saveStatus.message, saveStatus.kind);
+  renderRelatedDomainAddResult(
+    currentResult.domain,
+    updated,
+    selectedDomains,
+    addedDomains,
+    mode === "batch"
+  );
+  setStatus(actionStatus, finalSaveStatus.message, finalSaveStatus.kind);
 }
 
 async function handleSaveDiagnosticRule(): Promise<void> {
@@ -2474,20 +2690,61 @@ function initPopupPage(): void {
     });
   });
 
-  getElement<HTMLButtonElement>("#add-selected-related-domains").addEventListener("click", () => {
-    void handleAddSelectedRelatedDomains().catch((error: unknown) => {
-      setStatus(
-        getElement<HTMLElement>("#action-status"),
-        error instanceof Error ? error.message : "Could not add selected related domains.",
-        "error"
-      );
-    });
-  });
-
   getElement<HTMLElement>("#related-domain-preview").addEventListener("click", (event) => {
-    const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-override-action]");
+    const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button");
 
     if (!button) {
+      return;
+    }
+
+    if (button.dataset.relatedDomainBack) {
+      resetRelatedDomainPreview();
+      setStatus(getElement<HTMLElement>("#action-status"), "Showing current site status.", "neutral");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    const candidateDomain = button.dataset.relatedDomainAdd;
+
+    if (candidateDomain) {
+      button.disabled = true;
+      void handleAddRelatedDomains(new Set([candidateDomain]), "individual")
+        .catch((error: unknown) => {
+          setStatus(
+            getElement<HTMLElement>("#action-status"),
+            error instanceof Error ? error.message : "Could not add the related domain.",
+            "error"
+          );
+        })
+        .finally(() => {
+          if (button.isConnected && button.dataset.state !== "added") {
+            button.disabled = false;
+          }
+        });
+      return;
+    }
+
+    if (button.dataset.relatedDomainBatchAdd) {
+      const selectedDomains = selectedRelatedDomainSet();
+
+      button.disabled = true;
+      void handleAddRelatedDomains(selectedDomains, "batch")
+        .catch((error: unknown) => {
+          setStatus(
+            getElement<HTMLElement>("#action-status"),
+            error instanceof Error ? error.message : "Could not add selected related domains.",
+            "error"
+          );
+        })
+        .finally(() => {
+          if (button.isConnected) {
+            updateRelatedDomainBatchAction();
+          }
+        });
+      return;
+    }
+
+    if (!button.dataset.overrideAction) {
       return;
     }
 

@@ -34,7 +34,7 @@ Popup:
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
 - Preview related-domain candidates from current-page resource hosts only after the user clicks "Preview related domains".
 - Start, stop, preview, or cancel a diagnostic recording session only after explicit popup clicks.
-- Let the user explicitly select previewed related-domain candidates and save only those selected candidates as synced diagnostic-sourced rules.
+- Let the user add one previewed related-domain candidate directly from its row or explicitly select several candidates and save them from a sticky batch action as synced diagnostic-sourced rules.
 - Let the user explicitly save personal classification overrides for preview candidates without creating proxy routing rules.
 - Provide quick access to Options.
 
@@ -256,7 +256,7 @@ Current-site diagnostics do not use `webRequest`, `webNavigation`, content scrip
 
 ### Current-Page Related-Domain Preview
 
-The current-page related-domain preview is an explicit, user-invoked diagnostics helper. Preview and saving are separate actions: the extension may collect current-page resource hostnames only after the user clicks "Preview related domains", and it may save related-domain rules only after the user selects candidates and clicks the follow-up add button.
+The current-page related-domain preview is an explicit, user-invoked diagnostics helper. Preview and saving are separate actions: the extension may collect current-page resource hostnames only after the user clicks "Preview related domains", and it may save a related-domain rule only after the user clicks that candidate's scope-specific add action or saves explicitly selected candidates from the sticky batch action.
 
 The preview flow:
 
@@ -274,8 +274,11 @@ The preview flow:
 - Uses neutral preview status for discovered candidates because preview is not a save action.
 - Shows whether saveable candidates include subdomains by default and whether an existing exact or parent proxy `includeSubdomains` rule already covers the suggested route target.
 - Selects only engine-defaulted strong candidates by default. Medium candidates and ignored candidates are not selected by default.
-- Saves only selected, saveable candidates after the user clicks "Add selected domains".
-- Offers explicit classification override actions on candidate rows where appropriate. Overrides are saved as personal domain-level preferences in `chrome.storage.sync`, not as proxy routing rules.
+- Shows a scope-specific primary action on each saveable row, such as `Add image.tmdb.org` for an exact hostname or `Add oaiusercontent.com and subdomains` for a registrable parent rule.
+- Keeps checkbox selection for batch operations and shows a sticky `Add N selected domain(s)` action only while at least one saveable candidate is selected.
+- Marks successfully added candidates as added without closing the preview or clearing unrelated checkbox selections; successful batch saves clear the submitted selections.
+- Keeps classification override actions in a keyboard-accessible `More actions` disclosure. Overrides are saved as personal domain-level preferences in `chrome.storage.sync`, not as proxy routing rules.
+- Provides `Back to site status` in the related-domain header without changing preview, recording, or navigation-expiry semantics.
 - Refreshes the preview after an override is saved so the user sees the updated classification.
 
 The preview does not store collected hosts, sync collected hosts, send collected hosts to a backend, create domain rules automatically, create direct rules, or apply proxy settings. Selected candidates are saved as proxy rules through the existing synced storage helpers with `source: "diagnostic"`, and the background storage listener performs any PAC re-application. Classification overrides are separate synced preferences and do not trigger PAC re-application. The popup still does not call `chrome.proxy.settings` directly.
@@ -309,7 +312,7 @@ The recording flow:
 - Allows "Stop and preview" only from the recorded tab; opening the popup on another tab shows that the recording belongs to another tab and allows cancellation.
 - On stop, feeds recorded sanitized hostnames into the same related-domain candidate engine used by current-page preview.
 - Shows the resulting candidates in the existing related-domain preview UI with "Recorded during this session" status copy.
-- Saves no rules automatically. The user must still select candidates and click "Add selected domains".
+- Saves no rules automatically. The user must still use an explicit per-candidate add action or the sticky selected-candidate batch action.
 - Stop and Cancel restore original request functions, disconnect observers, remove listeners, clear the bridge, and expire session metadata. Navigation/reload is detected through document identity and reported honestly instead of as an empty result; tab close destroys page hooks and clears metadata.
 - If nothing is observed, the popup says that no request hostnames were captured and explains that some worker, service-worker, extension, or browser-level requests may be outside this privacy-preserving recorder. It does not direct the user to DevTools or a manual URL field.
 
@@ -375,7 +378,7 @@ The runtime boundary remains narrow:
 - Popup and Options additions use a shared final-write helper that re-reads current sync state, rejects same-target opposite actions, skips same-action duplicates, and performs one storage write. Chrome storage does not provide a cross-view transaction, so this narrows stale-view races without claiming transactional guarantees.
 - Explicit legacy-conflict resolution re-reads current sync state, preserves the chosen rule and its metadata, removes only contradictory siblings for that target, and performs one storage write; other conflict groups are not silently changed.
 - Manual current-site diagnostics are implemented in the background service worker with temporary PAC state and forced restore.
-- Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; selected candidates are saved only after a separate explicit popup click.
+- Current-page related-domain preview is implemented as a user-invoked `activeTab` + `scripting` flow. Preview does not write storage or create rules; individual or selected candidates are saved only after a separate explicit popup click through the shared route-add service.
 - Diagnostic recording is implemented as a user-invoked `activeTab` + `scripting` flow with transient metadata in `chrome.storage.session`, a temporary MAIN-world request recorder, and a nonce-bound isolated bridge. Recorded hostnames stay in the injected bridge until stop/cancel/expiry and are not written to sync or local storage.
 - Popup classification override actions write only the synced `classificationOverrides` data and then refresh preview; they do not create proxy routing rules.
 - Options classification override removal updates storage only and does not call `chrome.proxy.settings`.
