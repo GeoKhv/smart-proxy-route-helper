@@ -1,17 +1,11 @@
-# Manual Chrome Web Store Dashboard Checklist — Russian Listing
+# Russian Listing Reference — v0.3.0 Candidate
 
-Preparation only. Do not use this checklist as authorization to upload or submit in the current slice.
+The Dashboard checklist is unified in `dashboard-checklist-v0.3.0.md`.
 
-- [ ] Open the existing item in Chrome Web Store Developer Dashboard in a later authorized task.
-- [ ] Choose Russian in the language dropdown.
-- [ ] Keep the title `Smart Proxy Route Helper` without SEO additions.
-- [ ] Insert the Russian Detailed description from `ru/detailed-description.md`.
-- [ ] Check the localized summary supplied by the future package manifest against `ru/summary.md`.
-- [ ] Upload the five localized screenshots from `../screenshots/v0.3.0/ru/`.
-- [ ] Confirm every uploaded screenshot is a `1280x800` PNG and matches the submitted production build.
-- [ ] Do not change the global small promotional tile.
-- [ ] Do not change the global marquee/promotional image.
-- [ ] Do not change Privacy practices or the conservative data categories without a separate decision.
-- [ ] Do not change permission declarations or justifications in this preparation slice.
-- [ ] Review Russian and English feature claims together before submission.
-- [ ] Do not press **Submit for review** as part of this preparation slice.
+For the Russian locale:
+
+- use the Russian summary, detailed description, single purpose, privacy summary, and permission reference from `listing/ru/`;
+- use the same five English screenshots from `screenshots/v0.3.0/en/` as every other Store locale;
+- do not upload a separate Russian screenshot set;
+- keep Privacy practices, permissions, promo tiles, version, and publication state unchanged;
+- do not press **Submit for review** during this preparation slice.

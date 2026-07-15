@@ -28,4 +28,4 @@ Both variants are within Chrome Web Store's 132-character summary limit.
 
 ## Manifest locale note
 
-The current `_locales/ru/messages.json` `extensionDescription` is a different 94-character string. This listing-preparation slice does not change runtime locale files or the package. Before a future Store package upload, either keep the packaged localized description intentionally or align it with the selected Store summary in a separate source/version slice.
+The current `_locales/ru/messages.json` `extensionDescription` matches the Russian primary summary above. The English and Russian runtime descriptions are checked against their corresponding Store summaries in `claim-audit-v0.3.0.md`.

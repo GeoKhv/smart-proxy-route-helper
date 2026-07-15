@@ -1,32 +1,37 @@
 # Chrome Web Store Claim Audit for the v0.3.0 Candidate
 
-This audit compares the English Store reference material in the repository with the current `main` implementation and the prepared Russian listing. It does not assert that the live Chrome Web Store Dashboard has already been updated.
+This audit compares the new English Store package with the preserved Russian listing, the current manifest, and the production build. It is repository collateral only; it does not assert that the live Dashboard has been updated.
 
-| English repository claim | Current implementation evidence | Russian listing treatment | Outdated wording or follow-up |
+| Claim area | Current English package | Russian listing | Audit result |
 | --- | --- | --- | --- |
-| Per-domain routing through a user-configured local proxy | `manifest.json`, PAC builder, local proxy settings, Popup and Options | Preserve as the first user benefit | Keep; do not call the extension a VPN or proxy provider |
-| Proxy-route rules | Route rules now support `proxy` and `direct` actions | State both Proxy and Direct rules | Proxy-only wording in the published-v0.1.0 reference is outdated |
-| Unmatched sites use the default direct route | PAC and Popup route status distinguish default Direct from explicit Direct | Explain that other sites use DIRECT by default | Keep explicit Direct distinct from default Direct |
-| Exact hostname and include-subdomains scopes | Shared rule editor and scope planner implement both | Describe both scopes without promising automatic broadening | Older wording that implies proxy-only manual lists is incomplete |
-| Current-site Popup controls and route status | Popup shows Proxy, Direct, proxy-unavailable, exact, and inherited states | Preserve in feature list and screenshot plan | Historical Popup screenshots predate the current status UI |
-| User-invoked related-domain preview | Temporary `activeTab` + `scripting` flow produces sanitized candidates | Explain candidate review in plain language | Add current per-candidate Add and sticky batch confirmation UX |
-| User-invoked action-specific recording | Temporary MAIN/ISOLATED scripts collect bounded hostname signals | Explain recording through a generic page action example | Do not describe recording as a Stop-time snapshot or as full traffic monitoring |
-| Rules are added only after selection and confirmation | Individual Add and selected-candidate batch paths write through shared storage helpers | Repeat explicit confirmation guarantee | Keep; never claim automatic routing-rule creation |
-| Synced domain settings; device-local proxy configuration | `chrome.storage.sync` for domain settings; `chrome.storage.local` for proxy settings | Preserve the sync/local boundary | Clarify that exported backup files are local and are not cloud sync |
-| Backup and restore | Versioned export/import with preview and explicit apply | Include export/import and local-proxy exclusion by default | Missing from the published-v0.1.0 detailed description |
-| No telemetry, backend, remote list fetching, or remote executable code | README, architecture, privacy policy, bundled runtime | Preserve in the privacy section after the feature explanation | Keep data-handling categories conservative; local processing still counts as handling |
-| No raw URL or page/file content retention by the related-domain bridge | URL-like inputs are reduced to hostname; bridge payload validates hostname only | State exactly what is and is not passed or retained | Avoid the broader inaccurate claim that the extension never handles website resource data |
-| English primary locale only | `default_locale` remains `en`, with 441 English and 441 Russian keys | Russian listing and real Russian UI screenshots are now prepared | Historical instruction not to localize the listing is now stale |
-| Standard WWW remains a distinct exact hostname | Current `main` canonicalizes a standard `www.` directly before a registrable domain | Give the concrete `www.example.com` to `example.com` example | v0.2.0 notes and smoke wording that preserve `www.*` as distinct are outdated for future creates/edits/imports; existing stored rules are not migrated |
+| Core purpose | Selected sites use a user-configured local proxy; unmatched sites use DIRECT by default | Same meaning | Aligned; no VPN or proxy-provider claim |
+| Route actions | Proxy and Direct rules | Same meaning | Aligned with current rule model |
+| Scope | Exact hostname or hostname plus subdomains | Same meaning | Aligned with Options and Popup |
+| Related domains | Explicit preview, per-candidate Add, sticky batch Add | Same meaning | Aligned with current Popup flow |
+| Action-specific recording | Explicit, temporary, hostname-only review flow | Same meaning | Aligned; no traffic-monitoring claim |
+| WWW handling | Standard `www.example.com` becomes `example.com` for new route targets | Same example and meaning | Aligned with canonicalization module |
+| Sync/local boundary | Rules and classification overrides may sync; proxy host/port/protocol/state remain device-local | Same meaning | Aligned with storage modules |
+| Backup/import | Versioned local export/import with Preview before Apply | Same meaning | Aligned with settings backup module |
+| Privacy | No backend, telemetry, ads, remote rule list, or remote executable code; hostname-only bridge; no raw URL parts or page/file contents stored or sent | Same meaning | Aligned with current privacy boundary |
+| User requirement | Compatible local proxy client must already be running and configured by the user | Same meaning | Aligned; no built-in VPN/proxy server claim |
+| Permissions | `proxy`, `storage`, `activeTab`, `scripting`; no host permissions | Same meaning | Matches `manifest.json` |
 
-## Parity conclusion
+## Historical material reviewed
 
-The prepared Russian copy does not add a product capability beyond current `main`. It updates the feature set from the historical English v0.1.0 reference to the current v0.3.0 candidate behavior: Proxy/Direct routing, backup/import/export, clearer related-domain confirmation, English/Russian UI, and standard-WWW canonicalization.
+- `docs/chrome-web-store-listing.md` is a historical reference for the published v0.1.0 listing; its older copy is not the v0.3.0 package.
+- `store-assets/listing/ru/` remains the Russian text package and was not removed.
+- `store-assets/listing/release-notes-v0.3.0.md` remains a candidate-only English/Russian note set and does not say that v0.3.0 is published.
+- The previous `store-assets/screenshots/v0.3.0/ru/` directory was a separate localized screenshot set; it is removed from the current Store package so it cannot be mistaken for a second upload set.
 
-Before a future Store package upload, the English live listing should be reviewed against the same matrix. This preparation slice does not open or modify the Dashboard.
+## Runtime and locale cross-check
 
-## Screenshot and localization audit
+- English `_locales/en/messages.json` `extensionDescription` matches the English primary summary exactly.
+- Russian `_locales/ru/messages.json` `extensionDescription` matches the Russian primary summary exactly.
+- English and Russian locale key counts remain equal at 441 each.
+- The manifest remains at version `0.2.0` with permissions `proxy`, `storage`, `activeTab`, and `scripting`.
 
-The five Russian screenshots were captured from a clean temporary profile with the current production build and then checked at `1280x800`. They show the current Popup, Proxy/Direct rules, related-domain review, individual and batch Add actions, and backup/import preview. No personal profile data, bookmarks, browsing history, account identity, or user proxy address is visible.
+## Screenshot audit
 
-During capture, the transient status shown after starting or cancelling action-specific recording appeared in English while the rest of the Popup was Russian. The recording state was therefore excluded from the Store screenshot set. This is a source localization follow-up for a separate code slice; the marketing-only commit does not conceal or fix it, and the release notes avoid claiming that every runtime string is already localized.
+The five English screenshots were captured from the current production build in a separate clean English capture profile. They use only sanitized demo values (`example.com`, `developer.chrome.com`, `127.0.0.1:1080`, and public resource-host candidates), show the real Popup/Options UI, and are composed from those captures without translated or fabricated UI.
+
+The same English five-image set is the shared asset set for English and Russian Store locales. No separate Russian screenshot set remains in the current v0.3.0 package.
