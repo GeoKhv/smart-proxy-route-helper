@@ -403,6 +403,28 @@ describe("sync storage settings", () => {
     expect(storage.dump().rules).toEqual([existing]);
   });
 
+  it("canonicalizes a standard WWW rule at the shared add boundary", async () => {
+    const storage = createMemoryStorage();
+    const proposed = manualRule("www.example.com", false);
+    const result = await addSyncRules([proposed], storage);
+
+    expect(result).toMatchObject({
+      ok: true,
+      addedRules: [{ domain: "example.com", includeSubdomains: false, action: "proxy" }]
+    });
+    expect(storage.dump().rules).toEqual([
+      expect.objectContaining({ domain: "example.com", includeSubdomains: false, action: "proxy" })
+    ]);
+  });
+
+  it("does not migrate an already stored WWW rule during sanitization-only reads", async () => {
+    const storage = createMemoryStorage({ rules: [manualRule("www.example.com", false)] });
+    const settings = await getSyncSettings(storage);
+
+    expect(settings.rules).toEqual([manualRule("www.example.com", false)]);
+    expect(storage.setCount()).toBe(0);
+  });
+
   it("blocks a stale edit when another rule ID now occupies the proposed target", async () => {
     const editedRule = { ...manualRule("child.example.com", false), id: "edited" };
     const latestOccupant = {

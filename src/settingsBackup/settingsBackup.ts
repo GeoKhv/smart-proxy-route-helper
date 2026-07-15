@@ -1,8 +1,12 @@
-import { sanitizeUserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
+import {
+  canonicalizeUserClassificationOverrides,
+  sanitizeUserClassificationOverrides
+} from "../domainClassification/userClassificationOverrides";
 import { getMessage } from "../i18n/i18n";
 import type { UserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import { checkDenylistedHost } from "../rules/denylist";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { findRouteTargetConflicts, getRouteTargetKey } from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
@@ -224,7 +228,9 @@ function sanitizeImportRule(input: unknown, importedAt: string): DomainRule | nu
     return null;
   }
 
-  const domain = safeDomain(input.domain);
+  const canonicalDomain = typeof input.domain === "string" ? canonicalizeHostname(input.domain) : null;
+  const domain =
+    canonicalDomain?.ok && !checkDenylistedHost(canonicalDomain.domain).denied ? canonicalDomain.domain : null;
 
   if (!domain) {
     return null;
@@ -367,7 +373,7 @@ function sanitizeImportedSyncSettings(
   const ignoredDomains = sanitizeDomainListForBackup(rawSyncSettings.ignoredDomains);
   const denylist = sanitizeDomainListForBackup(rawSyncSettings.denylist);
   const rawClassificationCount = countRawClassificationOverrides(rawSyncSettings.classificationOverrides);
-  const classificationOverrides = sanitizeUserClassificationOverrides(rawSyncSettings.classificationOverrides);
+  const classificationOverrides = canonicalizeUserClassificationOverrides(rawSyncSettings.classificationOverrides);
   const sanitizedClassificationCount = countClassificationOverrides(classificationOverrides);
   const classificationSkipped = Math.max(0, rawClassificationCount - sanitizedClassificationCount);
 

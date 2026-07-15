@@ -27,7 +27,7 @@ Popup:
 - Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy is disabled or invalid.
 - Show `Conflicting rules` when legacy synced data contains both actions for the effective hostname/scope target, state which deterministic action is temporarily effective, and direct the user to Options for repair.
 - Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
-- Keep every Popup quick action exact-host-only, including `www.*` and other subdomains.
+- Keep every Popup quick action exact-scope. A standard `www.` directly before the registrable domain is canonicalized to that registrable domain; `www1`, `www2`, nested `www`, and arbitrary subdomains remain distinct hostnames.
 - Offer `Change scope` for an exact rule, preserve its action, show safe PSL-aware scope choices and a coverage/conflict preview, and require confirmation before one atomic update.
 - Remove exact current-domain rules only; parent inherited rules must be edited from Options.
 - Start a current-site diagnostic only after the user clicks "Check via proxy".
@@ -89,7 +89,7 @@ It does not yet report current apply status to the UI.
 Core logic is isolated from Chrome APIs where practical:
 
 - Locale lookup, English fallback formatting, and English/Russian plural-form selection.
-- Domain normalization and validation.
+- Domain normalization, validation, and standard-WWW canonicalization.
 - Proxy configuration validation.
 - Domain rule model and migrations.
 - Canonical normalized route-target identity and stored-conflict detection/resolution.
@@ -150,10 +150,10 @@ Export behavior:
 Import behavior:
 
 - Parses JSON locally and validates the export format/version before preview.
-- Sanitizes imported domains with the same domain normalization and protected-host guards used elsewhere.
+- Sanitizes imported domains with the same domain normalization, standard-WWW canonicalization, and protected-host guards used elsewhere.
 - Rejects malformed rules, invalid domains, localhost, private/internal IPs, browser/internal pages, and internal local suffixes; reports same-action duplicates without retaining both.
 - Shows a preview summary before applying changes, including route rule counts, classification override counts, local proxy inclusion, warnings, and errors.
-- Merges imported synced settings with existing settings by default. Route-target identity is normalized domain plus subdomain scope; action is not part of identity. Same-action duplicates are skipped, while opposite-action pairs inside the file or against stored rules block Apply until the input is resolved.
+- Merges imported synced settings with existing settings by default. Route-target identity is canonical domain plus subdomain scope; action is not part of identity. `example.com` and standard `www.example.com` therefore preview as one target for the same scope. Same-action duplicates are skipped, while opposite-action pairs inside the file or against stored rules block Apply until the input is resolved.
 - Re-reads current synced settings at Apply time and rejects a stale preview if intervening changes would alter the reviewed result or create a route-target conflict.
 - Writes to `chrome.storage.sync` and, only when local proxy config is present in the import, `chrome.storage.local` after the user clicks "Apply import".
 - Does not call `chrome.proxy.settings` from Options; the background storage listener remains responsible for proxy re-application.
@@ -181,11 +181,12 @@ Do not store raw URLs, page text, form values, uploaded file contents, screensho
 The MVP keeps rule semantics simple:
 
 - User enters a domain, not a full URL.
-- The extension normalizes hostnames before storage and PAC generation.
+- The extension normalizes hostnames before storage and PAC generation. It then removes an exact ASCII `www.` prefix only when the remainder equals the PSL-derived registrable domain: `www.example.com` becomes `example.com`, while `www1.example.com`, `www2.example.com`, `api.example.com`, `www.status.example.com`, and `deep.www.example.com` do not change.
 - A domain rule stores `action: "proxy" | "direct"` and whether subdomains are included. Older stored rules without `action` migrate as `action: "proxy"`.
-- A route target is uniquely identified by normalized domain plus exact/include-subdomains scope. Action is a mutable property of that target, so a healthy settings array contains at most one rule per route target.
+- A route target is uniquely identified by canonical domain plus exact/include-subdomains scope. Action is a mutable property of that target, so a healthy settings array contains at most one rule per route target.
 - Proxy rules route matching hosts through the configured local proxy. Direct rules are explicit direct exceptions.
 - Exact host rules have the highest precedence.
+- An exact rule for a registrable domain matches both its apex and its standard `www.` alias, but not `www1`, `www2`, arbitrary subdomains, nested `www`, or a `www.` label above a non-registrable child.
 - If no exact host rule exists, the most specific matching parent `includeSubdomains` rule wins.
 - If multiple rules have the same specificity, the most recently created rule wins; if timestamps tie, the later stored entry wins.
 - Legacy contradictory same-target pairs are preserved during sanitization and use the same newest-`createdAt`, then later-position tie-breaker until the user resolves them. Popup and PAC use this same temporary winner; detection alone never changes routing.
@@ -197,6 +198,8 @@ The MVP keeps rule semantics simple:
 - Adding rules from Options, Popup quick actions, related-domain confirmation, diagnostic confirmation, or import uses the same route-target identity and validates again against the latest synced array immediately before writing.
 - Exact and include-subdomains scopes on the same domain remain distinct targets. Parent Proxy/child Direct and parent Direct/child Proxy overrides remain valid because their normalized domain/scope targets differ.
 - Invalid input should be rejected before storage.
+
+This slice intentionally has no migration or background cleanup for previously stored `www.` rules, no storage-schema change, and no conflict-repair compatibility layer for old apex/WWW pairs. The canonicalization applies to future create, edit, import, candidate-add, diagnostic-target, and classification-override operations. Existing storage sanitization remains non-migrating.
 
 Examples of invalid input:
 
@@ -216,6 +219,7 @@ The generated PAC configuration should:
 - Route everything else directly.
 - Avoid including unsanitized user input.
 - Match exact domains and dot-boundary subdomains only, without unsafe substring matching.
+- Treat the standard `www.` alias as an exact match only for a serialized registrable-domain rule. The generator derives this marker with the same PSL logic used by TypeScript canonicalization, and parity tests compare PAC results with the TypeScript effective-route evaluator.
 - Be deterministic for the same input.
 - Be small enough for straightforward review.
 
@@ -256,7 +260,7 @@ The current diagnostic flow:
 - Rejects browser/internal pages, local/private/internal hosts, invalid domains, and synced denylist matches.
 - Requires a valid enabled local proxy configuration. If it is missing, the popup shows "Configure local proxy in Options first."
 - Sends a runtime message to the background service worker with the current URL.
-- Builds a temporary strict PAC from permanent synced rules plus a diagnostic probe rule for the current normalized domain when no existing synced proxy rule already covers it.
+- Builds a temporary strict PAC from permanent synced rules plus a diagnostic probe rule for the current canonical domain when no existing synced proxy rule already covers it.
 - Applies the temporary PAC through the background proxy adapter.
 - Makes a short best-effort fetch to the current tab origin from the extension context.
 - Restores normal proxy routing afterward, including clearing extension-controlled proxy settings when there are no permanent active rules.
@@ -281,6 +285,7 @@ The preview flow:
 - Caps inspected elements, attributes, URL-like values, style URL matches, shadow roots, and returned hostnames to avoid heavy full-page crawling.
 - Immediately normalizes collected values to hostnames, drops paths, query strings, fragments, and credentials, rejects unsupported schemes, rejects localhost/private/internal/IP hosts, deduplicates, and caps the host list.
 - Feeds sanitized hostnames into the pure related-domain candidate engine.
+- Uses the canonical hostname as the candidate and suggested-rule key, while retaining the distinct normalized observed hostnames in `sourceHosts`. Apex and standard WWW observations therefore produce one candidate without losing source-host aggregation.
 - Shows categorized strong, medium, and ignored candidates in the popup.
 - Shows the suggested rule domain that would be saved, whether subdomains would be included, and the sanitized observed hostnames that led to the suggestion.
 - Shows a compact transient diagnostic summary when no saveable candidates remain. The summary contains counts and a small sample of sanitized hostnames only; it is not stored, synced, or sent.

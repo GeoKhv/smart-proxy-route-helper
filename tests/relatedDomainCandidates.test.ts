@@ -59,7 +59,7 @@ describe("related-domain candidate engine", () => {
       observedUrlsOrHosts: ["https://a.b.example.co.uk/app.js", "media.example.co.uk"]
     });
 
-    expect(result.currentDomain).toBe("www.example.co.uk");
+    expect(result.currentDomain).toBe("example.co.uk");
     expect(result.strongCandidates).toEqual([
       candidate({
         domain: "example.co.uk",
@@ -87,6 +87,26 @@ describe("related-domain candidate engine", () => {
       mediumCandidates: [],
       ignoredCandidates: []
     });
+  });
+
+  it("merges apex and standard WWW observations without losing source-host aggregation", () => {
+    const result = buildRelatedDomainCandidates({
+      currentDomain: "unrelated.test",
+      observedUrlsOrHosts: ["example.com", "https://www.example.com/path"]
+    });
+
+    expect(result.mediumCandidates).toEqual([
+      candidate({
+        domain: "example.com",
+        reason: "third-party-resource",
+        sourceHosts: ["example.com", "www.example.com"],
+        suggestedIncludeSubdomains: false,
+        routeTargetReason: "exact-observed-host",
+        routeTargetConfidence: "low",
+        defaultSelected: false
+      })
+    ]);
+    expect(result.mediumCandidates[0]?.sourceHostCount).toBe(2);
   });
 
   it("suggests ChatGPT generated resource families as the related base domain", () => {

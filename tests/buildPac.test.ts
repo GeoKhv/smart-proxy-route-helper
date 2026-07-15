@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildPacScript } from "../src/proxy/buildPac";
 import { buildPacProxyString, validateLocalProxyConfig } from "../src/proxy/proxyConfig";
+import { findEffectiveDomainRule } from "../src/rules/domainMatcher";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
 const localProxyConfig = {
@@ -128,7 +129,8 @@ describe("buildPacScript", () => {
         domain: "example.com",
         includeSubdomains: true,
         action: "proxy",
-        createdAt: "2026-06-24T00:00:00.000Z"
+        createdAt: "2026-06-24T00:00:00.000Z",
+        matchesStandardWww: true
       }
     ]);
     expect(result.pacScript).not.toContain('bad"; return');
@@ -139,6 +141,46 @@ describe("buildPacScript", () => {
 
     expect(runPac(pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808");
     expect(runPac(pacScript, "Example.com.")).toBe("SOCKS5 127.0.0.1:10808");
+  });
+
+  it("routes only standard registrable-domain WWW through an exact apex rule", () => {
+    const pacScript = buildTestPac([manualRule("example.com", false)]);
+
+    expect(runPac(pacScript, "example.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(pacScript, "www.example.com")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(pacScript, "www2.example.com")).toBe("DIRECT");
+    expect(runPac(pacScript, "api.example.com")).toBe("DIRECT");
+    expect(runPac(pacScript, "deep.www.example.com")).toBe("DIRECT");
+    expect(runPac(buildTestPac([manualRule("status.example.com", false)]), "www.status.example.com")).toBe("DIRECT");
+  });
+
+  it("applies the same standard WWW semantics to Direct and Proxy rules", () => {
+    expect(runPac(buildTestPac([directRule("example.com", false)]), "www.example.com")).toBe("DIRECT");
+    expect(runPac(buildTestPac([manualRule("example.com", false)]), "www.example.com")).toBe(
+      "SOCKS5 127.0.0.1:10808"
+    );
+  });
+
+  it("keeps PAC and TypeScript effective-route evaluation in parity", () => {
+    const cases: Array<{ host: string; rules: DomainRule[] }> = [
+      { host: "example.com", rules: [manualRule("example.com", false)] },
+      { host: "www.example.com", rules: [manualRule("example.com", false)] },
+      { host: "www2.example.com", rules: [manualRule("example.com", false)] },
+      { host: "api.example.com", rules: [manualRule("example.com", false)] },
+      { host: "deep.www.example.com", rules: [manualRule("example.com", false)] },
+      { host: "www.status.example.com", rules: [directRule("status.example.com", false)] },
+      {
+        host: "asset.media.example.com",
+        rules: [directRule("example.com", true), manualRule("media.example.com", true)]
+      }
+    ];
+
+    for (const { host, rules } of cases) {
+      const effectiveRule = findEffectiveDomainRule(host, rules)?.rule;
+      const expected = effectiveRule?.action === "proxy" ? "SOCKS5 127.0.0.1:10808" : "DIRECT";
+
+      expect(runPac(buildTestPac(rules), host), host).toBe(expected);
+    }
   });
 
   it("routes subdomain matches only when includeSubdomains is true", () => {
@@ -162,9 +204,9 @@ describe("buildPacScript", () => {
   });
 
   it("returns DIRECT for direct rule matches", () => {
-    const pacScript = buildTestPac([manualRule("linkedin.com", true), directRule("www.linkedin.com", false)]);
+    const pacScript = buildTestPac([manualRule("linkedin.com", true), directRule("login.linkedin.com", false)]);
 
-    expect(runPac(pacScript, "www.linkedin.com")).toBe("DIRECT");
+    expect(runPac(pacScript, "login.linkedin.com")).toBe("DIRECT");
     expect(runPac(pacScript, "linkedin.com")).toBe("SOCKS5 127.0.0.1:10808");
   });
 

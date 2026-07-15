@@ -1,5 +1,5 @@
 import { domainEqualsOrIsSubdomain } from "../rules/baseDomain";
-import { normalizeDomain } from "../rules/normalizeDomain";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { builtInDomainClassifications } from "./builtInDomainClassifications";
 import type {
   ClassifyDomainCandidateInput,
@@ -13,7 +13,7 @@ function normalizeDomainOrNull(input: string | undefined): string | null {
     return null;
   }
 
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
 
   return normalized.ok ? normalized.domain : null;
 }

@@ -60,6 +60,17 @@ describe("domainMatchesRule", () => {
     expect(domainMatchesRule("video.dms.licdn.com", { domain: "dms.licdn.com", includeSubdomains: false })).toBe(false);
   });
 
+  it("treats only standard registrable-domain WWW as an exact apex alias", () => {
+    const exactRule = { domain: "example.com", includeSubdomains: false };
+
+    expect(domainMatchesRule("example.com", exactRule)).toBe(true);
+    expect(domainMatchesRule("www.example.com", exactRule)).toBe(true);
+    expect(domainMatchesRule("www2.example.com", exactRule)).toBe(false);
+    expect(domainMatchesRule("api.example.com", exactRule)).toBe(false);
+    expect(domainMatchesRule("deep.www.example.com", exactRule)).toBe(false);
+    expect(domainMatchesRule("www.status.example.com", { domain: "status.example.com", includeSubdomains: false })).toBe(false);
+  });
+
   it("covers related asset siblings only when the related base includes subdomains", () => {
     expect(domainMatchesRule("files.oaiusercontent.com", { domain: "oaiusercontent.com", includeSubdomains: true })).toBe(true);
     expect(
@@ -85,11 +96,11 @@ describe("domainMatchesRule", () => {
 
 describe("findEffectiveDomainRule", () => {
   it("prefers exact host rules over parent rules", () => {
-    const rules = [rule("linkedin.com", true, "proxy"), rule("www.linkedin.com", false, "direct")];
+    const rules = [rule("linkedin.com", true, "proxy"), rule("login.linkedin.com", false, "direct")];
 
-    expect(findEffectiveDomainRule("www.linkedin.com", rules)).toMatchObject({
+    expect(findEffectiveDomainRule("login.linkedin.com", rules)).toMatchObject({
       type: "exact",
-      rule: rule("www.linkedin.com", false, "direct")
+      rule: rule("login.linkedin.com", false, "direct")
     });
   });
 
@@ -124,7 +135,7 @@ describe("findEffectiveDomainRule", () => {
 describe("findRedundantDomainRules", () => {
   it("suggests same-action child rules covered by a parent includeSubdomains rule", () => {
     const parent = rule("linkedin.com", true, "proxy");
-    const child = rule("www.linkedin.com", true, "proxy");
+    const child = rule("media.linkedin.com", true, "proxy");
 
     expect(findRedundantDomainRules([parent, child])).toEqual([
       {
@@ -139,7 +150,7 @@ describe("findRedundantDomainRules", () => {
   });
 
   it("does not suggest override child rules with a different action", () => {
-    expect(findRedundantDomainRules([rule("linkedin.com", true, "proxy"), rule("www.linkedin.com", false, "direct")])).toEqual([]);
-    expect(findRedundantDomainRules([rule("linkedin.com", true, "direct"), rule("www.linkedin.com", false, "proxy")])).toEqual([]);
+    expect(findRedundantDomainRules([rule("linkedin.com", true, "proxy"), rule("login.linkedin.com", false, "direct")])).toEqual([]);
+    expect(findRedundantDomainRules([rule("linkedin.com", true, "direct"), rule("login.linkedin.com", false, "proxy")])).toEqual([]);
   });
 });

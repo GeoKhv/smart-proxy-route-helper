@@ -12,8 +12,8 @@ import type {
   UserClassificationSiteOverride
 } from "../domainClassification/userClassificationOverrides";
 import { checkDenylistedHost } from "../rules/denylist";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { findEffectiveDomainRule, findRedundantDomainRules } from "../rules/domainMatcher";
-import { normalizeDomain } from "../rules/normalizeDomain";
 import {
   checkRouteTargetAddition,
   describeRouteTarget,
@@ -166,7 +166,7 @@ export function addDomainRule(
   createdAt: string = new Date().toISOString(),
   action: RuleAction = "proxy"
 ): AddRuleResult {
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
 
   if (!normalized.ok) {
     return {

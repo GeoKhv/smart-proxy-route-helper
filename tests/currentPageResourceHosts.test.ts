@@ -147,6 +147,7 @@ describe("current-page resource host preview", () => {
     });
 
     expect(result.status).toBe("success");
+    expect(result.currentDomain).toBe("linkedin.com");
     expect(result.resultState).toBe("candidates_available");
     expect(result.message).not.toContain("No public resource hosts");
     expect(result.summary).toMatchObject({

@@ -86,6 +86,17 @@ describe("options synced rule helpers", () => {
     });
   });
 
+  it.each(["proxy", "direct"] as const)("canonicalizes standard WWW when adding a %s rule", (action) => {
+    const result = addDomainRule([], "www.example.com", false, createdAt, action);
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "added",
+      normalizedDomain: "example.com",
+      rules: [{ domain: "example.com", action, includeSubdomains: false }]
+    });
+  });
+
   it("rejects denylisted and internal domains", () => {
     expect(addDomainRule([], "localhost", true, createdAt)).toMatchObject({
       ok: false,
@@ -108,6 +119,17 @@ describe("options synced rule helpers", () => {
       ok: true,
       status: "duplicate",
       normalizedDomain: "ltrbxd.com",
+      rules: currentRules
+    });
+  });
+
+  it("detects duplicates after standard WWW canonicalization", () => {
+    const currentRules = [manualRule("example.com", false)];
+
+    expect(addDomainRule(currentRules, "www.example.com", false, createdAt)).toMatchObject({
+      ok: true,
+      status: "duplicate",
+      normalizedDomain: "example.com",
       rules: currentRules
     });
   });

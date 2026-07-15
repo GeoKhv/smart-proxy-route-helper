@@ -1,9 +1,19 @@
 import type { DomainRule, RuleAction } from "./ruleTypes";
 import { sameRouteTarget } from "./routeTarget";
 import { getMessage } from "../i18n/i18n";
+import { canonicalizeHostname } from "./canonicalizeHostname";
+import { normalizeDomain } from "./normalizeDomain";
 
-function normalizeForMatching(domain: string): string {
-  return domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.+$/, "");
+function normalizeRuleForMatching(domain: string): string {
+  const normalized = normalizeDomain(domain);
+
+  return normalized.ok ? normalized.domain : domain.trim().toLowerCase().replace(/^\*\./, "").replace(/\.+$/, "");
+}
+
+function canonicalizeForMatching(domain: string): string {
+  const canonical = canonicalizeHostname(domain);
+
+  return canonical.ok ? canonical.domain : normalizeRuleForMatching(domain);
 }
 
 function createdAtTime(rule: Pick<DomainRule, "createdAt">): number {
@@ -13,11 +23,11 @@ function createdAtTime(rule: Pick<DomainRule, "createdAt">): number {
 }
 
 function normalizedRuleDomain(rule: Pick<DomainRule, "domain">): string {
-  return normalizeForMatching(rule.domain);
+  return normalizeRuleForMatching(rule.domain);
 }
 
 function domainSpecificity(domain: string): number {
-  return normalizeForMatching(domain).split(".").filter(Boolean).length;
+  return normalizeRuleForMatching(domain).split(".").filter(Boolean).length;
 }
 
 function isNewerOrLater<T extends Pick<DomainRule, "createdAt">>(
@@ -37,8 +47,8 @@ function isNewerOrLater<T extends Pick<DomainRule, "createdAt">>(
 }
 
 export function domainMatchesRule(domain: string, rule: Pick<DomainRule, "domain" | "includeSubdomains">): boolean {
-  const candidateDomain = normalizeForMatching(domain);
-  const ruleDomain = normalizeForMatching(rule.domain);
+  const candidateDomain = canonicalizeForMatching(domain);
+  const ruleDomain = normalizeRuleForMatching(rule.domain);
 
   if (candidateDomain.length === 0 || ruleDomain.length === 0) {
     return false;
@@ -73,7 +83,7 @@ export type EffectiveDomainRuleMatch<T extends Pick<DomainRule, "domain" | "incl
 export function findEffectiveDomainRule<
   T extends Pick<DomainRule, "domain" | "includeSubdomains" | "createdAt">
 >(domain: string, rules: readonly T[]): EffectiveDomainRuleMatch<T> | undefined {
-  const candidateDomain = normalizeForMatching(domain);
+  const candidateDomain = canonicalizeForMatching(domain);
 
   if (candidateDomain.length === 0) {
     return undefined;

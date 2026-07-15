@@ -1,9 +1,9 @@
 import type { ApplyProxySettingsResult, ProxySettingsAdapter } from "../proxy/applyProxySettings";
 import { getMessage } from "../i18n/i18n";
 import { buildPacScript } from "../proxy/buildPac";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { checkDenylistedHost } from "../rules/denylist";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
-import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainRule } from "../rules/ruleTypes";
 import { getLocalSettings } from "../storage/localStore";
 import { getSyncSettings } from "../storage/syncStore";
@@ -187,7 +187,7 @@ export function getCurrentSiteDiagnosticTarget(url: string | undefined): Current
     };
   }
 
-  const normalized = normalizeDomain(url);
+  const normalized = canonicalizeHostname(url);
 
   if (!normalized.ok) {
     return {
@@ -214,8 +214,10 @@ export function getCurrentSiteDiagnosticTarget(url: string | undefined): Current
 }
 
 export function createDiagnosticProbeRule(domain: string, createdAt: string = new Date().toISOString()): DomainRule {
+  const canonical = canonicalizeHostname(domain);
+
   return {
-    domain,
+    domain: canonical.ok ? canonical.domain : domain,
     includeSubdomains: true,
     action: "proxy",
     mode: "proxy",

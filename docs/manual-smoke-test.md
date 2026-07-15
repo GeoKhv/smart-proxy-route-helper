@@ -65,7 +65,7 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 2. Confirm the manifest name is `Smart Proxy Route Helper` and no empty text or `__MSG_*__` token is visible.
 3. Confirm the current site, route state, explanation, loading/status messages, and accessible status label are in English.
 4. Open Related domains through the popup and confirm the heading, empty/result states, candidate reasons, `More actions`, classification actions, and `Back to site status` are in English.
-5. Confirm an exact candidate uses `Add <hostname>` and a parent candidate uses `Add <domain> and subdomains`; the hostname itself must remain unchanged.
+5. Confirm an exact candidate uses `Add <hostname>` and a parent candidate uses `Add <domain> and subdomains`; ordinary subdomains remain unchanged, while a standard `www.` candidate is shown as its canonical registrable domain.
 6. Select one and then two safe candidates when available. Confirm the sticky action says `Add 1 selected domain` and `Add 2 selected domains`, remains fully visible, and does not cover the final candidate row.
 7. Expand `More actions`, verify its buttons, then use `Back to site status` and confirm the main view is restored.
 8. Open Options from the popup and confirm the local proxy, route rules, conflict repair, classification overrides, cleanup, and Backup and restore sections are in English.
@@ -76,7 +76,7 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 1. Open the same safe public demo page in the separate Russian temporary profile and open the extension from the toolbar.
 2. Confirm the Popup, route state, explanations, loading/error states, recording controls, and Related domains UI are in Russian; the manifest name may remain the product name.
 3. Confirm the standard labels use consistent product terms, including `Через прокси`, `Напрямую`, `Не настроено`, `Прокси недоступен`, `Конфликт правил`, `Связанные домены`, `Другие действия`, `Вернуться к статусу сайта`, and `Добавлено` where those states are available.
-4. Confirm exact and parent candidate actions preserve the original hostname, for example `Добавить status.openai.com` and `Добавить wikipedia.org и поддомены`.
+4. Confirm exact and parent candidate actions preserve ordinary subdomains, for example `Добавить status.openai.com` and `Добавить wikipedia.org и поддомены`; a standard `www.` candidate is shown as its canonical registrable domain.
 5. Verify the selected-domain action for fixture counts 1, 2, 5, 11, 21, 22, 25, 111, and 112. Expected endings are respectively `домен`, `домена`, `доменов`, `доменов`, `домен`, `домена`, `доменов`, `доменов`, and `доменов`.
 6. Confirm `Другие действия` expands, `Вернуться к статусу сайта` works, the sticky action is not clipped, long labels wrap without leaving button boundaries, and no control overlaps another control.
 7. Open Options from the popup and confirm every main section, label, action, validation message, conflict repair action, export/import summary, and empty state is in Russian.
@@ -89,6 +89,24 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 3. Start Chrome with an unsupported UI locale in a disposable profile if practical and confirm the extension falls back to English.
 4. Confirm changing the browser locale, rather than extension storage, controls the language. No language selector or language storage key should exist.
 5. Confirm localization causes no translation network request and adds no permission, host permission, persistent content script, backend, telemetry, or remote executable code.
+
+## WWW Canonicalization Checks
+
+Use a clean temporary Chrome profile with Sync signed out and the real unpacked build from `dist/`. Interact through the visible toolbar popup; do not use the owner's personal profile or direct `chrome-extension://` navigation.
+
+1. Open `https://www.wikipedia.org` and open Smart Proxy Route Helper from the toolbar.
+2. Confirm the prospective exact rule is shown as `wikipedia.org`, then add it and confirm the Popup shows an exact match for the canonical rule.
+3. Open `https://wikipedia.org`, reopen the Popup, and confirm the same exact rule is effective.
+4. Open Options and confirm there is exactly one `wikipedia.org` rule and no separate `www.wikipedia.org` entry.
+5. Enter `www.wikipedia.org` manually for a new Proxy or Direct exact rule and confirm the saved/duplicate/conflict result uses `wikipedia.org` after normal validation.
+6. Edit a safe rule to `www.wikipedia.org`, preview the change, and confirm the proposed/saved hostname is `wikipedia.org` while ID, source, and creation time are preserved.
+7. Preview related domains from sanitized public data containing both `example.com` and `www.example.com`. Confirm one `example.com` candidate is shown, both observed hostnames remain in the evidence/count, and individual or batch add creates only `example.com`.
+8. Preview an import containing `example.com` plus `www.example.com` with the same action and scope. Confirm Preview reports one canonical importable rule plus a duplicate, Apply writes only `example.com`, and export format/version remain unchanged.
+9. Confirm exact `example.com` matches `example.com` and `www.example.com`, but not `www1.example.com`, `www2.example.com`, `api.example.com`, `deep.www.example.com`, or `www.status.example.com` when the rule is for `status.example.com`.
+10. Repeat the touched Popup and Options states with English and Russian browser UI. Confirm the canonical hostname is unchanged by translation and no empty or hardcoded user-facing string appears.
+11. Do not test real external proxy traffic unless the disposable profile has a known-safe local proxy configuration. Automated PAC/TypeScript parity tests are the required fallback for route application.
+
+No old-rule migration is expected in this check. Previously stored `www.` data is not repaired or merged automatically; this feature applies to future operations.
 
 ## Pre-Release Checks
 
@@ -171,8 +189,8 @@ await chrome.storage.sync.get(["rules"]);
 ```
 
 11. Try to add `localhost`, `192.168.1.1`, and `chrome://extensions`; confirm inline validation rejects them.
-12. Add a direct exception such as `www.example.com` exact. Confirm it can coexist with a broader `example.com` proxy rule.
-13. Add a redundant same-action child such as `www.linkedin.com` with subdomains included while `linkedin.com` proxy with subdomains already exists.
+12. Add `www.example.com` as an exact Direct exception. Confirm it is saved and displayed as canonical `example.com` exact and can coexist with a broader `example.com` Proxy include-subdomains rule.
+13. Add a redundant same-action child such as `media.linkedin.com` with subdomains included while `linkedin.com` Proxy with subdomains already exists.
 14. Click "Find redundant rules" and confirm a cleanup suggestion appears.
 15. Confirm no rule is removed by the scan alone.
 16. Click the suggestion's remove button and confirm only that suggested redundant rule is removed after the explicit click.

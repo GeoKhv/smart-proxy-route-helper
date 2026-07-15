@@ -4,6 +4,7 @@ import {
 } from "../domainClassification/registrableDomain";
 import { checkDenylistedHost } from "./denylist";
 import { getMessage } from "../i18n/i18n";
+import { canonicalizeHostname } from "./canonicalizeHostname";
 import { domainMatchesRule } from "./domainMatcher";
 import { normalizeDomain } from "./normalizeDomain";
 import { sameRouteTarget } from "./routeTarget";
@@ -111,7 +112,7 @@ export function getRuleStableId(rule: DomainRule): string {
 }
 
 export function getRuleScopeOptions(input: string, denylist: readonly string[] = []): RuleScopeOption[] {
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
 
   if (!normalized.ok || !isSafeRuleDomain(normalized.domain, denylist)) {
     return [];
@@ -386,7 +387,7 @@ export function replaceRuleAtomically(
     };
   }
 
-  const normalized = normalizeDomain(proposed.domain);
+  const normalized = canonicalizeHostname(proposed.domain);
 
   if (!normalized.ok || checkDenylistedHost(normalized.ok ? normalized.domain : proposed.domain).denied) {
     return {

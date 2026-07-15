@@ -263,6 +263,7 @@ describe("current-site diagnostic planning", () => {
     }
 
     expect(plan.probeRules).toEqual([manualRule("example.com", true)]);
+    expect(plan.domain).toBe("example.com");
     expect(runPac(plan.pacScript, "www.example.com")).toBe("SOCKS5 127.0.0.1:10808");
     expect(runPac(plan.pacScript, "other.test")).toBe("DIRECT");
   });

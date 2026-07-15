@@ -1,5 +1,6 @@
 import { sanitizeSyncSettings } from "./sanitize";
 import { getMessage } from "../i18n/i18n";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { getRuleStableId, replaceRuleAtomically } from "../rules/ruleEditing";
 import {
   checkRouteTargetAddition,
@@ -124,7 +125,14 @@ export async function addSyncRules(
   const duplicateRules: DomainRule[] = [];
 
   for (const proposedRule of proposedRules) {
-    const check = checkRouteTargetAddition(nextRules, proposedRule);
+    const canonical = canonicalizeHostname(proposedRule.domain);
+    const rule = canonical.ok
+      ? {
+          ...proposedRule,
+          domain: canonical.domain
+        }
+      : proposedRule;
+    const check = checkRouteTargetAddition(nextRules, rule);
 
     if (check.status === "conflict") {
       return {
@@ -132,7 +140,7 @@ export async function addSyncRules(
         settings: currentSettings,
         reason: "conflict",
         existingRule: check.existingRule,
-        proposedRule,
+        proposedRule: rule,
         error: getMessage("ruleActionExistsForScope", [
           check.existingRule.action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect")
         ])
@@ -144,8 +152,8 @@ export async function addSyncRules(
       continue;
     }
 
-    nextRules.push(proposedRule);
-    addedRules.push(proposedRule);
+    nextRules.push(rule);
+    addedRules.push(rule);
   }
 
   if (addedRules.length === 0) {

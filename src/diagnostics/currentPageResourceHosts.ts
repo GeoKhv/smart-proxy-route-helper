@@ -1,5 +1,6 @@
 import { buildRelatedDomainCandidates, type RelatedDomainCandidatesResult } from "./relatedDomainCandidates";
 import { getMessage } from "../i18n/i18n";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { checkDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
@@ -264,7 +265,7 @@ function getCurrentPageResourceHostTarget(url: string | undefined): CurrentPageR
     };
   }
 
-  const normalized = normalizeDomain(url);
+  const normalized = canonicalizeHostname(url);
 
   if (!normalized.ok) {
     return {

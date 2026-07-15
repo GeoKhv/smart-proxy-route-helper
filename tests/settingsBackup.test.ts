@@ -390,6 +390,73 @@ describe("settings import preview", () => {
     expect(preview.summary.classificationOverrides.addedOrUpdated).toBe(1);
   });
 
+  it("canonicalizes classification override entity keys in new imports", () => {
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            classificationOverrides: {
+              global: {
+                "www.wikipedia.org": "review"
+              },
+              site: {
+                "www.example.com": {
+                  "www.wikipedia.org": "suggested"
+                }
+              }
+            }
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+
+    expect(preview.nextSyncSettings.classificationOverrides).toEqual({
+      global: {
+        "wikipedia.org": "review"
+      },
+      site: {
+        "example.com": {
+          "wikipedia.org": "suggested"
+        }
+      }
+    });
+  });
+
+  it("merges apex and standard WWW site override groups after canonicalization", () => {
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            classificationOverrides: {
+              global: {},
+              site: {
+                "example.com": {
+                  "assets.example.net": "ignored"
+                },
+                "www.example.com": {
+                  "www.wikipedia.org": "suggested"
+                }
+              }
+            }
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+
+    expect(preview.nextSyncSettings.classificationOverrides.site).toEqual({
+      "example.com": {
+        "assets.example.net": "ignored",
+        "wikipedia.org": "suggested"
+      }
+    });
+  });
+
   it("detects a contradictory pair inside the imported file and blocks Apply", () => {
     const preview = previewSettingsImport(
       exportJson({
@@ -473,6 +540,29 @@ describe("settings import preview", () => {
     expect(preview.nextSyncSettings.rules).toHaveLength(1);
   });
 
+  it("canonicalizes apex and standard WWW to one imported route target", () => {
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [
+              { domain: "example.com", includeSubdomains: false, action: "proxy", mode: "proxy" },
+              { domain: "www.example.com", includeSubdomains: false, action: "proxy", mode: "proxy" }
+            ]
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+
+    expect(preview.summary.routeRules).toMatchObject({ importable: 1, added: 1, duplicates: 1 });
+    expect(preview.nextSyncSettings.rules).toEqual([
+      expect.objectContaining({ domain: "example.com", includeSubdomains: false, action: "proxy" })
+    ]);
+  });
+
   it("imports direct actions and rejects malformed action values", () => {
     const preview = expectReady(
       previewSettingsImport(
@@ -502,7 +592,7 @@ describe("settings import preview", () => {
 
     expect(preview.nextSyncSettings.rules).toEqual([
       {
-        ...directRule("www.example.com", false),
+        ...directRule("example.com", false),
         source: "import",
         createdAt: importedAt
       }
@@ -715,6 +805,30 @@ describe("settings import apply", () => {
       diagnostics: {
         enabled: true
       }
+    });
+  });
+
+  it("applies the canonical hostname produced by import preview", async () => {
+    const syncStorage = createMemoryStorage(syncSettings());
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [{ domain: "www.wikipedia.org", includeSubdomains: false, action: "proxy", mode: "proxy" }]
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+    const result = await applySettingsImportPreview(preview, { syncStorage });
+
+    expect(result.syncSettings.rules).toEqual([
+      expect.objectContaining({ domain: "wikipedia.org", includeSubdomains: false, action: "proxy" })
+    ]);
+    expect(syncStorage.dump()).toMatchObject({
+      rules: [expect.objectContaining({ domain: "wikipedia.org" })]
     });
   });
 

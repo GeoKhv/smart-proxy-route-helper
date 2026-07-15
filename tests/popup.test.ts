@@ -15,6 +15,7 @@ import {
   getRelatedDomainSaveActionStatus,
   getRelatedDomainPreviewActionStatus,
   groupRelatedDomainCandidateViews,
+  isRelatedDomainPreviewCurrent,
   relatedDomainAddActionLabel,
   relatedDomainBatchAddActionLabel,
   removeCurrentSiteRule,
@@ -59,7 +60,7 @@ describe("popup current tab domain helpers", () => {
     });
     expect(getCurrentTabDomain("http://www.letterboxd.com:80/path")).toEqual({
       ok: true,
-      domain: "www.letterboxd.com"
+      domain: "letterboxd.com"
     });
   });
 
@@ -76,6 +77,14 @@ describe("popup current tab domain helpers", () => {
       ok: false,
       message: "Internal local domains cannot be routed."
     });
+  });
+
+  it("keeps a standard WWW related-domain preview bound to its canonical site", () => {
+    expect(isRelatedDomainPreviewCurrent("www.google.com", "google.com")).toBe(true);
+    expect(isRelatedDomainPreviewCurrent("google.com", "www.google.com")).toBe(true);
+    expect(isRelatedDomainPreviewCurrent("www1.google.com", "google.com")).toBe(false);
+    expect(isRelatedDomainPreviewCurrent("deep.www.google.com", "google.com")).toBe(false);
+    expect(isRelatedDomainPreviewCurrent("google.com", null)).toBe(false);
   });
 });
 
@@ -104,16 +113,16 @@ describe("popup rule status helpers", () => {
     });
   });
 
-  it("reports direct exact and parent route status", () => {
+  it("reports canonical WWW exact and parent route status", () => {
     expect(
       getPopupRuleStatus("www.linkedin.com", {
-        rules: [manualRule("linkedin.com", true), directRule("www.linkedin.com", false)],
+        rules: [directRule("linkedin.com", false)],
         denylist: []
       })
     ).toMatchObject({
       state: "exact",
       action: "direct",
-      exactRule: directRule("www.linkedin.com", false)
+      exactRule: directRule("linkedin.com", false)
     });
 
     expect(
@@ -286,14 +295,14 @@ describe("popup add current site rule helper", () => {
     });
   });
 
-  it("keeps www quick actions exact-host-only without automatic broadening", () => {
+  it("canonicalizes www quick actions while keeping exact scope", () => {
     expect(addCurrentSiteRule([], "https://www.linkedin.com/feed", createdAt)).toEqual({
       ok: true,
       status: "added",
-      domain: "www.linkedin.com",
+      domain: "linkedin.com",
       action: "proxy",
       includeSubdomains: false,
-      rules: [manualRule("www.linkedin.com", false)]
+      rules: [manualRule("linkedin.com", false)]
     });
   });
 
@@ -301,10 +310,10 @@ describe("popup add current site rule helper", () => {
     expect(addCurrentSiteRule([manualRule("linkedin.com", true)], "https://www.linkedin.com/feed", createdAt, "manual", "direct")).toEqual({
       ok: true,
       status: "added",
-      domain: "www.linkedin.com",
+      domain: "linkedin.com",
       action: "direct",
       includeSubdomains: false,
-      rules: [manualRule("linkedin.com", true), directRule("www.linkedin.com", false)]
+      rules: [manualRule("linkedin.com", true), directRule("linkedin.com", false)]
     });
   });
 
@@ -333,6 +342,17 @@ describe("popup add current site rule helper", () => {
       domain: "letterboxd.com",
       action: "proxy",
       includeSubdomains: false,
+      rules
+    });
+  });
+
+  it("prevents a standard WWW duplicate of an apex exact rule", () => {
+    const rules = [manualRule("example.com", false)];
+
+    expect(addCurrentSiteRule(rules, "www.example.com", createdAt)).toMatchObject({
+      ok: true,
+      status: "duplicate",
+      domain: "example.com",
       rules
     });
   });
@@ -1383,6 +1403,93 @@ describe("popup related-domain selected save helper", () => {
     expect(JSON.stringify(result)).not.toContain("/t/p/w500");
     expect(JSON.stringify(result)).not.toContain("token=secret");
     expect(JSON.stringify(result)).not.toContain("rules");
+  });
+
+  it("canonicalizes standard WWW classification override keys", () => {
+    const result = addRelatedDomainClassificationOverride(
+      { global: {}, site: {} },
+      "www.example.com",
+      "www.wikipedia.org",
+      "suggest-for-site"
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      classificationOverrides: {
+        global: {},
+        site: {
+          "example.com": {
+            "wikipedia.org": "suggested"
+          }
+        }
+      },
+      override: {
+        domain: "wikipedia.org",
+        siteDomain: "example.com",
+        action: "suggest-for-site"
+      }
+    });
+  });
+
+  it("uses the canonical candidate for individual and batch related-domain adds", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "2 public resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "unrelated.test",
+        collectedHosts: ["www.example.com", "www.wikipedia.org"],
+        candidates: {
+          currentDomain: "unrelated.test",
+          strongCandidates: [],
+          mediumCandidates: [
+            {
+              domain: "www.example.com",
+              reason: "third-party-resource",
+              sourceHosts: ["www.example.com"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            },
+            {
+              domain: "www.wikipedia.org",
+              reason: "third-party-resource",
+              sourceHosts: ["www.wikipedia.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [], denylist: [] }
+    );
+
+    expect(view.candidates.map((candidate) => candidate.domain)).toEqual(["example.com", "wikipedia.org"]);
+    expect(
+      addSelectedRelatedDomainRules(
+        { rules: [], denylist: [] },
+        view.candidates,
+        new Set(["example.com"]),
+        createdAt
+      )
+    ).toMatchObject({
+      ok: true,
+      status: "added",
+      addedRules: [{ domain: "example.com" }]
+    });
+    expect(
+      addSelectedRelatedDomainRules(
+        { rules: [], denylist: [] },
+        view.candidates,
+        new Set(["example.com", "wikipedia.org"]),
+        createdAt
+      )
+    ).toMatchObject({
+      ok: true,
+      status: "added",
+      addedRules: [{ domain: "example.com" }, { domain: "wikipedia.org" }]
+    });
   });
 
   it("rejects internal or private override domains before storage writes", () => {

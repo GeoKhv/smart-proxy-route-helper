@@ -1,7 +1,7 @@
 import { checkDenylistedHost } from "../rules/denylist";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { getMessage, localizeDocument, selectPluralForm, type MessageKey } from "../i18n/i18n";
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
-import { normalizeDomain } from "../rules/normalizeDomain";
 import {
   checkRouteTargetAddition,
   findRouteTargetConflictForRule
@@ -290,9 +290,23 @@ function unsupportedUrlMessage(url: string): string {
 }
 
 function normalizeKnownDomain(input: string): string | null {
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
 
   return normalized.ok ? normalized.domain : null;
+}
+
+export function isRelatedDomainPreviewCurrent(
+  currentDomain: string,
+  previewDomain: string | null
+): boolean {
+  if (!previewDomain) {
+    return false;
+  }
+
+  const normalizedCurrentDomain = normalizeKnownDomain(currentDomain);
+  const normalizedPreviewDomain = normalizeKnownDomain(previewDomain);
+
+  return normalizedCurrentDomain !== null && normalizedCurrentDomain === normalizedPreviewDomain;
 }
 
 function parentRuleForDomain(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
@@ -313,7 +327,7 @@ function isStoredDenylistedDomain(domain: string, denylist: readonly string[]): 
 }
 
 function normalizeSafeRelatedDomain(input: string, denylist: readonly string[] = []): string | null {
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
 
   if (!normalized.ok) {
     return null;
@@ -562,7 +576,7 @@ export function getCurrentTabDomain(url: string | undefined): CurrentTabDomainRe
     };
   }
 
-  const normalized = normalizeDomain(url);
+  const normalized = canonicalizeHostname(url);
 
   if (!normalized.ok) {
     return {
@@ -758,7 +772,7 @@ export function addCurrentSiteRule(
   source: RuleSource = "manual",
   action: RuleAction = "proxy"
 ): AddCurrentSiteRuleResult {
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
 
   if (!normalized.ok) {
     return {
@@ -836,7 +850,7 @@ export function addCurrentSiteRule(
 }
 
 export function removeCurrentSiteRule(currentRules: readonly DomainRule[], input: string): RemoveCurrentSiteRuleResult {
-  const normalized = normalizeDomain(input);
+  const normalized = canonicalizeHostname(input);
   const domain = normalized.ok ? normalized.domain : input.trim().toLowerCase();
   const exactRule = findEffectiveDomainRule(domain, currentRules);
 
@@ -2399,7 +2413,7 @@ async function handleRelatedDomainClassificationOverride(button: HTMLButtonEleme
     return;
   }
 
-  if (!relatedDomainPreviewDomain || currentResult.domain !== relatedDomainPreviewDomain) {
+  if (!isRelatedDomainPreviewCurrent(currentResult.domain, relatedDomainPreviewDomain)) {
     setStatus(actionStatus, getMessage("popupRelatedPreviewAgainOverride"), "error");
     return;
   }
@@ -2481,7 +2495,7 @@ async function handleAddRelatedDomains(
     return;
   }
 
-  if (!relatedDomainPreviewDomain || currentResult.domain !== relatedDomainPreviewDomain) {
+  if (!isRelatedDomainPreviewCurrent(currentResult.domain, relatedDomainPreviewDomain)) {
     setStatus(actionStatus, getMessage("popupRelatedPreviewAgainAdd"), "error");
     return;
   }

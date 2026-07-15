@@ -237,6 +237,28 @@ describe("domain candidate classification", () => {
     });
   });
 
+  it("matches standard WWW override inputs as canonical domain entities", () => {
+    expect(
+      classifyDomainCandidate({
+        currentDomain: "www.example.com",
+        candidateDomain: "www.wikipedia.org",
+        userOverrides: [
+          {
+            domain: "www.wikipedia.org",
+            action: "suggest-for-site",
+            siteDomain: "www.example.com"
+          }
+        ]
+      })
+    ).toMatchObject({
+      domain: "wikipedia.org",
+      classification: "related",
+      scope: "site",
+      siteDomain: "example.com",
+      source: "user-override"
+    });
+  });
+
   it("lets global overrides affect every site while site overrides take precedence", () => {
     expect(
       classifyDomainCandidate({

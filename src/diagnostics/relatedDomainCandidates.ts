@@ -10,6 +10,7 @@ import {
   isSharedInfrastructureRegistrableDomain
 } from "../domainClassification/registrableDomain";
 import { checkDenylistedHost } from "../rules/denylist";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { normalizeDomain } from "../rules/normalizeDomain";
 
 export type RelatedDomainCandidateInput = {
@@ -64,6 +65,7 @@ type MutableCandidate = Omit<RelatedDomainCandidate, "sourceHosts" | "sourceHost
 
 type ClassifiedObservation = {
   observedHost: string;
+  sourceHost: string;
   observedBaseDomain: string;
   classification: DomainCandidateClassificationResult;
 };
@@ -343,7 +345,9 @@ function routeTargetPlanForObservation(
 }
 
 export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput): RelatedDomainCandidatesResult {
-  const currentHost = normalizePublicHost(input.currentDomain);
+  const normalizedCurrentHost = normalizePublicHost(input.currentDomain);
+  const canonicalCurrentHost = normalizedCurrentHost ? canonicalizeHostname(normalizedCurrentHost) : null;
+  const currentHost = canonicalCurrentHost?.ok ? canonicalCurrentHost.domain : null;
 
   if (!currentHost) {
     return emptyResult(null);
@@ -353,9 +357,11 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
   const observations: ClassifiedObservation[] = [];
 
   for (const observedInput of input.observedUrlsOrHosts) {
-    const observedHost = normalizePublicHost(observedInput);
+    const sourceHost = normalizePublicHost(observedInput);
+    const canonicalObservedHost = sourceHost ? canonicalizeHostname(sourceHost) : null;
+    const observedHost = canonicalObservedHost?.ok ? canonicalObservedHost.domain : null;
 
-    if (!observedHost || observedHost === currentHost) {
+    if (!sourceHost || !observedHost || observedHost === currentHost) {
       continue;
     }
 
@@ -377,6 +383,7 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
 
     observations.push({
       observedHost,
+      sourceHost,
       observedBaseDomain: observedDomainParts.registrableDomain ?? observedHost,
       classification
     });
@@ -399,7 +406,7 @@ export function buildRelatedDomainCandidates(input: RelatedDomainCandidateInput)
       createCandidate(
         reasonFromClassification(classification),
         routeTarget,
-        observation.observedHost,
+        observation.sourceHost,
         classification.classification === "related"
       )
     );

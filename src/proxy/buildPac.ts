@@ -1,4 +1,5 @@
 import { normalizeDomain } from "../rules/normalizeDomain";
+import { getRegistrableDomain } from "../domainClassification/registrableDomain";
 import { getRouteTargetKey } from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import { buildPacProxyString, type LocalProxyConfigValidationError } from "./proxyConfig";
@@ -11,6 +12,7 @@ export type SerializedPacRule = {
   includeSubdomains: boolean;
   action: RuleAction;
   createdAt: string;
+  matchesStandardWww: boolean;
 };
 
 export type BuildPacScriptResult =
@@ -63,7 +65,8 @@ function serializePacRules(rules: readonly PacDomainRule[]): SerializedPacRule[]
       domain: normalizedRule.domain,
       includeSubdomains: rule.includeSubdomains,
       action,
-      createdAt: rule.createdAt ?? ""
+      createdAt: rule.createdAt ?? "",
+      matchesStandardWww: getRegistrableDomain(normalizedRule.domain) === normalizedRule.domain
     });
   }
 
@@ -81,12 +84,16 @@ function normalizePacHost(host) {
   return String(host || "").toLowerCase().replace(/\\.+$/, "");
 }
 
+function pacRuleExactMatch(host, rule) {
+  return host === rule.domain || (rule.matchesStandardWww === true && host === "www." + rule.domain);
+}
+
 function pacDomainMatchesRule(host, rule) {
   if (!host || !rule.domain) {
     return false;
   }
 
-  if (host === rule.domain) {
+  if (pacRuleExactMatch(host, rule)) {
     return true;
   }
 
@@ -127,7 +134,7 @@ function findEffectivePacRule(host) {
       continue;
     }
 
-    if (host === rule.domain) {
+    if (pacRuleExactMatch(host, rule)) {
       if (exactRule === null || pacIsNewerOrLater(rule, index, exactRule, exactIndex)) {
         exactRule = rule;
         exactIndex = index;

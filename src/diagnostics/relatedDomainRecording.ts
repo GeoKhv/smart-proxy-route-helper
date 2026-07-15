@@ -3,6 +3,7 @@ import {
   type CurrentPageResourceHostsResponse
 } from "./currentPageResourceHosts";
 import { getMessage } from "../i18n/i18n";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import type { RelatedDomainRecorderSummary } from "./actionRequestRecorder";
 import type { DomainCandidateUserOverride } from "../domainClassification/domainClassificationTypes";
 import { checkDenylistedHost } from "../rules/denylist";
@@ -148,7 +149,7 @@ export function getRelatedDomainRecordingTarget(url: string | undefined): Record
     };
   }
 
-  const normalized = normalizeDomain(url);
+  const normalized = canonicalizeHostname(url);
 
   if (!normalized.ok) {
     return {

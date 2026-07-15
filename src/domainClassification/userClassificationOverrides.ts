@@ -1,4 +1,5 @@
 import { isDenylistedHost } from "../rules/denylist";
+import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { getMessage } from "../i18n/i18n";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import type { DomainCandidateUserOverride, DomainCandidateUserOverrideAction } from "./domainClassificationTypes";
@@ -56,6 +57,20 @@ function normalizeSafeOverrideDomain(input: unknown): string | null {
   }
 
   return normalized.domain;
+}
+
+function canonicalizeSafeOverrideDomain(input: unknown): string | null {
+  if (typeof input !== "string") {
+    return null;
+  }
+
+  const canonical = canonicalizeHostname(input);
+
+  if (!canonical.ok || isDenylistedHost(canonical.domain)) {
+    return null;
+  }
+
+  return canonical.domain;
 }
 
 function sortRecord<TValue extends string>(input: Record<string, TValue>): Record<string, TValue> {
@@ -126,6 +141,51 @@ export function sanitizeUserClassificationOverrides(input: unknown): UserClassif
   };
 }
 
+export function canonicalizeUserClassificationOverrides(input: unknown): UserClassificationOverrides {
+  const sanitized = sanitizeUserClassificationOverrides(input);
+  const global: Record<string, UserClassificationGlobalOverride> = {};
+  const site: Record<string, Record<string, UserClassificationSiteOverride>> = {};
+
+  for (const [rawDomain, action] of Object.entries(sanitized.global)) {
+    const domain = canonicalizeSafeOverrideDomain(rawDomain);
+
+    if (domain) {
+      global[domain] = action;
+    }
+  }
+
+  for (const [rawSiteDomain, rawCandidateOverrides] of Object.entries(sanitized.site)) {
+    const siteDomain = canonicalizeSafeOverrideDomain(rawSiteDomain);
+
+    if (!siteDomain) {
+      continue;
+    }
+
+    const candidateOverrides: Record<string, UserClassificationSiteOverride> = {
+      ...(site[siteDomain] ?? {})
+    };
+
+    for (const [rawCandidateDomain, action] of Object.entries(rawCandidateOverrides)) {
+      const candidateDomain = canonicalizeSafeOverrideDomain(rawCandidateDomain);
+
+      if (candidateDomain) {
+        candidateOverrides[candidateDomain] = action;
+      }
+    }
+
+    if (Object.keys(candidateOverrides).length > 0) {
+      site[siteDomain] = sortRecord(candidateOverrides);
+    }
+  }
+
+  return {
+    global: sortRecord(global),
+    site: Object.fromEntries(
+      Object.entries(site).sort(([left], [right]) => left.localeCompare(right))
+    ) as UserClassificationOverrides["site"]
+  };
+}
+
 export function domainCandidateUserOverridesFromStorage(
   overrides: UserClassificationOverrides
 ): DomainCandidateUserOverride[] {
@@ -167,7 +227,7 @@ function cloneOverrides(overrides: UserClassificationOverrides): UserClassificat
 function normalizedOverrideOrError(
   override: DomainCandidateUserOverride
 ): DomainCandidateUserOverride | { error: string } {
-  const domain = normalizeSafeOverrideDomain(override.domain);
+  const domain = canonicalizeSafeOverrideDomain(override.domain);
 
   if (!domain) {
     return {
@@ -182,7 +242,7 @@ function normalizedOverrideOrError(
     };
   }
 
-  const siteDomain = normalizeSafeOverrideDomain(override.siteDomain);
+  const siteDomain = canonicalizeSafeOverrideDomain(override.siteDomain);
 
   if (!siteDomain) {
     return {
@@ -248,7 +308,7 @@ export function removeUserClassificationOverride(
   const nextOverrides = cloneOverrides(sanitizeUserClassificationOverrides(currentOverrides));
 
   if (target.scope === "global") {
-    const domain = normalizeSafeOverrideDomain(target.domain);
+    const domain = canonicalizeSafeOverrideDomain(target.domain);
 
     if (domain) {
       delete nextOverrides.global[domain];
@@ -257,8 +317,8 @@ export function removeUserClassificationOverride(
     return sanitizeUserClassificationOverrides(nextOverrides);
   }
 
-  const siteDomain = normalizeSafeOverrideDomain(target.siteDomain);
-  const domain = normalizeSafeOverrideDomain(target.domain);
+  const siteDomain = canonicalizeSafeOverrideDomain(target.siteDomain);
+  const domain = canonicalizeSafeOverrideDomain(target.domain);
 
   if (siteDomain && domain && nextOverrides.site[siteDomain]) {
     delete nextOverrides.site[siteDomain][domain];

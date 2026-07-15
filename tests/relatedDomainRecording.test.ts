@@ -15,6 +15,10 @@ describe("related-domain diagnostic recording target", () => {
       ok: true,
       domain: "chatgpt.com"
     });
+    expect(getRelatedDomainRecordingTarget("https://www.wikipedia.org/wiki/Main_Page")).toEqual({
+      ok: true,
+      domain: "wikipedia.org"
+    });
     expect(getRelatedDomainRecordingTarget("chrome://extensions")).toMatchObject({
       ok: false,
       response: {

@@ -36,25 +36,18 @@ function plan(
 }
 
 describe("rule scope planning", () => {
-  it("offers explicit exact, hostname, and safe PSL-aware parent scopes", () => {
+  it("canonicalizes standard WWW before offering scopes", () => {
     expect(getRuleScopeOptions("www.linkedin.com")).toEqual([
       {
         scope: "exact",
         label: "Exact hostname only",
-        targetDomain: "www.linkedin.com",
+        targetDomain: "linkedin.com",
         includeSubdomains: false,
-        coverage: ["www.linkedin.com"]
+        coverage: ["linkedin.com"]
       },
       {
         scope: "hostname-and-subdomains",
         label: "This hostname and its subdomains",
-        targetDomain: "www.linkedin.com",
-        includeSubdomains: true,
-        coverage: ["www.linkedin.com", "*.www.linkedin.com"]
-      },
-      {
-        scope: "registrable-domain-and-subdomains",
-        label: "Parent domain and all subdomains",
         targetDomain: "linkedin.com",
         includeSubdomains: true,
         coverage: ["linkedin.com", "*.linkedin.com"]
@@ -150,7 +143,7 @@ describe("rule edit planning", () => {
   });
 
   it("expands an exact child to its safe registrable parent while preserving action and metadata", () => {
-    const current = rule("www.linkedin.com", false, "direct", "2026-07-13T10:05:00.000Z", "rule-parent");
+    const current = rule("app.linkedin.com", false, "direct", "2026-07-13T10:05:00.000Z", "rule-parent");
     const result = plan([current], current, {
       domain: current.domain,
       action: current.action,
@@ -168,7 +161,7 @@ describe("rule edit planning", () => {
         source: "manual",
         createdAt: "2026-07-13T10:05:00.000Z"
       },
-      coverage: ["linkedin.com", "www.linkedin.com", "Other subdomains of linkedin.com"]
+      coverage: ["linkedin.com", "app.linkedin.com", "Other subdomains of linkedin.com"]
     });
   });
 
@@ -287,5 +280,26 @@ describe("atomic rule replacement", () => {
     expect(getRuleStableId(result.updatedRule)).toBe(ruleId);
     expect(original[0]).toBe(current);
     expect(original[0].domain).toBe("child.example.com");
+  });
+
+  it("canonicalizes a standard WWW edit while preserving identity and metadata", () => {
+    const current = rule("old.example.com", false, "direct", "2026-07-13T10:05:00.000Z", "rule-www");
+    const result = replaceRuleAtomically([current], "rule-www", {
+      domain: "WWW.Example.COM.",
+      includeSubdomains: false,
+      action: "direct"
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      updatedRule: {
+        id: "rule-www",
+        domain: "example.com",
+        includeSubdomains: false,
+        action: "direct",
+        source: "manual",
+        createdAt: "2026-07-13T10:05:00.000Z"
+      }
+    });
   });
 });
