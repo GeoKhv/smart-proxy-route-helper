@@ -874,4 +874,102 @@ describe("settings import apply", () => {
     );
     expect(syncStorage.dump()).toEqual({ rules: [latestDirect] });
   });
+
+  it("rolls synced settings back when applying imported local proxy settings fails", async () => {
+    const previousSyncSettings = syncSettings({ rules: [manualRule("existing.example")] });
+    const syncStorage = createMemoryStorage(previousSyncSettings);
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [{ domain: "new.example", includeSubdomains: true, mode: "proxy" }]
+          },
+          localSettings: {
+            deviceProxy: {
+              enabled: true,
+              config: {
+                scheme: "http",
+                host: "127.0.0.1",
+                port: 8080
+              }
+            }
+          }
+        }),
+        previousSyncSettings,
+        localSettings(),
+        importedAt
+      )
+    );
+    const localStorage: StorageAreaAdapter = {
+      async get() {
+        return {};
+      },
+      async set() {
+        throw new Error("local write failed");
+      }
+    };
+
+    await expect(applySettingsImportPreview(preview, { syncStorage, localStorage })).rejects.toThrow(
+      "Local proxy settings were not applied. Synced settings were restored to their previous values."
+    );
+    expect(syncStorage.dump()).toEqual(previousSyncSettings);
+  });
+
+  it("reports an explicit partial import when both local apply and sync rollback fail", async () => {
+    const previousSyncSettings = syncSettings({ rules: [manualRule("existing.example")] });
+    const storedSync = createMemoryStorage(previousSyncSettings);
+    let syncSetCalls = 0;
+    const syncStorage: StorageAreaAdapter = {
+      get: storedSync.get,
+      async set(items) {
+        syncSetCalls += 1;
+
+        if (syncSetCalls > 1) {
+          throw new Error("sync rollback failed");
+        }
+
+        await storedSync.set(items);
+      }
+    };
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [{ domain: "new.example", includeSubdomains: true, mode: "proxy" }]
+          },
+          localSettings: {
+            deviceProxy: {
+              enabled: true,
+              config: {
+                scheme: "http",
+                host: "127.0.0.1",
+                port: 8080
+              }
+            }
+          }
+        }),
+        previousSyncSettings,
+        localSettings(),
+        importedAt
+      )
+    );
+    const localStorage: StorageAreaAdapter = {
+      async get() {
+        return {};
+      },
+      async set() {
+        throw new Error("local write failed");
+      }
+    };
+
+    await expect(applySettingsImportPreview(preview, { syncStorage, localStorage })).rejects.toThrow(
+      "Local proxy settings were not applied, but the synced import was applied and could not be rolled back."
+    );
+    expect(storedSync.dump()).toMatchObject({
+      rules: [
+        manualRule("existing.example"),
+        expect.objectContaining({ domain: "new.example", source: "import" })
+      ]
+    });
+  });
 });

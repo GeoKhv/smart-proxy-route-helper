@@ -845,6 +845,8 @@
   "optionsImportApplied": { "message": "Import applied after explicit confirmation." },
   "optionsCouldNotApplyImport": { "message": "Could not apply import." },
   "optionsImportCleared": { "message": "Import preview cleared." },
+  "backupLocalApplyFailedSyncRestored": { "message": "Local proxy settings were not applied. Synced settings were restored to their previous values. Review the local proxy and try the import again." },
+  "backupLocalApplyFailedSyncRollbackFailed": { "message": "Local proxy settings were not applied, but the synced import was applied and could not be rolled back. Review synced rules and local proxy settings before retrying." },
   "optionsLoadedLocal": { "message": "Loaded local settings." },
   "optionsLoadedRules": { "message": "Loaded synced rules." },
   "optionsRunCleanup": { "message": "Run a scan to find redundant route rules." },

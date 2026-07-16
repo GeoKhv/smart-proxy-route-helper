@@ -808,15 +808,26 @@ export async function applySettingsImportPreview(
   }
 
   const syncSettings = await setSyncSettings(finalSyncSettings, adapters.syncStorage);
-  const localSettings =
-    preview.nextLocalSettings === null
-      ? null
-      : await updateLocalSettings(
-          {
-            deviceProxy: preview.nextLocalSettings.deviceProxy
-          },
-          adapters.localStorage
-        );
+  let localSettings: LocalSettings | null = null;
+
+  if (preview.nextLocalSettings !== null) {
+    try {
+      localSettings = await updateLocalSettings(
+        {
+          deviceProxy: preview.nextLocalSettings.deviceProxy
+        },
+        adapters.localStorage
+      );
+    } catch {
+      try {
+        await setSyncSettings(currentSyncSettings, adapters.syncStorage);
+      } catch {
+        throw new Error(getMessage("backupLocalApplyFailedSyncRollbackFailed"));
+      }
+
+      throw new Error(getMessage("backupLocalApplyFailedSyncRestored"));
+    }
+  }
 
   return {
     syncSettings,
