@@ -14,7 +14,12 @@ import {
   checkRouteTargetAddition,
   findRouteTargetConflictForRule
 } from "../rules/routeTarget";
-import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
+import {
+  DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS,
+  type DomainRule,
+  type RuleAction,
+  type RuleSource
+} from "../rules/ruleTypes";
 import {
   getRuleScopeOptions,
   getRuleStableId,
@@ -402,7 +407,7 @@ function ruleActionDisplayLabel(action: RuleAction): string {
 function suggestedCurrentSiteRuleTarget(domain: string): { domain: string; includeSubdomains: boolean } {
   return {
     domain,
-    includeSubdomains: false
+    includeSubdomains: DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS
   };
 }
 

@@ -20,7 +20,11 @@ import {
   findRouteTargetConflicts,
   getRouteTargetKey
 } from "../rules/routeTarget";
-import type { DomainRule, RuleAction } from "../rules/ruleTypes";
+import {
+  DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS,
+  type DomainRule,
+  type RuleAction
+} from "../rules/ruleTypes";
 import {
   getRuleScopeOptions,
   getRuleStableId,
@@ -164,7 +168,7 @@ function denylistMessage(reason: string): string {
 export function addDomainRule(
   currentRules: readonly DomainRule[],
   input: string,
-  includeSubdomains: boolean,
+  includeSubdomains: boolean = DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS,
   createdAt: string = new Date().toISOString(),
   action: RuleAction = "proxy"
 ): AddRuleResult {
@@ -223,6 +227,12 @@ export function addDomainRule(
     normalizedDomain: normalized.domain,
     status: "added"
   };
+}
+
+function resetNewRuleScope(): void {
+  getElement<HTMLSelectElement>("#rule-scope").value = DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS
+    ? "hostname-and-subdomains"
+    : "exact";
 }
 
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
@@ -815,6 +825,7 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
   }
 
   input.value = "";
+  resetNewRuleScope();
   setStatus(
     status,
     getMessage("optionsRuleAdded", [
@@ -1139,6 +1150,7 @@ async function initOptionsPage(): Promise<void> {
   const localSettings = await getLocalSettings();
   setLanguagePreference(localSettings.language ?? "auto");
   localizeDocument();
+  resetNewRuleScope();
   await refreshSyncView();
   renderLocalSettings(localSettings);
   setStatus(getElement<HTMLElement>("#local-proxy-status"), getMessage("optionsLoadedLocal"), "neutral");

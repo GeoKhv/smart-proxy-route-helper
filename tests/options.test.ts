@@ -79,13 +79,24 @@ describe("options local proxy helpers", () => {
 
 describe("options synced rule helpers", () => {
   it("normalizes domain input when adding a synced manual rule", () => {
-    const result = addDomainRule([], "https://Letterboxd.com/films", true, createdAt);
+    const result = addDomainRule([], "https://Letterboxd.com/films", undefined, createdAt);
 
     expect(result).toEqual({
       ok: true,
       status: "added",
       normalizedDomain: "letterboxd.com",
       rules: [manualRule("letterboxd.com", true)]
+    });
+  });
+
+  it("defaults a new manual rule to hostname and subdomains while preserving an explicit exact choice", () => {
+    expect(addDomainRule([], "example.com", undefined, createdAt)).toMatchObject({
+      ok: true,
+      rules: [{ domain: "example.com", includeSubdomains: true }]
+    });
+    expect(addDomainRule([], "example.com", false, createdAt)).toMatchObject({
+      ok: true,
+      rules: [{ domain: "example.com", includeSubdomains: false }]
     });
   });
 

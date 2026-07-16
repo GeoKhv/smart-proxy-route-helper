@@ -284,36 +284,33 @@ describe("popup rule status helpers", () => {
 });
 
 describe("popup add current site rule helper", () => {
-  it("adds a synced manual proxy rule with subdomains included", () => {
+  it("defaults a current-site proxy rule to hostname and subdomains", () => {
     expect(addCurrentSiteRule([], "https://letterboxd.com/films", createdAt)).toEqual({
       ok: true,
       status: "added",
       domain: "letterboxd.com",
       action: "proxy",
-      includeSubdomains: false,
-      rules: [manualRule("letterboxd.com", false)]
+      includeSubdomains: true,
+      rules: [manualRule("letterboxd.com", true)]
     });
   });
 
-  it("canonicalizes www quick actions while keeping exact scope", () => {
+  it("canonicalizes www quick actions while retaining the default subdomain scope", () => {
     expect(addCurrentSiteRule([], "https://www.linkedin.com/feed", createdAt)).toEqual({
       ok: true,
       status: "added",
       domain: "linkedin.com",
       action: "proxy",
-      includeSubdomains: false,
-      rules: [manualRule("linkedin.com", false)]
+      includeSubdomains: true,
+      rules: [manualRule("linkedin.com", true)]
     });
   });
 
-  it("adds an explicit direct current-site rule", () => {
-    expect(addCurrentSiteRule([manualRule("linkedin.com", true)], "https://www.linkedin.com/feed", createdAt, "manual", "direct")).toEqual({
-      ok: true,
-      status: "added",
-      domain: "linkedin.com",
-      action: "direct",
-      includeSubdomains: false,
-      rules: [manualRule("linkedin.com", true), directRule("linkedin.com", false)]
+  it("does not add an opposite-action current-site rule at the default scope", () => {
+    expect(addCurrentSiteRule([manualRule("linkedin.com", true)], "https://www.linkedin.com/feed", createdAt, "manual", "direct")).toMatchObject({
+      ok: false,
+      reason: "conflict",
+      existingRule: manualRule("linkedin.com", true)
     });
   });
 
@@ -323,10 +320,10 @@ describe("popup add current site rule helper", () => {
       status: "added",
       domain: "letterboxd.com",
       action: "proxy",
-      includeSubdomains: false,
+      includeSubdomains: true,
       rules: [
         {
-          ...manualRule("letterboxd.com", false),
+          ...manualRule("letterboxd.com", true),
           source: "diagnostic"
         }
       ]
@@ -334,20 +331,20 @@ describe("popup add current site rule helper", () => {
   });
 
   it("prevents duplicate exact-domain rules", () => {
-    const rules = [manualRule("letterboxd.com", false)];
+    const rules = [manualRule("letterboxd.com", true)];
 
     expect(addCurrentSiteRule(rules, "letterboxd.com", createdAt)).toEqual({
       ok: true,
       status: "duplicate",
       domain: "letterboxd.com",
       action: "proxy",
-      includeSubdomains: false,
+      includeSubdomains: true,
       rules
     });
   });
 
   it("prevents a standard WWW duplicate of an apex exact rule", () => {
-    const rules = [manualRule("example.com", false)];
+    const rules = [manualRule("example.com", true)];
 
     expect(addCurrentSiteRule(rules, "www.example.com", createdAt)).toMatchObject({
       ok: true,
@@ -358,7 +355,7 @@ describe("popup add current site rule helper", () => {
   });
 
   it("does not append an opposite action for an existing exact route target", () => {
-    const existing = directRule("routing-test.test", false);
+    const existing = directRule("routing-test.test", true);
 
     expect(addCurrentSiteRule([existing], "routing-test.test", createdAt, "manual", "proxy")).toMatchObject({
       ok: false,
@@ -380,7 +377,7 @@ describe("popup add current site rule helper", () => {
       status: "inherited",
       domain: "watch.example.com",
       action: "proxy",
-      includeSubdomains: false,
+      includeSubdomains: true,
       parentRule: manualRule("example.com", true),
       rules
     });
@@ -1887,6 +1884,57 @@ describe("popup related-domain selected save helper", () => {
     });
   });
 
+  it("adds selected related domains with their default hostname-and-subdomains scope", () => {
+    const candidates = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "2 public resource hosts checked for related-domain preview. No rules were saved.",
+        currentDomain: "example.com",
+        collectedHosts: ["cdn.related-one.example", "api.related-two.example"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [
+            {
+              domain: "related-one.example",
+              reason: "explicit-related-domain",
+              sourceHosts: ["cdn.related-one.example"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            },
+            {
+              domain: "related-two.example",
+              reason: "explicit-related-domain",
+              sourceHosts: ["api.related-two.example"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [], denylist: [] }
+    ).candidates;
+
+    expect(
+      addSelectedRelatedDomainRules(
+        { rules: [], denylist: [] },
+        candidates,
+        new Set(["related-one.example", "related-two.example"]),
+        createdAt
+      )
+    ).toMatchObject({
+      ok: true,
+      status: "added",
+      addedRules: [
+        { domain: "related-one.example", includeSubdomains: true },
+        { domain: "related-two.example", includeSubdomains: true }
+      ]
+    });
+  });
+
   it("treats the suggested includeSubdomains route target as already covered when the base rule exists", () => {
     const view = buildRelatedDomainPopupView(
       {
@@ -2268,7 +2316,7 @@ describe("popup runtime boundaries", () => {
 
     expect(popupHtml).toContain('data-i18n="popupProxyThisHostname"');
     expect(popupHtml).toContain('data-i18n="popupDirectThisHostname"');
-    expect(popupHtml).toContain('data-i18n="popupExactScopeCopy"');
+    expect(popupHtml).toContain('data-i18n="popupNewRuleScopeCopy"');
     expect(popupHtml).toContain('id="change-current-site-scope"');
     expect(popupHtml).toContain('id="confirm-scope-change"');
     expect(popupHtml).toContain('role="status"');

@@ -180,7 +180,7 @@
   "popupActionsTitle": { "message": "Действия" },
   "popupProxyThisHostname": { "message": "Направить домен через прокси" },
   "popupDirectThisHostname": { "message": "Направить домен напрямую" },
-  "popupExactScopeCopy": { "message": "Применяется только к этому точному домену." },
+  "popupNewRuleScopeCopy": { "message": "Применяется к этому домену и его поддоменам." },
   "popupChangeScope": { "message": "Изменить область" },
   "popupRemoveExactRule": { "message": "Удалить точное правило" },
   "popupRuleScopeLabel": { "message": "Область правила" },

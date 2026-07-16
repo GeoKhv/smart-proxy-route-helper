@@ -27,7 +27,7 @@ Popup:
 - Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy is disabled or invalid.
 - Show `Conflicting rules` when legacy synced data contains both actions for the effective hostname/scope target, state which deterministic action is temporarily effective, and direct the user to Options for repair.
 - Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
-- Keep every Popup quick action exact-scope. A standard `www.` directly before the registrable domain is canonicalized to that registrable domain; `www1`, `www2`, nested `www`, and arbitrary subdomains remain distinct hostnames.
+- Default every Popup quick action to hostname-and-subdomains scope. A standard `www.` directly before the registrable domain is canonicalized to that registrable domain; `www1`, `www2`, nested `www`, and arbitrary subdomains remain distinct hostnames.
 - Offer `Change scope` for an exact rule, preserve its action, show safe PSL-aware scope choices and a coverage/conflict preview, and require confirmation before one atomic update.
 - Remove exact current-domain rules only; parent inherited rules must be edited from Options.
 - Start a current-site diagnostic only after the user clicks "Check via proxy".

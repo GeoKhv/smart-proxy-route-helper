@@ -323,24 +323,24 @@ Use a clean profile or disposable test rules. Do not modify unrelated real rules
 
 1. Open `https://child.routing-test.test/` and open the extension popup.
 2. With no matching rule, confirm the primary state is "Not configured" and the explanation is "No matching rule. Default route is direct."
-3. Confirm the exact-host quick-action text is "Proxy this hostname" / "Route this hostname directly" and the microcopy says "Applies to this exact hostname only."
+3. Confirm the quick-action text is "Proxy this hostname" / "Route this hostname directly" and the microcopy says "Applies to this hostname and its subdomains."
 4. Click "Proxy this hostname".
 5. Confirm the primary state updates immediately to "Through proxy" with "Exact rule for child.routing-test.test" and the rule is stored with:
 
 - `domain: "child.routing-test.test"`.
-- `includeSubdomains: false`.
+- `includeSubdomains: true`.
 - `action: "proxy"`.
 - `mode: "proxy"`.
 - `source: "manual"`.
 
-6. Click "Change scope", choose Parent domain and all subdomains, and confirm the preview proposes `routing-test.test` plus subdomains while preserving Proxy.
+6. Open Options and confirm a newly added manual rule defaults to This hostname and its subdomains; explicitly choose Exact hostname only for a separate Direct exception when needed.
 7. Confirm the change. Verify no duplicate `child.routing-test.test` rule remains and the popup immediately shows "Through proxy" with "Covered by parent rule routing-test.test".
 8. Open Options and edit that same rule to Direct. Preview and Save; confirm the popup then shows "Direct" with "Direct through parent rule routing-test.test".
 9. Edit the parent back to Proxy.
 10. On `child.routing-test.test`, use "Route this hostname directly" to add an exact Direct exception. Confirm "Direct" / "Exact direct rule for child.routing-test.test" wins.
 11. Click "Remove exact rule" and confirm the status immediately returns to "Through proxy" / "Covered by parent rule routing-test.test".
 12. Disable or invalidate the local proxy while the Proxy parent still matches. Confirm the popup shows a warning state such as "Proxy unavailable", not a healthy "Through proxy" state.
-13. In a clean-profile/demo context, open `https://www.linkedin.com/`, use a Popup quick action, and confirm the stored rule remains exact `www.linkedin.com` with `includeSubdomains: false` until Change scope is explicitly confirmed.
+13. In a clean-profile/demo context, open `https://www.linkedin.com/`, use a Popup quick action, and confirm the stored canonical rule is `linkedin.com` with `includeSubdomains: true`.
 14. Confirm the popup status uses visible text as well as the colored/outlined indicator and exposes an accessible status label.
 15. Remove only the disposable `routing-test.test` rules created by this smoke.
 16. Open unsupported pages such as `chrome://extensions`, `chrome-extension://...`, `file:///...`, `about:blank`, `http://localhost:3000`, and a private or internal host if practical. Confirm the popup shows a clear unsupported/protected-page message and does not offer to add a rule.

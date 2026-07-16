@@ -4,6 +4,10 @@ export type RuleAction = "proxy" | "direct";
 
 export type RuleSource = "manual" | "diagnostic" | "import";
 
+export const DEFAULT_NEW_RULE_SCOPE = "include-subdomains" as const;
+
+export const DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS = DEFAULT_NEW_RULE_SCOPE === "include-subdomains";
+
 export type DomainRule = {
   id?: string;
   domain: string;

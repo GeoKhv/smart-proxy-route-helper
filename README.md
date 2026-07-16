@@ -12,7 +12,7 @@ Release or Chrome Web Store update.
 The current runtime includes:
 
 - Options UI for device-specific local proxy configuration, synced editable proxy/direct rules, explicit scope previews, and redundant-rule cleanup suggestions.
-- Popup UI with a prominent effective-route status and explicit exact-host proxy/direct actions.
+- Popup UI with a prominent effective-route status and explicit proxy/direct actions that cover a hostname and its subdomains by default.
 - Background PAC runtime application through `chrome.proxy`.
 - Fail-closed matched proxy routing.
 - Manual "Check via proxy" diagnostics.
@@ -50,9 +50,9 @@ export/import and an interface-language preference with `Auto (Chrome)`, `Englis
 choices. The language preference stays in `chrome.storage.local` on the current device.
 
 Current `main` also distinguishes healthy Proxy, explicit Direct, and unconfigured default-Direct states in the Popup.
-Popup quick actions always create exact-host rules. Existing rules can be edited in Options, and an exact rule can be
-expanded to the same hostname's subdomains or to a safe PSL-aware registrable parent only after a visible coverage and
-conflict preview plus explicit confirmation. The existing rule is replaced atomically; it is not deleted and recreated.
+Popup quick actions create hostname-and-subdomains rules by default. Existing rules can be edited in Options, where an
+exact rule can be retained or expanded to a safe PSL-aware registrable parent only after a visible coverage and conflict
+preview plus explicit confirmation. The existing rule is replaced atomically; it is not deleted and recreated.
 
 On current `main`, action-specific recording is automatic after the user clicks "Start recording". The extension temporarily injects bundled request hooks into the page's MAIN world, listens in all accessible frames, and captures `fetch`, XMLHttpRequest, and beacon hostnames when requests are initiated rather than waiting for completion. A continuous resource observer and safe resource-element error listener provide additional signals. The hooks are removed on stop, cancel, timeout, navigation, or tab close. No DevTools inspection or manual URL entry is required or recommended.
 
@@ -111,7 +111,7 @@ Configure and use the MVP:
 2. Configure the local proxy scheme, host, and port for this device.
 3. Open a supported `http` or `https` site.
 4. Open the extension popup.
-5. Use "Proxy this hostname" or "Route this hostname directly" to add an exact-host rule, or run "Check via proxy" first.
+5. Use "Proxy this hostname" or "Route this hostname directly" to add a hostname-and-subdomains rule, or run "Check via proxy" first.
 6. Use "Change scope" on an exact rule or Edit in Options to preview and confirm a broader safe scope without delete/re-add.
 7. Click "Preview related domains" after the page is loaded to inspect transient related-domain suggestions, or click "Start recording" before a page action and "Stop and preview" afterward.
 8. Select only the related domains you want and click the separate add action.
@@ -169,7 +169,7 @@ The MVP runtime provides a small manual PAC manager:
 
 - Add, edit, disable, and remove proxy rules and direct exceptions manually.
 - Show Proxy exact/parent, Direct exact/parent, and unconfigured default-Direct states without relying on color alone.
-- Keep Popup quick actions exact-host-only, including for `www.*` hostnames.
+- Default Popup quick actions to hostname-and-subdomains rules, including for canonicalized `www.*` hostnames.
 - Preview safe PSL-aware scope expansion, conflicts, preserved child exceptions, and potential redundancy before saving.
 - Replace an edited rule atomically in one synced-settings write while preserving its stable identity, source, and creation time.
 - Sync domain rules with `chrome.storage.sync`.

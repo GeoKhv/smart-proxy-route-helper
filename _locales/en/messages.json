@@ -180,7 +180,7 @@
   "popupActionsTitle": { "message": "Actions" },
   "popupProxyThisHostname": { "message": "Proxy this hostname" },
   "popupDirectThisHostname": { "message": "Route this hostname directly" },
-  "popupExactScopeCopy": { "message": "Applies to this exact hostname only." },
+  "popupNewRuleScopeCopy": { "message": "Applies to this hostname and its subdomains." },
   "popupChangeScope": { "message": "Change scope" },
   "popupRemoveExactRule": { "message": "Remove exact rule" },
   "popupRuleScopeLabel": { "message": "Rule scope" },
