@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current `main` architecture at source version `0.3.0`. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the current `main` architecture at development version `0.3.1`. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 ## Design Principles
 

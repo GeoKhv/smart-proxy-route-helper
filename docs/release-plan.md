@@ -1,9 +1,11 @@
 # Release Plan
 
 This repository has moved beyond the documentation-only bootstrap phase. Versions `v0.1.0`,
-`v0.2.0`, and `v0.3.0` are public GitHub releases. Version `v0.3.0` is the current source/release
-baseline and has been submitted to Chrome Web Store for review; Store publication of `v0.3.0` is
-not claimed. The version sections below preserve the staged product plan and its guardrails.
+`v0.2.0`, and `v0.3.0` are public GitHub releases. Version `v0.3.0` is the latest immutable release
+and has been submitted to Chrome Web Store for review; Store publication of `v0.3.0` is not
+claimed. Current `main` is development version `0.3.1`; its post-release fixes have not been
+published as a new GitHub Release or Store update. The version sections below preserve the staged
+product plan and its guardrails.
 
 ## v0.1: Manual PAC MVP
 
