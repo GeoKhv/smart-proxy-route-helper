@@ -5,7 +5,7 @@ import { isDenylistedHost } from "../rules/denylist";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { getRouteTargetKey } from "../rules/routeTarget";
 import { createDefaultLocalSettings, createDefaultSyncSettings } from "./defaults";
-import type { DeviceProxySettings, DiagnosticsSettings, LocalSettings, SyncSettings } from "./storageTypes";
+import type { DeviceProxySettings, DiagnosticsSettings, LanguagePreference, LocalSettings, SyncSettings } from "./storageTypes";
 
 const validRuleSources = new Set<RuleSource>(["manual", "diagnostic", "import"]);
 const validRuleActions = new Set<RuleAction>(["proxy", "direct"]);
@@ -140,6 +140,10 @@ function sanitizeDiagnostics(input: unknown): DiagnosticsSettings {
   };
 }
 
+function sanitizeLanguage(input: unknown): LanguagePreference {
+  return input === "en" || input === "ru" ? input : "auto";
+}
+
 export function sanitizeSyncSettings(input: unknown): SyncSettings {
   if (!isRecord(input)) {
     return createDefaultSyncSettings();
@@ -160,6 +164,7 @@ export function sanitizeLocalSettings(input: unknown): LocalSettings {
 
   return {
     deviceProxy: sanitizeDeviceProxy(input.deviceProxy),
-    diagnostics: sanitizeDiagnostics(input.diagnostics)
+    diagnostics: sanitizeDiagnostics(input.diagnostics),
+    ...(input.language !== undefined ? { language: sanitizeLanguage(input.language) } : {})
   };
 }

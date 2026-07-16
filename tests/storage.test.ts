@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getLocalSettings, setLocalSettings, updateLocalSettings } from "../src/storage/localStore";
 import {
   addSyncRules,
+  applySyncRuleChanges,
   getSyncSettings,
   resolveSyncRouteTargetConflict,
   setSyncSettings,
@@ -464,9 +465,64 @@ describe("sync storage settings", () => {
     expect(storage.setCount()).toBe(1);
     expect(storage.dump().rules).toEqual([action === "proxy" ? proxy : direct]);
   });
+
+  it("expands an existing rule and adds a new rule in one atomic sync write", async () => {
+    const exact = {
+      ...manualRule("wikipedia.org", false),
+      id: "wikipedia-rule",
+      source: "import" as const,
+      createdAt: "2026-07-01T00:00:00.000Z"
+    };
+    const storage = createMemoryStorage({ rules: [exact] });
+
+    const result = await applySyncRuleChanges(
+      [
+        {
+          ruleId: "wikipedia-rule",
+          proposed: { domain: "wikipedia.org", includeSubdomains: true, action: "proxy" }
+        }
+      ],
+      [
+        {
+          ...manualRule("cdn.example.net", false),
+          source: "diagnostic" as const
+        }
+      ],
+      storage
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      expandedRules: [{ id: "wikipedia-rule", includeSubdomains: true, source: "import", createdAt: "2026-07-01T00:00:00.000Z" }],
+      addedRules: [{ domain: "cdn.example.net", source: "diagnostic" }]
+    });
+    expect(storage.setCount()).toBe(1);
+    expect(storage.dump().rules).toHaveLength(2);
+  });
 });
 
 describe("local storage settings", () => {
+  it("stores the interface language locally and leaves sync storage untouched", async () => {
+    const localStorage = createMemoryStorage();
+    const syncStorage = createMemoryStorage();
+
+    await setLocalSettings(
+      {
+        deviceProxy: { enabled: false, config: null },
+        diagnostics: { enabled: false },
+        language: "ru"
+      },
+      localStorage
+    );
+
+    await expect(getLocalSettings(localStorage)).resolves.toMatchObject({ language: "ru" });
+    expect(localStorage.dump()).toMatchObject({ language: "ru" });
+    expect(syncStorage.dump()).toEqual({});
+
+    await updateLocalSettings({ language: "en" }, localStorage);
+    await expect(getLocalSettings(localStorage)).resolves.toMatchObject({ language: "en" });
+  });
+
   it("keeps device proxy settings local-only", async () => {
     const syncStorage = createMemoryStorage();
     const localStorage = createMemoryStorage();

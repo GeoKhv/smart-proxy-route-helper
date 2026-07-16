@@ -1,7 +1,7 @@
 import { sanitizeLocalSettings } from "./sanitize";
 import type { LocalSettings, SettingsUpdate, StorageAreaAdapter } from "./storageTypes";
 
-const localStorageKeys = ["deviceProxy", "diagnostics"] as const;
+const localStorageKeys = ["deviceProxy", "diagnostics", "language"] as const;
 
 function getChromeLocalStorage(): StorageAreaAdapter {
   return chrome.storage.local;

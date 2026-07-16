@@ -2,6 +2,13 @@
   "extensionName": { "message": "Smart Proxy Route Helper" },
   "extensionDescription": { "message": "Routes selected sites through your local proxy while all other sites connect directly." },
   "optionsDocumentTitle": { "message": "Smart Proxy Route Helper Options" },
+  "optionsInterfaceTitle": { "message": "Interface" },
+  "optionsInterfaceDescription": { "message": "Choose the language used by the Popup and Options pages. Auto follows Chrome on this device; the choice is stored locally." },
+  "optionsLanguageLabel": { "message": "Interface language" },
+  "optionsLanguageAuto": { "message": "Auto (Chrome)" },
+  "optionsLanguageEnglish": { "message": "English" },
+  "optionsLanguageRussian": { "message": "Русский" },
+  "optionsLanguageSaveFailed": { "message": "Could not save the interface language." },
   "commonProxy": { "message": "Proxy" },
   "commonDirect": { "message": "Direct" },
   "commonEdit": { "message": "Edit" },
@@ -369,8 +376,26 @@
   "popupRelatedGroupStrong": { "message": "Strong candidates" },
   "popupRelatedGroupMedium": { "message": "Review manually" },
   "popupRelatedGroupCovered": { "message": "Already covered" },
+  "popupRelatedGroupConflict": { "message": "Needs review" },
   "popupRelatedGroupIgnored": { "message": "Ignored" },
   "popupRelatedNotCovered": { "message": "not covered yet" },
+  "popupRelatedExactRuleExists": {
+    "message": "Exact rule already exists for $HOSTNAME$; this would extend it to subdomains.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
+  "popupRelatedActionConflict": {
+    "message": "An exact rule already exists for $HOSTNAME$ with a different action; no automatic change was made.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
+  "popupRelatedExpanded": { "message": "Expanded" },
+  "popupRelatedExpand": { "message": "Expand rule to include subdomains" },
+  "popupRelatedExpandedAria": {
+    "message": "$HOSTNAME$ was expanded to include subdomains",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
   "popupRelatedAlreadyCovered": { "message": "already covered" },
   "popupRelatedCoveredBy": {
     "message": "already covered by $HOSTNAME$",
@@ -473,6 +498,27 @@
     "message": "Added synced proxy route for $HOSTNAMES$.",
     "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
     "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedExpandedRoute": {
+    "message": "Expanded the synced $ACTION$ route for $HOSTNAME$ to include subdomains.",
+    "description": "Popup UI message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "proxy" },
+      "hostname": { "content": "$2", "example": "wikipedia.org" }
+    }
+  },
+  "popupRelatedExpandedRoutes": {
+    "message": "Expanded synced routes to include subdomains for $HOSTNAMES$.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "wikipedia.org, example.org" } }
+  },
+  "popupRelatedAddedAndExpanded": {
+    "message": "Added $ADDED$ synced route(s) and expanded $EXPANDED$ existing route(s).",
+    "description": "Popup UI message. ADDED and EXPANDED are displayed numeric counts.",
+    "placeholders": {
+      "added": { "content": "$1", "example": "2" },
+      "expanded": { "content": "$2", "example": "1" }
+    }
   },
   "popupRelatedPreviewIntro": {
     "message": "Related-domain preview found candidates. No rules were saved yet. $DETAILS$.",

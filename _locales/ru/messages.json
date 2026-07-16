@@ -2,6 +2,13 @@
   "extensionName": { "message": "Smart Proxy Route Helper" },
   "extensionDescription": { "message": "Направляет выбранные сайты через локальный прокси, а остальные открывает напрямую." },
   "optionsDocumentTitle": { "message": "Настройки Smart Proxy Route Helper" },
+  "optionsInterfaceTitle": { "message": "Интерфейс" },
+  "optionsInterfaceDescription": { "message": "Выберите язык страниц Popup и Options. Режим «Автоматически» использует язык Chrome на этом устройстве; выбор хранится локально." },
+  "optionsLanguageLabel": { "message": "Язык интерфейса" },
+  "optionsLanguageAuto": { "message": "Автоматически (Chrome)" },
+  "optionsLanguageEnglish": { "message": "English" },
+  "optionsLanguageRussian": { "message": "Русский" },
+  "optionsLanguageSaveFailed": { "message": "Не удалось сохранить язык интерфейса." },
   "commonProxy": { "message": "Прокси" },
   "commonDirect": { "message": "Напрямую" },
   "commonEdit": { "message": "Изменить" },
@@ -369,8 +376,26 @@
   "popupRelatedGroupStrong": { "message": "Надёжные кандидаты" },
   "popupRelatedGroupMedium": { "message": "Проверить вручную" },
   "popupRelatedGroupCovered": { "message": "Уже охвачены" },
+  "popupRelatedGroupConflict": { "message": "Требует проверки" },
   "popupRelatedGroupIgnored": { "message": "Игнорируются" },
   "popupRelatedNotCovered": { "message": "пока не охвачен" },
+  "popupRelatedExactRuleExists": {
+    "message": "Точное правило для $HOSTNAME$ уже существует; это действие расширит его на поддомены.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
+  "popupRelatedActionConflict": {
+    "message": "Для $HOSTNAME$ уже существует точное правило с другим действием; автоматическое изменение не выполнено.",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
+  "popupRelatedExpanded": { "message": "Расширено" },
+  "popupRelatedExpand": { "message": "Расширить правило на поддомены" },
+  "popupRelatedExpandedAria": {
+    "message": "Правило $HOSTNAME$ расширено на поддомены",
+    "description": "Popup UI message. HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": { "hostname": { "content": "$1", "example": "wikipedia.org" } }
+  },
   "popupRelatedAlreadyCovered": { "message": "уже охвачен" },
   "popupRelatedCoveredBy": {
     "message": "уже охвачен правилом $HOSTNAME$",
@@ -473,6 +498,27 @@
     "message": "Добавлен синхронизируемый прокси-маршрут для $HOSTNAMES$.",
     "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
     "placeholders": { "hostnames": { "content": "$1", "example": "api.example.com" } }
+  },
+  "popupRelatedExpandedRoute": {
+    "message": "Синхронизируемый маршрут $ACTION$ для $HOSTNAME$ расширен на поддомены.",
+    "description": "Popup UI message. ACTION is the localized route action; HOSTNAME is a normalized hostname and must remain unchanged.",
+    "placeholders": {
+      "action": { "content": "$1", "example": "через прокси" },
+      "hostname": { "content": "$2", "example": "wikipedia.org" }
+    }
+  },
+  "popupRelatedExpandedRoutes": {
+    "message": "Синхронизируемые маршруты для $HOSTNAMES$ расширены на поддомены.",
+    "description": "Popup UI message. HOSTNAMES is a displayed hostname list and must remain unchanged.",
+    "placeholders": { "hostnames": { "content": "$1", "example": "wikipedia.org, example.org" } }
+  },
+  "popupRelatedAddedAndExpanded": {
+    "message": "Добавлено новых синхронизируемых маршрутов: $ADDED$; расширено существующих: $EXPANDED$.",
+    "description": "Popup UI message. ADDED and EXPANDED are displayed numeric counts.",
+    "placeholders": {
+      "added": { "content": "$1", "example": "2" },
+      "expanded": { "content": "$2", "example": "1" }
+    }
   },
   "popupRelatedPreviewIntro": {
     "message": "Найдены кандидаты в связанные домены. Правила ещё не сохранены. $DETAILS$.",

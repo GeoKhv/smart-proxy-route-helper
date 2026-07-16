@@ -1,6 +1,6 @@
 # Manual Smoke Test
 
-This checklist covers the current Manifest V3 extension scaffold, English/Russian Chrome i18n UI, Popup current-site proxy/direct rule management, manual current-site diagnostics, Options configuration UI, redundant-rule cleanup, Backup and restore, and runtime PAC application.
+This checklist covers the current Manifest V3 extension scaffold, English/Russian Chrome i18n UI with the local Auto/English/Russian selector, Popup current-site proxy/direct rule management, manual current-site diagnostics, Options configuration UI, redundant-rule cleanup, Backup and restore, and runtime PAC application.
 
 ## v0.2.0 Release Gate Summary
 
@@ -69,16 +69,17 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 6. Select one and then two safe candidates when available. Confirm the sticky action says `Add 1 selected domain` and `Add 2 selected domains`, remains fully visible, and does not cover the final candidate row.
 7. Expand `More actions`, verify its buttons, then use `Back to site status` and confirm the main view is restored.
 8. Open Options from the popup and confirm the local proxy, route rules, conflict repair, classification overrides, cleanup, and Backup and restore sections are in English.
-9. Trigger safe validation and preview-only conflict/import paths. Confirm dynamic hostnames remain intact and the validation, warning, and preview summaries are in English.
-10. Start action-specific recording and confirm the starting and active statuses are in English. Reopen the Popup while recording and confirm the restored active status is still English.
-11. Cancel one recording, then start another and stop it after a safe page action. Confirm cancel, completed/preview, no-hosts, expired/reload, and any reachable error states use English text with intact hostnames and no raw message keys.
+9. In the Interface section, select `Русский`, confirm Options rerenders immediately, close and reopen the Popup, and confirm it opens in Russian. Select `Auto (Chrome)` afterward and verify it follows the profile locale.
+10. Trigger safe validation and preview-only conflict/import paths. Confirm dynamic hostnames remain intact and the validation, warning, and preview summaries are in English.
+11. Start action-specific recording and confirm the starting and active statuses are in English. Reopen the Popup while recording and confirm the restored active status is still English.
+12. Cancel one recording, then start another and stop it after a safe page action. Confirm cancel, completed/preview, no-hosts, expired/reload, and any reachable error states use English text with intact hostnames and no raw message keys.
 
 ### Russian Profile
 
 1. Open the same safe public demo page in the separate Russian temporary profile and open the extension from the toolbar.
 2. Confirm the Popup, route state, explanations, loading/error states, recording controls, and Related domains UI are in Russian; the manifest name may remain the product name.
 3. Confirm the standard labels use consistent product terms, including `Через прокси`, `Напрямую`, `Не настроено`, `Прокси недоступен`, `Конфликт правил`, `Связанные домены`, `Другие действия`, `Вернуться к статусу сайта`, and `Добавлено` where those states are available.
-4. Confirm exact and parent candidate actions preserve ordinary subdomains, for example `Добавить status.openai.com` and `Добавить wikipedia.org и поддомены`; a standard `www.` candidate is shown as its canonical registrable domain.
+4. Confirm exact and parent candidate actions preserve ordinary subdomains, for example `Добавить status.openai.com` and `Добавить wikipedia.org и поддомены`; when an exact same-action rule already exists, confirm the primary action is `Расширить правило на поддомены` and the existing rule is updated in place; a standard `www.` candidate is shown as its canonical registrable domain.
 5. Verify the selected-domain action for fixture counts 1, 2, 5, 11, 21, 22, 25, 111, and 112. Expected endings are respectively `домен`, `домена`, `доменов`, `доменов`, `домен`, `домена`, `доменов`, `доменов`, and `доменов`.
 6. Confirm `Другие действия` expands, `Вернуться к статусу сайта` works, the sticky action is not clipped, long labels wrap without leaving button boundaries, and no control overlaps another control.
 7. Open Options from the popup and confirm every main section, label, action, validation message, conflict repair action, export/import summary, and empty state is in Russian.
@@ -91,7 +92,7 @@ Use two separate disposable temporary profiles: one with English Chrome UI and o
 1. Confirm source `manifest.json` has `default_locale: "en"` and uses `__MSG_extensionName__` / `__MSG_extensionDescription__`.
 2. Confirm `dist/_locales/en/messages.json` and `dist/_locales/ru/messages.json` exist after the production build and have matching key sets.
 3. Start Chrome with an unsupported UI locale in a disposable profile if practical and confirm the extension falls back to English.
-4. Confirm changing the browser locale, rather than extension storage, controls the language. No language selector or language storage key should exist.
+4. Confirm `Auto (Chrome)` follows the browser locale, while `English` and `Русский` override it. Confirm the selected value is stored in `chrome.storage.local`, is absent from `chrome.storage.sync`, and persists after reopening Options.
 5. Confirm localization causes no translation network request and adds no permission, host permission, persistent content script, backend, telemetry, or remote executable code.
 
 ## WWW Canonicalization Checks

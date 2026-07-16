@@ -6,8 +6,10 @@ import englishMessages from "../_locales/en/messages.json";
 import russianMessages from "../_locales/ru/messages.json";
 import {
   getMessage,
+  getUiLocale,
   localizedMessage,
   selectPluralForm,
+  setLanguagePreference,
   setI18nAdapterForTests,
   type I18nAdapter
 } from "../src/i18n/i18n";
@@ -53,10 +55,32 @@ function catalogAdapter(catalog: LocaleCatalog, language: string): I18nAdapter {
 
 afterEach(() => {
   setI18nAdapterForTests(null);
+  setLanguagePreference("auto");
   vi.restoreAllMocks();
 });
 
 describe("Chrome i18n infrastructure", () => {
+  it("follows Chrome locale by default and supports local manual overrides", () => {
+    setI18nAdapterForTests(catalogAdapter(englishMessages as LocaleCatalog, "en-US"));
+    setLanguagePreference("auto");
+    expect(getUiLocale()).toBe("en-US");
+    expect(getMessage("optionsInterfaceTitle")).toBe("Interface");
+
+    setI18nAdapterForTests(catalogAdapter(russianMessages as LocaleCatalog, "ru-RU"));
+    setLanguagePreference("auto");
+    expect(getUiLocale()).toBe("ru-RU");
+    expect(getMessage("optionsInterfaceTitle")).toBe("Интерфейс");
+
+    setLanguagePreference("en");
+    expect(getUiLocale()).toBe("en");
+    expect(getMessage("optionsInterfaceTitle")).toBe("Interface");
+
+    setLanguagePreference("ru");
+    expect(getUiLocale()).toBe("ru");
+    expect(getMessage("optionsInterfaceTitle")).toBe("Интерфейс");
+    expect(getMessage("popupRelatedExpandedAria", ["wikipedia.org"])).toContain("wikipedia.org");
+  });
+
   it("keeps valid English and Russian catalogs with synchronized key sets", async () => {
     const englishRaw = await readFile(resolve(__dirname, "../_locales/en/messages.json"), "utf8");
     const russianRaw = await readFile(resolve(__dirname, "../_locales/ru/messages.json"), "utf8");

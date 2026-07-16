@@ -5,6 +5,7 @@ import {
   localizedMessage,
   localizeDocument,
   resolveLocalizedMessage,
+  setLanguagePreference,
   selectPluralForm,
   type MessageKey
 } from "../i18n/i18n";
@@ -18,6 +19,7 @@ import {
   getRuleScopeOptions,
   getRuleStableId,
   planRuleEdit,
+  replaceRuleAtomically,
   type RuleEditPlan,
   type RuleScope
 } from "../rules/ruleEditing";
@@ -56,7 +58,13 @@ import type {
   RelatedDomainRouteTargetReason
 } from "../diagnostics/relatedDomainCandidates";
 import { getLocalSettings } from "../storage/localStore";
-import { addSyncRules, getSyncSettings, updateSyncRule, updateSyncSettings } from "../storage/syncStore";
+import {
+  addSyncRules,
+  applySyncRuleChanges,
+  getSyncSettings,
+  updateSyncRule,
+  updateSyncSettings
+} from "../storage/syncStore";
 import type { DeviceProxySettings, SyncSettings } from "../storage/storageTypes";
 
 type MessageKind = "success" | "error" | "neutral";
@@ -158,7 +166,7 @@ export type RelatedDomainPopupResultState =
 
 export type RelatedDomainCandidateCategory = "strong" | "medium" | "ignored";
 
-export type RelatedDomainCandidateGroupKey = "strong" | "medium" | "alreadyCovered" | "ignored";
+export type RelatedDomainCandidateGroupKey = "strong" | "medium" | "alreadyCovered" | "conflict" | "ignored";
 
 export type RelatedDomainCandidateView = {
   category: RelatedDomainCandidateCategory;
@@ -176,6 +184,10 @@ export type RelatedDomainCandidateView = {
   selected: boolean;
   saveable: boolean;
   alreadyCovered: boolean;
+  action?: RuleAction;
+  scopeUpgrade?: boolean;
+  actionConflict?: boolean;
+  expanded?: boolean;
   added?: boolean;
   coveredBy?: string;
   overrideActions: DomainCandidateUserOverrideAction[];
@@ -212,6 +224,7 @@ export type AddSelectedRelatedDomainRulesResult =
       status: "added";
       rules: DomainRule[];
       addedRules: DomainRule[];
+      expandedRules?: DomainRule[];
       skippedDomains: string[];
     }
   | {
@@ -219,6 +232,7 @@ export type AddSelectedRelatedDomainRulesResult =
       status: "none-selected" | "no-new-rules";
       rules: DomainRule[];
       addedRules: [];
+      expandedRules?: [];
       skippedDomains: string[];
     }
   | {
@@ -414,7 +428,8 @@ function relatedDomainOverrideActions(
 function candidateViewFromCandidate(
   candidate: RelatedDomainCandidate,
   category: RelatedDomainCandidateCategory,
-  settings: Pick<SyncSettings, "rules" | "denylist">
+  settings: Pick<SyncSettings, "rules" | "denylist">,
+  action: RuleAction = "proxy"
 ): RelatedDomainCandidateView | null {
   const suggestedRuleDomain = candidate.suggestedRuleDomain ?? candidate.domain;
   const domain = normalizeSafeRelatedDomain(suggestedRuleDomain, settings.denylist);
@@ -423,9 +438,22 @@ function candidateViewFromCandidate(
     return null;
   }
 
-  const coveringRule = findCoveringRouteTargetRule(domain, candidate.suggestedIncludeSubdomains, "proxy", settings.rules);
+  const coveringRule = findCoveringRouteTargetRule(domain, candidate.suggestedIncludeSubdomains, action, settings.rules);
+  const exactRule = settings.rules.find(
+    (rule) => !rule.includeSubdomains && normalizeKnownDomain(rule.domain) === domain
+  );
+  const scopeUpgrade =
+    candidate.suggestedIncludeSubdomains &&
+    exactRule !== undefined &&
+    exactRule.action === action &&
+    coveringRule === undefined;
+  const actionConflict =
+    candidate.suggestedIncludeSubdomains &&
+    exactRule !== undefined &&
+    exactRule.action !== action &&
+    coveringRule === undefined;
   const alreadyCovered = coveringRule !== undefined;
-  const saveable = category !== "ignored" && !alreadyCovered;
+  const saveable = category !== "ignored" && !alreadyCovered && !actionConflict;
   const defaultSelected = category === "strong" && candidate.defaultSelected && saveable;
   const routeTargetReasonLabel = candidate.routeTargetReason
     ? getMessage(relatedDomainRouteTargetReasonMessageKeys[candidate.routeTargetReason])
@@ -447,6 +475,9 @@ function candidateViewFromCandidate(
     selected: defaultSelected,
     saveable,
     alreadyCovered,
+    ...(action !== "proxy" ? { action } : {}),
+    ...(scopeUpgrade ? { scopeUpgrade: true } : {}),
+    ...(actionConflict ? { actionConflict: true } : {}),
     overrideActions: relatedDomainOverrideActions(category, alreadyCovered),
     ...(coveringRule ? { coveredBy: coveringRule.domain } : {})
   };
@@ -462,7 +493,7 @@ function cappedRelatedDomainCandidateViews(
 } {
   const saveableCandidates = candidates.filter((candidate) => candidate.saveable);
   const alreadyCoveredCandidates = candidates.filter(
-    (candidate) => candidate.category !== "ignored" && candidate.alreadyCovered
+    (candidate) => candidate.category !== "ignored" && (candidate.alreadyCovered || candidate.actionConflict)
   );
   const ignoredCandidates = candidates.filter((candidate) => candidate.category === "ignored");
   const visibleSaveableCandidates = saveableCandidates.slice(0, relatedDomainSaveableCandidateLimit);
@@ -485,21 +516,28 @@ export function groupRelatedDomainCandidateViews(
 ): Record<RelatedDomainCandidateGroupKey, RelatedDomainCandidateView[]> {
   return {
     strong: candidates.filter(
-      (candidate) => candidate.category === "strong" && (candidate.saveable || candidate.added)
+      (candidate) => candidate.category === "strong" && (candidate.saveable || candidate.added || candidate.expanded)
     ),
     medium: candidates.filter(
-      (candidate) => candidate.category === "medium" && (candidate.saveable || candidate.added)
+      (candidate) => candidate.category === "medium" && (candidate.saveable || candidate.added || candidate.expanded)
     ),
     alreadyCovered: candidates.filter(
       (candidate) => candidate.category !== "ignored" && candidate.alreadyCovered && !candidate.added
     ),
+    conflict: candidates.filter((candidate) => candidate.category !== "ignored" && candidate.actionConflict),
     ignored: candidates.filter((candidate) => candidate.category === "ignored")
   };
 }
 
 export function relatedDomainAddActionLabel(
-  candidate: Pick<RelatedDomainCandidateView, "domain" | "includeSubdomains">
+  candidate: Pick<RelatedDomainCandidateView, "domain" | "includeSubdomains"> & {
+    scopeUpgrade?: boolean;
+  }
 ): string {
+  if (candidate.scopeUpgrade) {
+    return getMessage("popupRelatedExpand");
+  }
+
   return candidate.includeSubdomains
     ? getMessage("popupRelatedAddParent", [candidate.domain])
     : getMessage("popupRelatedAddExact", [candidate.domain]);
@@ -524,22 +562,28 @@ export function updateRelatedDomainCandidateViewsAfterAdd(
   currentRules: readonly DomainRule[],
   requestedDomains: ReadonlySet<string>,
   addedDomains: ReadonlySet<string>,
-  clearRequestedSelection: boolean
+  clearRequestedSelection: boolean,
+  expandedDomains: ReadonlySet<string> = new Set()
 ): RelatedDomainCandidateView[] {
   return candidates.map((candidate) => {
+    const action = candidate.action ?? "proxy";
     const coveringRule = findCoveringRouteTargetRule(
       candidate.domain,
       candidate.includeSubdomains,
-      "proxy",
+      action,
       currentRules
     );
 
     if (coveringRule) {
+      const expanded = expandedDomains.has(candidate.domain);
+
       return {
         ...candidate,
         selected: false,
         saveable: false,
-        alreadyCovered: true,
+        alreadyCovered: !expanded,
+        scopeUpgrade: false,
+        expanded,
         added: candidate.added === true || addedDomains.has(candidate.domain),
         coveredBy: coveringRule.domain,
         overrideActions: relatedDomainOverrideActions(candidate.category, true)
@@ -1107,6 +1151,27 @@ export function getRelatedDomainSaveActionStatus(
   }
 
   const addedDomains = addResult.addedRules.map((rule) => rule.domain).join(", ");
+  const expandedDomains = (addResult.expandedRules ?? []).map((rule) => rule.domain).join(", ");
+
+  if (addResult.addedRules.length > 0 && (addResult.expandedRules?.length ?? 0) > 0) {
+    return {
+      message: getMessage("popupRelatedAddedAndExpanded", [addResult.addedRules.length, addResult.expandedRules?.length ?? 0]),
+      kind: "success"
+    };
+  }
+
+  if ((addResult.expandedRules?.length ?? 0) > 0) {
+    return {
+      message:
+        addResult.expandedRules?.length === 1
+          ? getMessage("popupRelatedExpandedRoute", [
+              ruleActionLabel(addResult.expandedRules[0].action),
+              expandedDomains
+            ])
+          : getMessage("popupRelatedExpandedRoutes", [expandedDomains]),
+      kind: "success"
+    };
+  }
 
   return {
     message: getMessage(addResult.addedRules.length === 1 ? "popupRelatedAddedRoute" : "popupRelatedAddedRoutes", [addedDomains]),
@@ -1116,7 +1181,8 @@ export function getRelatedDomainSaveActionStatus(
 
 export function buildRelatedDomainPopupView(
   preview: CurrentPageResourceHostsResponse,
-  settings: Pick<SyncSettings, "rules" | "denylist">
+  settings: Pick<SyncSettings, "rules" | "denylist">,
+  action: RuleAction = "proxy"
 ): RelatedDomainPopupView {
   const status = getRelatedDomainPreviewActionStatus(preview);
   const baseSummary = previewSummary(preview);
@@ -1142,13 +1208,13 @@ export function buildRelatedDomainPopupView(
 
   const candidates = [
     ...preview.candidates.strongCandidates.map((candidate) =>
-      candidateViewFromCandidate(candidate, "strong" as const, settings)
+      candidateViewFromCandidate(candidate, "strong" as const, settings, action)
     ),
     ...preview.candidates.mediumCandidates.map((candidate) =>
-      candidateViewFromCandidate(candidate, "medium" as const, settings)
+      candidateViewFromCandidate(candidate, "medium" as const, settings, action)
     ),
     ...preview.candidates.ignoredCandidates.map((candidate) =>
-      candidateViewFromCandidate(candidate, "ignored" as const, settings)
+      candidateViewFromCandidate(candidate, "ignored" as const, settings, action)
     )
   ].filter((candidate): candidate is RelatedDomainCandidateView => candidate !== null);
   const reviewableCandidates = candidates.filter((candidate) => candidate.category !== "ignored");
@@ -1255,6 +1321,7 @@ export function addSelectedRelatedDomainRules(
 
   const rules = [...currentSettings.rules];
   const addedRules: DomainRule[] = [];
+  const expandedRules: DomainRule[] = [];
   const skippedDomains: string[] = [];
   const seenSelectedDomains = new Set<string>();
 
@@ -1272,15 +1339,52 @@ export function addSelectedRelatedDomainRules(
       continue;
     }
 
-    if (findCoveringRouteTargetRule(domain, candidate.includeSubdomains, "proxy", rules)) {
+    const action = candidate.action ?? "proxy";
+    const coveringRule = findCoveringRouteTargetRule(domain, candidate.includeSubdomains, action, rules);
+
+    if (coveringRule) {
       skippedDomains.push(domain);
+      continue;
+    }
+
+    const exactRule = rules.find(
+      (rule) => !rule.includeSubdomains && normalizeKnownDomain(rule.domain) === domain
+    );
+
+    if (candidate.includeSubdomains && exactRule && exactRule.action !== action) {
+      return {
+        ok: false,
+        error: getMessage("ruleActionExistsForDomainScope", [
+          ruleActionDisplayLabel(exactRule.action),
+          domain
+        ])
+      };
+    }
+
+    if (
+      exactRule &&
+      (candidate.scopeUpgrade === true ||
+        (candidate.includeSubdomains && exactRule.action === action && exactRule.includeSubdomains === false))
+    ) {
+      const replacement = replaceRuleAtomically(rules, getRuleStableId(exactRule), {
+        domain,
+        includeSubdomains: true,
+        action
+      });
+
+      if (!replacement.ok) {
+        return { ok: false, error: replacement.error };
+      }
+
+      rules.splice(0, rules.length, ...replacement.rules);
+      expandedRules.push(replacement.updatedRule);
       continue;
     }
 
     const rule: DomainRule = {
       domain,
       includeSubdomains: candidate.includeSubdomains,
-      action: "proxy",
+      action,
       mode: "proxy",
       source,
       createdAt
@@ -1306,7 +1410,7 @@ export function addSelectedRelatedDomainRules(
     addedRules.push(rule);
   }
 
-  if (addedRules.length === 0) {
+  if (addedRules.length === 0 && expandedRules.length === 0) {
     return {
       ok: true,
       status: "no-new-rules",
@@ -1321,6 +1425,7 @@ export function addSelectedRelatedDomainRules(
     status: "added",
     rules,
     addedRules,
+    ...(expandedRules.length > 0 ? { expandedRules } : {}),
     skippedDomains
   };
 }
@@ -1585,6 +1690,7 @@ function candidateGroupTitle(group: RelatedDomainCandidateGroupKey): string {
     strong: getMessage("popupRelatedGroupStrong"),
     medium: getMessage("popupRelatedGroupMedium"),
     alreadyCovered: getMessage("popupRelatedGroupCovered"),
+    conflict: getMessage("popupRelatedGroupConflict"),
     ignored: getMessage("popupRelatedGroupIgnored")
   };
 
@@ -1592,6 +1698,18 @@ function candidateGroupTitle(group: RelatedDomainCandidateGroupKey): string {
 }
 
 function candidateCoverageLabel(candidate: RelatedDomainCandidateView): string {
+  if (candidate.expanded) {
+    return getMessage("popupRelatedExpanded");
+  }
+
+  if (candidate.scopeUpgrade) {
+    return getMessage("popupRelatedExactRuleExists", [candidate.domain]);
+  }
+
+  if (candidate.actionConflict) {
+    return getMessage("popupRelatedActionConflict", [candidate.domain]);
+  }
+
   if (!candidate.alreadyCovered) {
     return getMessage("popupRelatedNotCovered");
   }
@@ -1726,18 +1844,26 @@ function createRelatedDomainCandidateRow(candidate: RelatedDomainCandidateView, 
   content.append(domain, meta);
   row.append(content);
 
-  if (candidate.saveable || candidate.added) {
+  if (candidate.saveable || candidate.added || candidate.expanded) {
     const addButton = document.createElement("button");
 
     addButton.type = "button";
     addButton.className = "candidate-add-action";
-    addButton.textContent = candidate.added ? getMessage("commonAdded") : relatedDomainAddActionLabel(candidate);
-    addButton.disabled = candidate.added === true;
+    addButton.textContent = candidate.added
+      ? getMessage("commonAdded")
+      : candidate.expanded
+        ? getMessage("popupRelatedExpanded")
+        : relatedDomainAddActionLabel(candidate);
+    addButton.disabled = candidate.added === true || candidate.expanded === true;
     addButton.dataset.relatedDomainAdd = candidate.domain;
-    addButton.dataset.state = candidate.added ? "added" : "available";
+    addButton.dataset.state = candidate.added || candidate.expanded ? "added" : "available";
     addButton.setAttribute(
       "aria-label",
-      candidate.added ? getMessage("popupRelatedAddedAria", [candidate.domain]) : relatedDomainAddActionLabel(candidate)
+      candidate.added || candidate.expanded
+        ? candidate.expanded
+          ? getMessage("popupRelatedExpandedAria", [candidate.domain])
+          : getMessage("popupRelatedAddedAria", [candidate.domain])
+        : relatedDomainAddActionLabel(candidate)
     );
     row.append(addButton);
   }
@@ -2174,6 +2300,11 @@ function renderRelatedDomainPreview(view: RelatedDomainPopupView, currentDomain?
   );
   renderRelatedDomainCandidateGroup(
     candidateList,
+    candidateGroupTitle("conflict"),
+    candidateGroups.conflict
+  );
+  renderRelatedDomainCandidateGroup(
+    candidateList,
     candidateGroupTitle("ignored"),
     candidateGroups.ignored
   );
@@ -2480,14 +2611,16 @@ function renderRelatedDomainAddResult(
   settings: SyncSettings,
   requestedDomains: ReadonlySet<string>,
   addedDomains: ReadonlySet<string>,
-  clearRequestedSelection: boolean
+  clearRequestedSelection: boolean,
+  expandedDomains: ReadonlySet<string> = new Set()
 ): void {
   relatedDomainCandidateViews = updateRelatedDomainCandidateViewsAfterAdd(
     relatedDomainCandidateViews,
     settings.rules,
     requestedDomains,
     addedDomains,
-    clearRequestedSelection
+    clearRequestedSelection,
+    expandedDomains
   );
 
   renderSupported(currentDomain, settings, { preserveRelatedDomainPreview: true });
@@ -2560,7 +2693,23 @@ async function handleAddRelatedDomains(
     return;
   }
 
-  const finalAdd = await addSyncRules(addResult.addedRules);
+  const expandedRules = addResult.expandedRules ?? [];
+  const finalAdd =
+    expandedRules.length > 0
+      ? await applySyncRuleChanges(
+          expandedRules.map((rule) => ({
+            ruleId: getRuleStableId(rule),
+            proposed: {
+              domain: rule.domain,
+              includeSubdomains: true,
+              action: rule.action
+            }
+          })),
+          addResult.addedRules
+        )
+      : await addSyncRules(addResult.addedRules).then((result) =>
+          result.ok ? { ...result, expandedRules: [] } : result
+        );
 
   if (!finalAdd.ok) {
     renderSupported(currentResult.domain, finalAdd.settings, { preserveRelatedDomainPreview: true });
@@ -2570,13 +2719,15 @@ async function handleAddRelatedDomains(
 
   const updated = finalAdd.settings;
   const addedDomains = new Set(finalAdd.addedRules.map((rule) => rule.domain));
+  const expandedDomains = new Set(finalAdd.expandedRules.map((rule) => rule.domain));
   const finalSaveStatus = getRelatedDomainSaveActionStatus(
-    finalAdd.addedRules.length > 0
+    finalAdd.addedRules.length > 0 || finalAdd.expandedRules.length > 0
       ? {
           ok: true,
           status: "added",
           rules: updated.rules,
           addedRules: finalAdd.addedRules,
+          expandedRules: finalAdd.expandedRules,
           skippedDomains: [
             ...addResult.skippedDomains,
             ...finalAdd.duplicateRules.map((rule) => rule.domain)
@@ -2587,6 +2738,7 @@ async function handleAddRelatedDomains(
           status: "no-new-rules",
           rules: updated.rules,
           addedRules: [],
+          expandedRules: [],
           skippedDomains: [
             ...addResult.skippedDomains,
             ...finalAdd.duplicateRules.map((rule) => rule.domain)
@@ -2599,7 +2751,8 @@ async function handleAddRelatedDomains(
     updated,
     selectedDomains,
     addedDomains,
-    mode === "batch"
+    mode === "batch",
+    expandedDomains
   );
   setStatus(actionStatus, finalSaveStatus.message, finalSaveStatus.kind);
 }
@@ -2671,7 +2824,9 @@ async function handleSaveDiagnosticRule(): Promise<void> {
   setStatus(actionStatus, getMessage("popupRuleAdded", [getMessage("ruleActionProxyLower"), addResult.domain]), "success");
 }
 
-function initPopupPage(): void {
+async function initPopupPage(): Promise<void> {
+  const localSettings = await getLocalSettings();
+  setLanguagePreference(localSettings.language ?? "auto");
   localizeDocument();
   getElement<HTMLButtonElement>("#change-current-site-scope").addEventListener("click", () => {
     openPopupScopeEditor();
@@ -2857,7 +3012,7 @@ function initPopupPage(): void {
     chrome.runtime.openOptionsPage();
   });
 
-  void refreshPopup().catch((error: unknown) => {
+  await refreshPopup().catch((error: unknown) => {
     setStatus(
       getElement<HTMLElement>("#route-status"),
       error instanceof Error ? error.message : getMessage("popupCouldNotLoad"),
@@ -2867,5 +3022,7 @@ function initPopupPage(): void {
 }
 
 if (typeof document !== "undefined") {
-  document.addEventListener("DOMContentLoaded", initPopupPage);
+  document.addEventListener("DOMContentLoaded", () => {
+    void initPopupPage();
+  });
 }

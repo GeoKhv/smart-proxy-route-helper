@@ -1,4 +1,6 @@
 import englishMessages from "../../_locales/en/messages.json";
+import russianMessages from "../../_locales/ru/messages.json";
+import type { LanguagePreference } from "../storage/storageTypes";
 
 type LocaleMessageEntry = {
   message: string;
@@ -20,6 +22,7 @@ export type I18nAdapter = {
 };
 
 let testAdapter: I18nAdapter | null = null;
+let languagePreference: LanguagePreference = "auto";
 
 function chromeI18nAdapter(): I18nAdapter | null {
   const i18n = globalThis.chrome?.i18n;
@@ -63,7 +66,29 @@ function formatFallback(entry: LocaleMessageEntry, substitutions: readonly Messa
   return result.replaceAll(escapedDollar, "$");
 }
 
+function forcedCatalog(): Record<string, LocaleMessageEntry> | null {
+  if (languagePreference === "en") {
+    return englishMessages as Record<string, LocaleMessageEntry>;
+  }
+
+  if (languagePreference === "ru") {
+    return russianMessages as Record<string, LocaleMessageEntry>;
+  }
+
+  return null;
+}
+
 export function getMessage(key: MessageKey | string, substitutions: readonly MessageSubstitution[] = []): string {
+  const catalog = forcedCatalog();
+
+  if (catalog) {
+    const entry = catalog[key];
+
+    if (entry) {
+      return formatFallback(entry, substitutions);
+    }
+  }
+
   const currentAdapter = adapter();
   const translated = currentAdapter?.getMessage(key, normalizedSubstitutions(substitutions));
 
@@ -112,7 +137,19 @@ export function isLocalizedMessage(input: unknown): input is LocalizedMessage {
 }
 
 export function getUiLocale(): string {
+  if (languagePreference !== "auto") {
+    return languagePreference;
+  }
+
   return adapter()?.getUILanguage?.() || "en";
+}
+
+export function getLanguagePreference(): LanguagePreference {
+  return languagePreference;
+}
+
+export function setLanguagePreference(preference: LanguagePreference): void {
+  languagePreference = preference;
 }
 
 export type PluralForm = "one" | "few" | "many" | "other";

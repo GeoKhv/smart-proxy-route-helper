@@ -1241,6 +1241,215 @@ describe("popup related-domain recording controls", () => {
 });
 
 describe("popup related-domain selected save helper", () => {
+  it("offers an exact Proxy rule as a scope upgrade and preserves its metadata", () => {
+    const exact = {
+      ...manualRule("wikipedia.org", false),
+      id: "wikipedia-rule",
+      source: "import" as const,
+      createdAt: "2026-07-01T00:00:00.000Z"
+    };
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "Preview",
+        currentDomain: "example.com",
+        collectedHosts: ["en.wikipedia.org"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [
+            {
+              domain: "wikipedia.org",
+              reason: "third-party-resource",
+              sourceHosts: ["en.wikipedia.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [exact], denylist: [] }
+    );
+
+    expect(view.candidates[0]).toMatchObject({
+      domain: "wikipedia.org",
+      scopeUpgrade: true,
+      saveable: true,
+      alreadyCovered: false
+    });
+    expect(relatedDomainAddActionLabel(view.candidates[0])).toBe("Expand rule to include subdomains");
+
+    const result = addSelectedRelatedDomainRules(
+      { rules: [exact], denylist: [] },
+      view.candidates,
+      new Set(["wikipedia.org"])
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "added",
+      addedRules: [],
+      expandedRules: [
+        {
+          id: "wikipedia-rule",
+          domain: "wikipedia.org",
+          includeSubdomains: true,
+          action: "proxy",
+          source: "import",
+          createdAt: "2026-07-01T00:00:00.000Z"
+        }
+      ]
+    });
+    expect(result.ok && result.rules).toHaveLength(1);
+  });
+
+  it("offers an exact Direct rule as a Direct scope upgrade when the candidate action matches", () => {
+    const exact = { ...directRule("wikipedia.org", false), id: "direct-rule" };
+    const preview = {
+      status: "success" as const,
+      message: "Preview",
+      currentDomain: "example.com",
+      collectedHosts: ["en.wikipedia.org"],
+      candidates: {
+        currentDomain: "example.com",
+        strongCandidates: [
+          {
+            domain: "wikipedia.org",
+            reason: "third-party-resource" as const,
+            sourceHosts: ["en.wikipedia.org"],
+            sourceHostCount: 1,
+            suggestedIncludeSubdomains: true,
+            defaultSelected: true
+          }
+        ],
+        mediumCandidates: [],
+        ignoredCandidates: []
+      }
+    };
+    const view = buildRelatedDomainPopupView(preview, { rules: [exact], denylist: [] }, "direct");
+    const result = addSelectedRelatedDomainRules(
+      { rules: [exact], denylist: [] },
+      view.candidates,
+      new Set(["wikipedia.org"])
+    );
+
+    expect(view.candidates[0]).toMatchObject({ action: "direct", scopeUpgrade: true });
+    expect(relatedDomainAddActionLabel(view.candidates[0])).toBe("Expand rule to include subdomains");
+    expect(result).toMatchObject({ ok: true, expandedRules: [{ id: "direct-rule", action: "direct" }] });
+  });
+
+  it("handles a scope upgrade together with a normal new candidate in one batch", () => {
+    const exact = { ...manualRule("wikipedia.org", false), id: "wikipedia-rule" };
+    const candidates = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "Preview",
+        currentDomain: "example.com",
+        collectedHosts: ["en.wikipedia.org", "cdn.example.net"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [
+            {
+              domain: "wikipedia.org",
+              reason: "third-party-resource",
+              sourceHosts: ["en.wikipedia.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [
+            {
+              domain: "cdn.example.net",
+              reason: "third-party-resource",
+              sourceHosts: ["cdn.example.net"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: false,
+              defaultSelected: false
+            }
+          ],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [exact], denylist: [] }
+    ).candidates;
+    const result = addSelectedRelatedDomainRules(
+      { rules: [exact], denylist: [] },
+      candidates,
+      new Set(["wikipedia.org", "cdn.example.net"])
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      addedRules: [{ domain: "cdn.example.net" }],
+      expandedRules: [{ id: "wikipedia-rule", includeSubdomains: true }]
+    });
+    expect(result.ok && result.rules).toHaveLength(2);
+  });
+
+  it("does not offer expansion when an include-subdomains rule already covers the candidate", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "Preview",
+        currentDomain: "example.com",
+        collectedHosts: ["en.wikipedia.org"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [
+            {
+              domain: "wikipedia.org",
+              reason: "third-party-resource",
+              sourceHosts: ["en.wikipedia.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [manualRule("wikipedia.org", true)], denylist: [] }
+    );
+
+    expect(view.candidates[0]).toMatchObject({ saveable: false, alreadyCovered: true });
+    expect(view.candidates[0].scopeUpgrade).toBeUndefined();
+    expect(relatedDomainAddActionLabel(view.candidates[0])).toBe("Add wikipedia.org and subdomains");
+  });
+
+  it("preserves conflict semantics for an exact rule with the opposite action", () => {
+    const view = buildRelatedDomainPopupView(
+      {
+        status: "success",
+        message: "Preview",
+        currentDomain: "example.com",
+        collectedHosts: ["en.wikipedia.org"],
+        candidates: {
+          currentDomain: "example.com",
+          strongCandidates: [
+            {
+              domain: "wikipedia.org",
+              reason: "third-party-resource",
+              sourceHosts: ["en.wikipedia.org"],
+              sourceHostCount: 1,
+              suggestedIncludeSubdomains: true,
+              defaultSelected: true
+            }
+          ],
+          mediumCandidates: [],
+          ignoredCandidates: []
+        }
+      },
+      { rules: [directRule("wikipedia.org", false)], denylist: [] }
+    );
+
+    expect(view.candidates[0]).toMatchObject({ actionConflict: true, saveable: false, alreadyCovered: false });
+    expect(groupRelatedDomainCandidateViews(view.candidates).conflict).toHaveLength(1);
+  });
+
   it("names individual and batch add actions with the exact saved scope", () => {
     expect(
       relatedDomainAddActionLabel({

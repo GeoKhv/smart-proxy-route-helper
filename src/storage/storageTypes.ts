@@ -2,6 +2,8 @@ import type { LocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainRule } from "../rules/ruleTypes";
 import type { UserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 
+export type LanguagePreference = "auto" | "en" | "ru";
+
 export type SyncSettings = {
   rules: DomainRule[];
   ignoredDomains: string[];
@@ -21,6 +23,7 @@ export type DiagnosticsSettings = {
 export type LocalSettings = {
   deviceProxy: DeviceProxySettings;
   diagnostics: DiagnosticsSettings;
+  language?: LanguagePreference;
 };
 
 export type StorageAreaAdapter = {

@@ -34,7 +34,8 @@ Popup:
 - Offer to save a diagnostic-sourced synced rule only after a successful check, and only after a second explicit confirmation.
 - Preview related-domain candidates from current-page resource hosts only after the user clicks "Preview related domains".
 - Start, stop, preview, or cancel a diagnostic recording session only after explicit popup clicks.
-- Let the user add one previewed related-domain candidate directly from its row or explicitly select several candidates and save them from a sticky batch action as synced diagnostic-sourced rules.
+- Let the user add one previewed related-domain candidate directly from its row or explicitly select several candidates and save them from a sticky batch action as synced diagnostic-sourced rules. When an exact rule already exists for the same hostname and action, the candidate is an explicit scope upgrade and expands that rule in place; it is not a second route target.
+- Provide a Popup and Options interface-language selector with Auto (Chrome), English, and Russian choices. The preference is stored in `chrome.storage.local`; the bundled `_locales/en` and `_locales/ru` catalogs remain the translation source of truth.
 - Let the user explicitly save personal classification overrides for preview candidates without creating proxy routing rules.
 - Provide quick access to Options.
 
@@ -276,7 +277,7 @@ Current-site diagnostics do not use `webRequest`, `webNavigation`, content scrip
 
 ### Current-Page Related-Domain Preview
 
-The current-page related-domain preview is an explicit, user-invoked diagnostics helper. Preview and saving are separate actions: the extension may collect current-page resource hostnames only after the user clicks "Preview related domains", and it may save a related-domain rule only after the user clicks that candidate's scope-specific add action or saves explicitly selected candidates from the sticky batch action.
+The current-page related-domain preview is an explicit, user-invoked diagnostics helper. Preview and saving are separate actions: the extension may collect current-page resource hostnames only after the user clicks "Preview related domains", and it may save a related-domain rule only after the user clicks that candidate's scope-specific add or expand action or saves explicitly selected candidates from the sticky batch action. An exact same-action rule is expanded atomically to include subdomains while preserving its ID and metadata; an opposite-action exact rule remains a visible conflict and is never changed silently.
 
 The preview flow:
 

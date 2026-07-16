@@ -1,5 +1,5 @@
 import { supportedLocalProxySchemes, validateLocalProxyConfig } from "../proxy/proxyConfig";
-import { getMessage, localizeDocument } from "../i18n/i18n";
+import { getMessage, localizeDocument, setLanguagePreference } from "../i18n/i18n";
 import type { LocalProxyConfig, LocalProxyScheme } from "../proxy/proxyConfig";
 import {
   listUserClassificationOverrideEntries,
@@ -42,7 +42,7 @@ import {
   updateSyncRule,
   updateSyncSettings
 } from "../storage/syncStore";
-import type { DeviceProxySettings, LocalSettings, SyncSettings } from "../storage/storageTypes";
+import type { DeviceProxySettings, LanguagePreference, LocalSettings, SyncSettings } from "../storage/storageTypes";
 
 const suggestedLocalProxyConfig: LocalProxyConfig = {
   scheme: "socks5",
@@ -263,6 +263,28 @@ function renderLocalSettings(settings: LocalSettings): void {
   getElement<HTMLSelectElement>("#proxy-scheme").value = config.scheme;
   getElement<HTMLInputElement>("#proxy-host").value = config.host;
   getElement<HTMLInputElement>("#proxy-port").value = String(config.port);
+  getElement<HTMLSelectElement>("#language-preference").value = settings.language ?? "auto";
+}
+
+async function refreshOptionsLanguageState(): Promise<void> {
+  const [syncSettings, localSettings] = await Promise.all([getSyncSettings(), getLocalSettings()]);
+
+  setLanguagePreference(localSettings.language ?? "auto");
+  localizeDocument();
+  renderLocalSettings(localSettings);
+  renderRules(syncSettings);
+  renderStoredLists(syncSettings);
+  renderClassificationOverrides(syncSettings);
+  renderRuleCleanupSuggestions(syncSettings);
+}
+
+async function handleLanguagePreferenceChange(event: Event): Promise<void> {
+  const preference = (event.target as HTMLSelectElement).value as LanguagePreference;
+
+  setLanguagePreference(preference);
+  localizeDocument();
+  await updateLocalSettings({ language: preference });
+  await refreshOptionsLanguageState();
 }
 
 function localProxyFormInput(): LocalProxyFormInput {
@@ -1099,8 +1121,10 @@ function clearPendingImportPreview(): void {
 }
 
 async function initOptionsPage(): Promise<void> {
+  const localSettings = await getLocalSettings();
+  setLanguagePreference(localSettings.language ?? "auto");
   localizeDocument();
-  const [localSettings] = await Promise.all([getLocalSettings(), refreshSyncView()]);
+  await refreshSyncView();
   renderLocalSettings(localSettings);
   setStatus(getElement<HTMLElement>("#local-proxy-status"), getMessage("optionsLoadedLocal"), "neutral");
   setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsLoadedRules"), "neutral");
@@ -1167,6 +1191,23 @@ async function initOptionsPage(): Promise<void> {
   getElement<HTMLTextAreaElement>("#import-settings-input").addEventListener("input", () => {
     clearPendingImportPreview();
   });
+  getElement<HTMLSelectElement>("#language-preference").addEventListener("change", (event) => {
+    void handleLanguagePreferenceChange(event).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#local-proxy-status"),
+        error instanceof Error ? error.message : getMessage("optionsLanguageSaveFailed"),
+        "error"
+      );
+    });
+  });
+
+  if (chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "local" && changes.language) {
+        void refreshOptionsLanguageState();
+      }
+    });
+  }
 }
 
 if (typeof document !== "undefined") {

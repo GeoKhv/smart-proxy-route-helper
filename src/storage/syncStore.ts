@@ -191,7 +191,109 @@ export type UpdateSyncRuleResult =
       ok: false;
       settings: SyncSettings;
       error: string;
+};
+
+export type SyncRuleChange = {
+  ruleId: string;
+  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action">;
+};
+
+export type ApplySyncRuleChangesResult =
+  | {
+      ok: true;
+      settings: SyncSettings;
+      addedRules: DomainRule[];
+      expandedRules: DomainRule[];
+      duplicateRules: DomainRule[];
+    }
+  | {
+      ok: false;
+      settings: SyncSettings;
+      error: string;
     };
+
+export async function applySyncRuleChanges(
+  changes: readonly SyncRuleChange[],
+  proposedRules: readonly DomainRule[],
+  storageArea: StorageAreaAdapter = getChromeSyncStorage()
+): Promise<ApplySyncRuleChangesResult> {
+  const currentSettings = await getSyncSettings(storageArea);
+  let rules = [...currentSettings.rules];
+  const expandedRules: DomainRule[] = [];
+
+  for (const change of changes) {
+    const currentRule = rules.find((rule) => getRuleStableId(rule) === change.ruleId);
+
+    if (currentRule && findRouteTargetConflictForRule(rules, currentRule)) {
+      return {
+        ok: false,
+        settings: currentSettings,
+        error: getMessage("ruleConflictResolveBeforeEdit")
+      };
+    }
+
+    const replacement = replaceRuleAtomically(rules, change.ruleId, change.proposed);
+
+    if (!replacement.ok) {
+      return {
+        ok: false,
+        settings: currentSettings,
+        error: replacement.error
+      };
+    }
+
+    rules = replacement.rules;
+    expandedRules.push(replacement.updatedRule);
+  }
+
+  const addedRules: DomainRule[] = [];
+  const duplicateRules: DomainRule[] = [];
+
+  for (const proposedRule of proposedRules) {
+    const canonical = canonicalizeHostname(proposedRule.domain);
+    const rule = canonical.ok ? { ...proposedRule, domain: canonical.domain } : proposedRule;
+    const check = checkRouteTargetAddition(rules, rule);
+
+    if (check.status === "conflict") {
+      return {
+        ok: false,
+        settings: currentSettings,
+        error: getMessage("ruleActionExistsForDomainScope", [
+          check.existingRule.action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect"),
+          rule.domain
+        ])
+      };
+    }
+
+    if (check.status === "duplicate") {
+      duplicateRules.push(check.existingRule);
+      continue;
+    }
+
+    rules.push(rule);
+    addedRules.push(rule);
+  }
+
+  if (addedRules.length === 0 && expandedRules.length === 0) {
+    return {
+      ok: true,
+      settings: currentSettings,
+      addedRules,
+      expandedRules,
+      duplicateRules
+    };
+  }
+
+  const settings = await writeSyncSettings({ ...currentSettings, rules }, storageArea);
+
+  return {
+    ok: true,
+    settings,
+    addedRules,
+    expandedRules,
+    duplicateRules
+  };
+}
 
 export async function updateSyncRule(
   ruleId: string,

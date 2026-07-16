@@ -15,7 +15,8 @@ export const defaultLocalSettings: Readonly<LocalSettings> = {
   },
   diagnostics: {
     enabled: false
-  }
+  },
+  language: "auto"
 };
 
 export function createDefaultSyncSettings(): SyncSettings {
@@ -35,6 +36,7 @@ export function createDefaultLocalSettings(): LocalSettings {
     },
     diagnostics: {
       enabled: defaultLocalSettings.diagnostics.enabled
-    }
+    },
+    language: defaultLocalSettings.language
   };
 }

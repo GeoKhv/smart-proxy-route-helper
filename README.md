@@ -33,6 +33,11 @@ The current public GitHub release is `v0.2.0`:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.2.0
 
+The current `main` branch contains the `v0.3.0` release candidate. It is ready for manual
+Chrome Web Store Dashboard dry-run and final human review; it has not been submitted or published.
+The shared Store screenshot set is the five English PNGs documented in
+[store-assets/screenshots/README.md](store-assets/screenshots/README.md), used for every Store locale.
+
 Development on `main` continues after the `v0.1.0` Store submission baseline. Current `main` also includes a local
 Backup and restore Options section for versioned settings export/import; the submitted `v0.1.0` tag and release package
 remain the fixed baseline.
@@ -145,7 +150,7 @@ Package the current build for local release testing:
 npm run package
 ```
 
-The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.2.0.zip`. Run `npm run build` first.
+The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.3.0.zip`. Run `npm run build` first.
 
 ## Dependency Notes
 
@@ -293,6 +298,7 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/release-notes-v0.1.0.md](docs/release-notes-v0.1.0.md): release notes for v0.1.0.
 - [docs/release-readiness-v0.2.0.md](docs/release-readiness-v0.2.0.md): v0.1.0-to-v0.2.0 inventory, compatibility/privacy audit, passed gates, and release-package verification.
 - [docs/release-notes-v0.2.0.md](docs/release-notes-v0.2.0.md): final GitHub release notes for v0.2.0.
+- [store-assets/listing/release-notes-v0.3.0.md](store-assets/listing/release-notes-v0.3.0.md): English and Russian v0.3.0 candidate release notes.
 - [docs/chrome-web-store-update-v0.2.0-draft.md](docs/chrome-web-store-update-v0.2.0-draft.md): unpublished Store update copy, disclosure changes, and screenshot plan.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
