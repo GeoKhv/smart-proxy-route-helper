@@ -252,8 +252,7 @@ export function createProxySettingsController(options: ProxySettingsControllerOp
   const proxySettings = options.proxySettings ?? createChromeProxySettingsAdapter();
   const logger = options.logger ?? console;
   let lastAppliedSignature: string | null = null;
-  let inFlight: Promise<ApplyProxySettingsResult> | null = null;
-  let applyQueued = false;
+  let queueTail: Promise<void> = Promise.resolve();
 
   async function runApply(reason: ProxyApplyReason, force = false): Promise<ApplyProxySettingsResult> {
     const result = await applyProxySettings({
@@ -283,27 +282,16 @@ export function createProxySettingsController(options: ProxySettingsControllerOp
     reason: ProxyApplyReason = "manual",
     applyOptions: { force?: boolean } = {}
   ): Promise<ApplyProxySettingsResult> {
-    if (inFlight) {
-      applyQueued = true;
-      return inFlight;
-    }
+    const request = queueTail.then(() => runApply(reason, applyOptions.force === true));
 
-    inFlight = (async () => {
-      let result = await runApply(reason, applyOptions.force === true);
+    // Keep the queue usable even if an unexpected exception escapes runApply,
+    // while returning each caller the result of its own serialized request.
+    queueTail = request.then(
+      () => undefined,
+      () => undefined
+    );
 
-      while (applyQueued) {
-        applyQueued = false;
-        result = await runApply("storage-change");
-      }
-
-      return result;
-    })();
-
-    try {
-      return await inFlight;
-    } finally {
-      inFlight = null;
-    }
+    return request;
   }
 
   async function handleStorageChange(

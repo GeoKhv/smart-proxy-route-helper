@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { ApplyProxySettingsResult, ProxySettingsAdapter } from "../src/proxy/applyProxySettings";
+import {
+  createProxySettingsController,
+  type ApplyProxySettingsResult,
+  type ProxySettingsAdapter
+} from "../src/proxy/applyProxySettings";
 import {
   buildCurrentSiteDiagnosticPlan,
   runCurrentSiteDiagnostic,
@@ -63,6 +67,18 @@ const successfulRestore: ApplyProxySettingsResult = {
   ruleCount: 1,
   proxyString: "SOCKS5 127.0.0.1:10808"
 };
+
+function deferred(): {
+  promise: Promise<void>;
+  resolve: () => void;
+} {
+  let resolve = () => {};
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
 
 function createMemoryStorage(initialState: Record<string, unknown> = {}): MemoryStorageArea {
   let state = { ...initialState };
@@ -367,6 +383,30 @@ describe("current-site diagnostic runner", () => {
     expect(restoreCalls).toEqual(["restore"]);
   });
 
+  it("returns a restore failure instead of reporting a successful diagnostic", async () => {
+    const proxySettings = createProxySettingsRecorder();
+
+    const result = await runCurrentSiteDiagnostic("https://example.com/", {
+      proxySettings: proxySettings.adapter,
+      syncStorage: createMemoryStorage(),
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      fetcher: async () => ({}),
+      restoreProxySettings: async () => ({
+        ok: false,
+        status: "failed",
+        reason: "diagnostic-restore",
+        attemptedAction: "apply-pac",
+        errorMessage: "restore apply failed"
+      })
+    });
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Diagnostic finished, but proxy routing could not be restored: restore apply failed"
+    });
+    expect(proxySettings.calls).toHaveLength(1);
+  });
+
   it("does not apply or restore proxy settings when local proxy config is missing", async () => {
     const proxySettings = createProxySettingsRecorder();
 
@@ -415,5 +455,121 @@ describe("current-site diagnostic runner", () => {
     });
     expect(proxySettings.calls).toHaveLength(1);
     expect(restoreCalls).toEqual(["restore"]);
+  });
+
+  it("forces permanent routing back after a diagnostic probe overlaps an in-flight regular apply", async () => {
+    const firstApplyStarted = deferred();
+    const releaseFirstApply = deferred();
+    const syncStorage = createMemoryStorage({ rules: [manualRule("permanent.example")] });
+    const localStorage = createMemoryStorage(enabledLocalProxyState());
+    const appliedPacScripts: string[] = [];
+    let activePacScript = "";
+    const proxySettings: ProxySettingsAdapter = {
+      async applyPacScript(pacScript) {
+        activePacScript = pacScript;
+        appliedPacScripts.push(pacScript);
+
+        if (appliedPacScripts.length === 1) {
+          firstApplyStarted.resolve();
+          await releaseFirstApply.promise;
+        }
+      },
+      async clearExtensionSettings() {
+        activePacScript = "";
+      }
+    };
+    const controller = createProxySettingsController({
+      proxySettings,
+      syncStorage,
+      localStorage,
+      logger: {
+        info() {},
+        warn() {}
+      }
+    });
+
+    const regularApply = controller.apply("manual");
+    await firstApplyStarted.promise;
+
+    const diagnostic = runCurrentSiteDiagnostic("https://probe.example/", {
+      proxySettings,
+      syncStorage,
+      localStorage,
+      fetcher: async () => ({}),
+      restoreProxySettings: () => controller.apply("diagnostic-restore", { force: true })
+    });
+
+    await Promise.resolve();
+    releaseFirstApply.resolve();
+
+    await expect(regularApply).resolves.toMatchObject({ reason: "manual", status: "applied-pac" });
+    await expect(diagnostic).resolves.toMatchObject({ status: "proxy_reachable", domain: "probe.example" });
+    expect(appliedPacScripts).toHaveLength(3);
+    expect(runPac(activePacScript, "permanent.example")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(activePacScript, "probe.example")).toBe("DIRECT");
+  });
+
+  it("restores the latest stored routing after a storage change during a diagnostic probe", async () => {
+    const fetchStarted = deferred();
+    const finishFetch = deferred();
+    const storageApplyStarted = deferred();
+    const finishStorageApply = deferred();
+    const syncStorage = createMemoryStorage({ rules: [manualRule("old.example")] });
+    const localStorage = createMemoryStorage(enabledLocalProxyState());
+    const appliedPacScripts: string[] = [];
+    let activePacScript = "";
+    const proxySettings: ProxySettingsAdapter = {
+      async applyPacScript(pacScript) {
+        activePacScript = pacScript;
+        appliedPacScripts.push(pacScript);
+
+        if (appliedPacScripts.length === 3) {
+          storageApplyStarted.resolve();
+          await finishStorageApply.promise;
+        }
+      },
+      async clearExtensionSettings() {
+        activePacScript = "";
+      }
+    };
+    const controller = createProxySettingsController({
+      proxySettings,
+      syncStorage,
+      localStorage,
+      logger: {
+        info() {},
+        warn() {}
+      }
+    });
+
+    await controller.apply("manual");
+    const diagnostic = runCurrentSiteDiagnostic("https://probe.example/", {
+      proxySettings,
+      syncStorage,
+      localStorage,
+      fetcher: async () => {
+        fetchStarted.resolve();
+        await finishFetch.promise;
+        return {};
+      },
+      restoreProxySettings: () => controller.apply("diagnostic-restore", { force: true })
+    });
+
+    await fetchStarted.promise;
+    await syncStorage.set({ rules: [manualRule("latest.example")] });
+    const storageApply = controller.handleStorageChange(
+      { rules: { oldValue: [manualRule("old.example")], newValue: [manualRule("latest.example")] } },
+      "sync"
+    );
+    await storageApplyStarted.promise;
+    finishFetch.resolve();
+    finishStorageApply.resolve();
+
+    await expect(storageApply).resolves.toMatchObject({ reason: "storage-change", status: "applied-pac" });
+    await expect(diagnostic).resolves.toMatchObject({ status: "proxy_reachable", domain: "probe.example" });
+    expect(appliedPacScripts).toHaveLength(4);
+    expect(runPac(activePacScript, "latest.example")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(activePacScript, "old.example")).toBe("DIRECT");
+    expect(runPac(activePacScript, "probe.example")).toBe("DIRECT");
   });
 });

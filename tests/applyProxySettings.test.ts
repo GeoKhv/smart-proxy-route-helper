@@ -34,6 +34,18 @@ const silentLogger = {
   warn() {}
 };
 
+function deferred(): {
+  promise: Promise<void>;
+  resolve: () => void;
+} {
+  let resolve = () => {};
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 function createMemoryStorage(initialState: Record<string, unknown> = {}): MemoryStorageArea {
   let state = { ...initialState };
 
@@ -419,5 +431,131 @@ describe("proxy settings storage change handling", () => {
     }
 
     expect(runPac(call.pacScript, "child.example.com")).toBe("SOCKS5 127.0.0.1:10808");
+  });
+
+  it("resolves concurrent callers with their own operation results and preserves a forced restore", async () => {
+    const firstApplyStarted = deferred();
+    const releaseFirstApply = deferred();
+    const calls: string[] = [];
+    const controller = createProxySettingsController({
+      proxySettings: {
+        async applyPacScript(pacScript) {
+          calls.push(pacScript);
+
+          if (calls.length === 1) {
+            firstApplyStarted.resolve();
+            await releaseFirstApply.promise;
+          }
+        },
+        async clearExtensionSettings() {}
+      },
+      syncStorage: createMemoryStorage({ rules: [manualRule("example.com")] }),
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      logger: silentLogger
+    });
+
+    const regularApply = controller.apply("manual");
+    await firstApplyStarted.promise;
+    const forcedRestore = controller.apply("diagnostic-restore", { force: true });
+
+    releaseFirstApply.resolve();
+
+    await expect(regularApply).resolves.toMatchObject({
+      ok: true,
+      status: "applied-pac",
+      reason: "manual"
+    });
+    await expect(forcedRestore).resolves.toMatchObject({
+      ok: true,
+      status: "applied-pac",
+      reason: "diagnostic-restore"
+    });
+    expect(calls).toHaveLength(2);
+  });
+
+  it("serializes a storage update behind an in-flight apply without returning the later result to the first caller", async () => {
+    const firstApplyStarted = deferred();
+    const releaseFirstApply = deferred();
+    const syncStorage = createMemoryStorage({ rules: [manualRule("old.example")] });
+    const calls: string[] = [];
+    const controller = createProxySettingsController({
+      proxySettings: {
+        async applyPacScript(pacScript) {
+          calls.push(pacScript);
+
+          if (calls.length === 1) {
+            firstApplyStarted.resolve();
+            await releaseFirstApply.promise;
+          }
+        },
+        async clearExtensionSettings() {}
+      },
+      syncStorage,
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      logger: silentLogger
+    });
+
+    const firstApply = controller.apply("manual");
+    await firstApplyStarted.promise;
+    await syncStorage.set({ rules: [manualRule("new.example")] });
+    const storageApply = controller.handleStorageChange(
+      { rules: { oldValue: [manualRule("old.example")], newValue: [manualRule("new.example")] } },
+      "sync"
+    );
+
+    releaseFirstApply.resolve();
+
+    await expect(firstApply).resolves.toMatchObject({ reason: "manual", status: "applied-pac" });
+    await expect(storageApply).resolves.toMatchObject({ reason: "storage-change", status: "applied-pac" });
+    expect(calls).toHaveLength(2);
+    expect(runPac(calls[0], "old.example")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(calls[0], "new.example")).toBe("DIRECT");
+    expect(runPac(calls[1], "new.example")).toBe("SOCKS5 127.0.0.1:10808");
+    expect(runPac(calls[1], "old.example")).toBe("DIRECT");
+  });
+
+  it("reports a failed queued request to its caller and continues processing later requests", async () => {
+    const firstApplyStarted = deferred();
+    const releaseFirstApply = deferred();
+    let callCount = 0;
+    const controller = createProxySettingsController({
+      proxySettings: {
+        async applyPacScript() {
+          callCount += 1;
+
+          if (callCount === 1) {
+            firstApplyStarted.resolve();
+            await releaseFirstApply.promise;
+            throw new Error("first apply failed");
+          }
+        },
+        async clearExtensionSettings() {}
+      },
+      syncStorage: createMemoryStorage({ rules: [manualRule("example.com")] }),
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      logger: silentLogger
+    });
+
+    const failedApply = controller.apply("manual");
+    await firstApplyStarted.promise;
+    const forcedRestore = controller.apply("diagnostic-restore", { force: true });
+    releaseFirstApply.resolve();
+
+    await expect(failedApply).resolves.toMatchObject({
+      ok: false,
+      reason: "manual",
+      errorMessage: "first apply failed"
+    });
+    await expect(forcedRestore).resolves.toMatchObject({
+      ok: true,
+      reason: "diagnostic-restore",
+      status: "applied-pac"
+    });
+    await expect(controller.apply("manual")).resolves.toMatchObject({
+      ok: true,
+      reason: "manual",
+      status: "unchanged"
+    });
+    expect(callCount).toBe(2);
   });
 });
