@@ -1,5 +1,5 @@
-import { checkDenylistedHost } from "../rules/denylist";
 import { canonicalizeHostname } from "../rules/canonicalizeHostname";
+import { checkDenylistedHost } from "../rules/denylist";
 import {
   getMessage,
   localizedMessage,
@@ -30,14 +30,7 @@ import {
 } from "../rules/ruleEditing";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainCandidateUserOverrideAction } from "../domainClassification/domainClassificationTypes";
-import {
-  isDomainCandidateUserOverrideAction,
-  upsertUserClassificationOverride
-} from "../domainClassification/userClassificationOverrides";
-import type {
-  UpsertUserClassificationOverrideResult,
-  UserClassificationOverrides
-} from "../domainClassification/userClassificationOverrides";
+import { isDomainCandidateUserOverrideAction } from "../domainClassification/userClassificationOverrides";
 import {
   currentSiteDiagnosticMessageType,
   isCurrentSiteDiagnosticResponse,
@@ -46,8 +39,6 @@ import {
 import {
   currentPageResourceHostsMessageType,
   isCurrentPageResourceHostsResponse,
-  type CurrentPageResourceHostPreviewSummary,
-  type CurrentPageResourceHostResultState,
   type CurrentPageResourceHostsResponse
 } from "../diagnostics/currentPageResourceHosts";
 import {
@@ -59,9 +50,23 @@ import {
 import type {
   RelatedDomainCandidate,
   RelatedDomainCandidateReason,
-  RelatedDomainRouteTargetConfidence,
   RelatedDomainRouteTargetReason
 } from "../diagnostics/relatedDomainCandidates";
+import {
+  addRelatedDomainClassificationOverride,
+  buildRelatedDomainCandidateCollection,
+  getRelatedDomainPreviewSummary,
+  groupRelatedDomainCandidateViews,
+  isRelatedDomainPreviewCurrent,
+  prepareSelectedRelatedDomainRules,
+  updateRelatedDomainCandidateViewsAfterAdd,
+  type AddRelatedDomainClassificationOverrideResult,
+  type RelatedDomainCandidateCategory,
+  type RelatedDomainCandidateGroupKey,
+  type RelatedDomainCandidateModel,
+  type RelatedDomainPopupResultState,
+  type RelatedDomainPopupSummary
+} from "./relatedDomains/model";
 import { getLocalSettings } from "../storage/localStore";
 import {
   addSyncRules,
@@ -165,42 +170,24 @@ export type RelatedDomainPreviewActionStatus = {
   kind: MessageKind;
 };
 
-export type RelatedDomainPopupResultState =
-  | CurrentPageResourceHostResultState
-  | "hosts_collected_but_all_already_covered";
-
-export type RelatedDomainCandidateCategory = "strong" | "medium" | "ignored";
-
-export type RelatedDomainCandidateGroupKey = "strong" | "medium" | "alreadyCovered" | "conflict" | "ignored";
-
-export type RelatedDomainCandidateView = {
-  category: RelatedDomainCandidateCategory;
-  domain: string;
-  suggestedRuleDomain: string;
-  reasonCode: RelatedDomainCandidateReason;
+export type RelatedDomainCandidateView = RelatedDomainCandidateModel & {
   reason: string;
-  routeTargetReason?: RelatedDomainRouteTargetReason;
-  routeTargetConfidence?: RelatedDomainRouteTargetConfidence;
   routeTargetReasonLabel: string;
-  sourceHosts: string[];
-  sourceHostCount: number;
-  includeSubdomains: boolean;
-  defaultSelected: boolean;
-  selected: boolean;
-  saveable: boolean;
-  alreadyCovered: boolean;
-  action?: RuleAction;
-  scopeUpgrade?: boolean;
-  actionConflict?: boolean;
-  expanded?: boolean;
-  added?: boolean;
-  coveredBy?: string;
-  overrideActions: DomainCandidateUserOverrideAction[];
 };
 
-export type RelatedDomainPopupSummary = CurrentPageResourceHostPreviewSummary & {
-  alreadyCoveredCandidates: number;
-  saveableCandidates: number;
+export type {
+  AddRelatedDomainClassificationOverrideResult,
+  RelatedDomainCandidateCategory,
+  RelatedDomainCandidateGroupKey,
+  RelatedDomainPopupResultState,
+  RelatedDomainPopupSummary
+} from "./relatedDomains/model";
+
+export {
+  addRelatedDomainClassificationOverride,
+  groupRelatedDomainCandidateViews,
+  isRelatedDomainPreviewCurrent,
+  updateRelatedDomainCandidateViewsAfterAdd
 };
 
 export type RelatedDomainPopupView = {
@@ -245,8 +232,6 @@ export type AddSelectedRelatedDomainRulesResult =
       error: string;
     };
 
-export type AddRelatedDomainClassificationOverrideResult = UpsertUserClassificationOverrideResult;
-
 let checkedReachableDomain: string | null = null;
 let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
 let relatedDomainPopupView: RelatedDomainPopupView | null = null;
@@ -258,10 +243,6 @@ let currentDeviceProxySettings: DeviceProxySettings = {
 };
 let pendingPopupScopePlan: Extract<RuleEditPlan, { ok: true }> | null = null;
 let popupScopeRuleId: string | null = null;
-
-const relatedDomainSaveableCandidateLimit = 12;
-const relatedDomainAlreadyCoveredCandidateLimit = 6;
-const relatedDomainIgnoredCandidateLimit = 4;
 
 const relatedDomainReasonMessageKeys: Record<RelatedDomainCandidateReason, MessageKey> = {
   "same-site-subdomain": "popupRelatedReasonSameSite",
@@ -321,20 +302,6 @@ function normalizeKnownDomain(input: string): string | null {
   return normalized.ok ? normalized.domain : null;
 }
 
-export function isRelatedDomainPreviewCurrent(
-  currentDomain: string,
-  previewDomain: string | null
-): boolean {
-  if (!previewDomain) {
-    return false;
-  }
-
-  const normalizedCurrentDomain = normalizeKnownDomain(currentDomain);
-  const normalizedPreviewDomain = normalizeKnownDomain(previewDomain);
-
-  return normalizedCurrentDomain !== null && normalizedCurrentDomain === normalizedPreviewDomain;
-}
-
 function parentRuleForDomain(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
   const parentMatch = findEffectiveDomainRule(
     domain,
@@ -352,48 +319,21 @@ function isStoredDenylistedDomain(domain: string, denylist: readonly string[]): 
   return denylist.some((entry) => domainMatchesRule(domain, { domain: entry, includeSubdomains: true }));
 }
 
-function normalizeSafeRelatedDomain(input: string, denylist: readonly string[] = []): string | null {
-  const normalized = canonicalizeHostname(input);
-
-  if (!normalized.ok) {
-    return null;
-  }
-
-  if (checkDenylistedHost(normalized.domain).denied || isStoredDenylistedDomain(normalized.domain, denylist)) {
-    return null;
-  }
-
-  return normalized.domain;
-}
-
-function findCoveringRule(domain: string, rules: readonly DomainRule[]): DomainRule | undefined {
-  return findEffectiveDomainRule(domain, rules)?.rule;
-}
-
-function routeTargetCoveredByRule(
-  domain: string,
-  includeSubdomains: boolean,
-  action: RuleAction,
-  rule: DomainRule
-): boolean {
-  if (rule.action !== action) {
-    return false;
-  }
-
-  if (!includeSubdomains) {
-    return domainMatchesRule(domain, rule);
-  }
-
-  return rule.includeSubdomains && domainMatchesRule(domain, rule);
-}
-
-function findCoveringRouteTargetRule(
+function findCoveringCurrentSiteRouteTargetRule(
   domain: string,
   includeSubdomains: boolean,
   action: RuleAction,
   rules: readonly DomainRule[]
 ): DomainRule | undefined {
-  return rules.find((rule) => routeTargetCoveredByRule(domain, includeSubdomains, action, rule));
+  return rules.find((rule) => {
+    if (rule.action !== action) {
+      return false;
+    }
+
+    return includeSubdomains
+      ? rule.includeSubdomains && domainMatchesRule(domain, rule)
+      : domainMatchesRule(domain, rule);
+  });
 }
 
 function ruleActionLabel(action: RuleAction): string {
@@ -408,129 +348,6 @@ function suggestedCurrentSiteRuleTarget(domain: string): { domain: string; inclu
   return {
     domain,
     includeSubdomains: DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS
-  };
-}
-
-function relatedDomainOverrideActions(
-  category: RelatedDomainCandidateCategory,
-  alreadyCovered: boolean
-): DomainCandidateUserOverrideAction[] {
-  if (alreadyCovered) {
-    return [];
-  }
-
-  if (category === "ignored") {
-    return ["review-globally", "suggest-for-site"];
-  }
-
-  if (category === "medium") {
-    return ["ignore-globally", "ignore-for-site", "suggest-for-site"];
-  }
-
-  return ["ignore-globally", "ignore-for-site"];
-}
-
-function candidateViewFromCandidate(
-  candidate: RelatedDomainCandidate,
-  category: RelatedDomainCandidateCategory,
-  settings: Pick<SyncSettings, "rules" | "denylist">,
-  action: RuleAction = "proxy"
-): RelatedDomainCandidateView | null {
-  const suggestedRuleDomain = candidate.suggestedRuleDomain ?? candidate.domain;
-  const domain = normalizeSafeRelatedDomain(suggestedRuleDomain, settings.denylist);
-
-  if (!domain) {
-    return null;
-  }
-
-  const coveringRule = findCoveringRouteTargetRule(domain, candidate.suggestedIncludeSubdomains, action, settings.rules);
-  const exactRule = settings.rules.find(
-    (rule) => !rule.includeSubdomains && normalizeKnownDomain(rule.domain) === domain
-  );
-  const scopeUpgrade =
-    candidate.suggestedIncludeSubdomains &&
-    exactRule !== undefined &&
-    exactRule.action === action &&
-    coveringRule === undefined;
-  const actionConflict =
-    candidate.suggestedIncludeSubdomains &&
-    exactRule !== undefined &&
-    exactRule.action !== action &&
-    coveringRule === undefined;
-  const alreadyCovered = coveringRule !== undefined;
-  const saveable = category !== "ignored" && !alreadyCovered && !actionConflict;
-  const defaultSelected = category === "strong" && candidate.defaultSelected && saveable;
-  const routeTargetReasonLabel = candidate.routeTargetReason
-    ? getMessage(relatedDomainRouteTargetReasonMessageKeys[candidate.routeTargetReason])
-    : getMessage(relatedDomainReasonMessageKeys[candidate.reason]);
-
-  return {
-    category,
-    domain,
-    suggestedRuleDomain: domain,
-    reasonCode: candidate.reason,
-    reason: getMessage(relatedDomainReasonMessageKeys[candidate.reason]),
-    ...(candidate.routeTargetReason ? { routeTargetReason: candidate.routeTargetReason } : {}),
-    ...(candidate.routeTargetConfidence ? { routeTargetConfidence: candidate.routeTargetConfidence } : {}),
-    routeTargetReasonLabel,
-    sourceHosts: candidate.sourceHosts,
-    sourceHostCount: candidate.sourceHostCount,
-    includeSubdomains: candidate.suggestedIncludeSubdomains,
-    defaultSelected,
-    selected: defaultSelected,
-    saveable,
-    alreadyCovered,
-    ...(action !== "proxy" ? { action } : {}),
-    ...(scopeUpgrade ? { scopeUpgrade: true } : {}),
-    ...(actionConflict ? { actionConflict: true } : {}),
-    overrideActions: relatedDomainOverrideActions(category, alreadyCovered),
-    ...(coveringRule ? { coveredBy: coveringRule.domain } : {})
-  };
-}
-
-function cappedRelatedDomainCandidateViews(
-  candidates: readonly RelatedDomainCandidateView[]
-): {
-  candidates: RelatedDomainCandidateView[];
-  hiddenSaveableCount: number;
-  hiddenAlreadyCoveredCount: number;
-  hiddenIgnoredCount: number;
-} {
-  const saveableCandidates = candidates.filter((candidate) => candidate.saveable);
-  const alreadyCoveredCandidates = candidates.filter(
-    (candidate) => candidate.category !== "ignored" && (candidate.alreadyCovered || candidate.actionConflict)
-  );
-  const ignoredCandidates = candidates.filter((candidate) => candidate.category === "ignored");
-  const visibleSaveableCandidates = saveableCandidates.slice(0, relatedDomainSaveableCandidateLimit);
-  const visibleAlreadyCoveredCandidates = alreadyCoveredCandidates.slice(0, relatedDomainAlreadyCoveredCandidateLimit);
-  const visibleIgnoredCandidates = ignoredCandidates.slice(0, relatedDomainIgnoredCandidateLimit);
-
-  return {
-    candidates: [...visibleSaveableCandidates, ...visibleAlreadyCoveredCandidates, ...visibleIgnoredCandidates],
-    hiddenSaveableCount: Math.max(0, saveableCandidates.length - visibleSaveableCandidates.length),
-    hiddenAlreadyCoveredCount: Math.max(
-      0,
-      alreadyCoveredCandidates.length - visibleAlreadyCoveredCandidates.length
-    ),
-    hiddenIgnoredCount: Math.max(0, ignoredCandidates.length - visibleIgnoredCandidates.length)
-  };
-}
-
-export function groupRelatedDomainCandidateViews(
-  candidates: readonly RelatedDomainCandidateView[]
-): Record<RelatedDomainCandidateGroupKey, RelatedDomainCandidateView[]> {
-  return {
-    strong: candidates.filter(
-      (candidate) => candidate.category === "strong" && (candidate.saveable || candidate.added || candidate.expanded)
-    ),
-    medium: candidates.filter(
-      (candidate) => candidate.category === "medium" && (candidate.saveable || candidate.added || candidate.expanded)
-    ),
-    alreadyCovered: candidates.filter(
-      (candidate) => candidate.category !== "ignored" && candidate.alreadyCovered && !candidate.added
-    ),
-    conflict: candidates.filter((candidate) => candidate.category !== "ignored" && candidate.actionConflict),
-    ignored: candidates.filter((candidate) => candidate.category === "ignored")
   };
 }
 
@@ -560,50 +377,6 @@ export function relatedDomainBatchAddActionLabel(selectedCount: number): string 
           : "popupRelatedBatchAddOther";
 
   return getMessage(key, [selectedCount]);
-}
-
-export function updateRelatedDomainCandidateViewsAfterAdd(
-  candidates: readonly RelatedDomainCandidateView[],
-  currentRules: readonly DomainRule[],
-  requestedDomains: ReadonlySet<string>,
-  addedDomains: ReadonlySet<string>,
-  clearRequestedSelection: boolean,
-  expandedDomains: ReadonlySet<string> = new Set()
-): RelatedDomainCandidateView[] {
-  return candidates.map((candidate) => {
-    const action = candidate.action ?? "proxy";
-    const coveringRule = findCoveringRouteTargetRule(
-      candidate.domain,
-      candidate.includeSubdomains,
-      action,
-      currentRules
-    );
-
-    if (coveringRule) {
-      const expanded = expandedDomains.has(candidate.domain);
-
-      return {
-        ...candidate,
-        selected: false,
-        saveable: false,
-        alreadyCovered: !expanded,
-        scopeUpgrade: false,
-        expanded,
-        added: candidate.added === true || addedDomains.has(candidate.domain),
-        coveredBy: coveringRule.domain,
-        overrideActions: relatedDomainOverrideActions(candidate.category, true)
-      };
-    }
-
-    if (clearRequestedSelection && requestedDomains.has(candidate.domain)) {
-      return {
-        ...candidate,
-        selected: false
-      };
-    }
-
-    return candidate;
-  });
 }
 
 export function getCurrentTabDomain(url: string | undefined): CurrentTabDomainResult {
@@ -878,7 +651,12 @@ export function addCurrentSiteRule(
     };
   }
 
-  const parentRule = findCoveringRouteTargetRule(target.domain, target.includeSubdomains, action, currentRules);
+  const parentRule = findCoveringCurrentSiteRouteTargetRule(
+    target.domain,
+    target.includeSubdomains,
+    action,
+    currentRules
+  );
 
   if (parentRule) {
     return {
@@ -993,45 +771,11 @@ function formatCandidateDomains(candidates: readonly RelatedDomainCandidate[], l
   return extraCount > 0 ? getMessage("commonAndMore", [domains.join(", "), extraCount]) : domains.join(", ");
 }
 
-function formatCandidateViewDomains(candidates: readonly RelatedDomainCandidateView[], limit = 4): string {
+function formatCandidateViewDomains(candidates: readonly { domain: string }[], limit = 4): string {
   const domains = candidates.slice(0, limit).map((candidate) => candidate.domain);
   const extraCount = candidates.length - domains.length;
 
   return extraCount > 0 ? getMessage("commonAndMore", [domains.join(", "), extraCount]) : domains.join(", ");
-}
-
-function emptyPreviewSummary(): CurrentPageResourceHostPreviewSummary {
-  return {
-    rawEntriesInspected: 0,
-    performanceEntriesInspected: 0,
-    domAttributesInspected: 0,
-    urlLikeValuesFound: 0,
-    hostsExtracted: 0,
-    hostsAfterSanitization: 0,
-    hostsIgnoredOrInternal: 0,
-    reviewableCandidates: 0,
-    ignoredCandidates: 0,
-    sampleHosts: []
-  };
-}
-
-function previewSummary(preview: CurrentPageResourceHostsResponse): CurrentPageResourceHostPreviewSummary {
-  if (preview.summary) {
-    return preview.summary;
-  }
-
-  const hostsAfterSanitization = preview.collectedHosts?.length ?? 0;
-  const reviewableCandidates =
-    (preview.candidates?.strongCandidates.length ?? 0) + (preview.candidates?.mediumCandidates.length ?? 0);
-
-  return {
-    ...emptyPreviewSummary(),
-    rawEntriesInspected: hostsAfterSanitization,
-    hostsExtracted: hostsAfterSanitization,
-    hostsAfterSanitization,
-    reviewableCandidates,
-    ignoredCandidates: preview.candidates?.ignoredCandidates.length ?? 0
-  };
 }
 
 function formatPreviewDiagnosticSummary(summary: RelatedDomainPopupSummary): string {
@@ -1071,7 +815,7 @@ export function getRelatedDomainPreviewActionStatus(
   }
 
   const candidates = preview.candidates;
-  const summary = previewSummary(preview);
+  const summary = getRelatedDomainPreviewSummary(preview);
 
   if (
     preview.resultState === "no_resource_entries_collected" ||
@@ -1190,50 +934,37 @@ export function buildRelatedDomainPopupView(
   action: RuleAction = "proxy"
 ): RelatedDomainPopupView {
   const status = getRelatedDomainPreviewActionStatus(preview);
-  const baseSummary = previewSummary(preview);
-
-  if (preview.status !== "success" || !preview.candidates) {
-    const summary = {
-      ...baseSummary,
-      alreadyCoveredCandidates: 0,
-      saveableCandidates: 0
-    };
+  const collection = buildRelatedDomainCandidateCollection(preview, settings, action);
+  const candidates: RelatedDomainCandidateView[] = collection.candidates.map((candidate) => {
+    const reason = getMessage(relatedDomainReasonMessageKeys[candidate.reasonCode]);
+    const routeTargetReasonLabel = candidate.routeTargetReason
+      ? getMessage(relatedDomainRouteTargetReasonMessageKeys[candidate.routeTargetReason])
+      : reason;
 
     return {
+      ...candidate,
+      reason,
+      routeTargetReasonLabel
+    };
+  });
+
+  if (preview.status !== "success" || !preview.candidates) {
+    return {
       ...status,
-      resultState: preview.resultState,
-      summary,
-      diagnosticSummary: preview.status === "success" ? previewDiagnosticSummary(summary) : undefined,
-      candidates: [],
-      hiddenSaveableCount: 0,
-      hiddenAlreadyCoveredCount: 0,
-      hiddenIgnoredCount: 0
+      resultState: collection.resultState,
+      summary: collection.summary,
+      diagnosticSummary: preview.status === "success" ? previewDiagnosticSummary(collection.summary) : undefined,
+      candidates,
+      hiddenSaveableCount: collection.hiddenSaveableCount,
+      hiddenAlreadyCoveredCount: collection.hiddenAlreadyCoveredCount,
+      hiddenIgnoredCount: collection.hiddenIgnoredCount
     };
   }
 
-  const candidates = [
-    ...preview.candidates.strongCandidates.map((candidate) =>
-      candidateViewFromCandidate(candidate, "strong" as const, settings, action)
-    ),
-    ...preview.candidates.mediumCandidates.map((candidate) =>
-      candidateViewFromCandidate(candidate, "medium" as const, settings, action)
-    ),
-    ...preview.candidates.ignoredCandidates.map((candidate) =>
-      candidateViewFromCandidate(candidate, "ignored" as const, settings, action)
-    )
-  ].filter((candidate): candidate is RelatedDomainCandidateView => candidate !== null);
-  const reviewableCandidates = candidates.filter((candidate) => candidate.category !== "ignored");
+  const reviewableCandidates = collection.allCandidates.filter((candidate) => candidate.category !== "ignored");
   const saveableCandidates = reviewableCandidates.filter((candidate) => candidate.saveable);
   const alreadyCoveredCandidates = reviewableCandidates.filter((candidate) => candidate.alreadyCovered);
-  const summary = {
-    ...baseSummary,
-    alreadyCoveredCandidates: alreadyCoveredCandidates.length,
-    saveableCandidates: saveableCandidates.length
-  };
-  const resultState: RelatedDomainPopupResultState =
-    preview.resultState === "candidates_available" && saveableCandidates.length === 0 && alreadyCoveredCandidates.length > 0
-      ? "hosts_collected_but_all_already_covered"
-      : preview.resultState ?? (saveableCandidates.length > 0 ? "candidates_available" : "hosts_collected_but_no_related_candidates");
+  const resultState = collection.resultState;
   const strongSaveableCandidates = saveableCandidates.filter((candidate) => candidate.category === "strong");
   const mediumSaveableCandidates = saveableCandidates.filter((candidate) => candidate.category === "medium");
   const messageParts: string[] = [];
@@ -1258,42 +989,44 @@ export function buildRelatedDomainPopupView(
       );
     }
 
-    if (summary.ignoredCandidates > 0) {
+    if (collection.summary.ignoredCandidates > 0) {
       messageParts.push(
-        getMessage(summary.ignoredCandidates === 1 ? "popupRelatedIgnoredCountOne" : "popupRelatedIgnoredCount", [
-          summary.ignoredCandidates
-        ])
+        getMessage(
+          collection.summary.ignoredCandidates === 1 ? "popupRelatedIgnoredCountOne" : "popupRelatedIgnoredCount",
+          [collection.summary.ignoredCandidates]
+        )
       );
     }
 
     message = getMessage("popupRelatedPreviewIntro", [messageParts.join(". ")]);
   }
 
-  const capped = cappedRelatedDomainCandidateViews(candidates);
   const hiddenParts: string[] = [];
 
-  if (capped.hiddenSaveableCount > 0) {
-    hiddenParts.push(
-      getMessage(capped.hiddenSaveableCount === 1 ? "popupRelatedHiddenSaveableOne" : "popupRelatedHiddenSaveable", [
-        capped.hiddenSaveableCount
-      ])
-    );
-  }
-
-  if (capped.hiddenAlreadyCoveredCount > 0) {
+  if (collection.hiddenSaveableCount > 0) {
     hiddenParts.push(
       getMessage(
-        capped.hiddenAlreadyCoveredCount === 1 ? "popupRelatedHiddenCoveredOne" : "popupRelatedHiddenCovered",
-        [capped.hiddenAlreadyCoveredCount]
+        collection.hiddenSaveableCount === 1 ? "popupRelatedHiddenSaveableOne" : "popupRelatedHiddenSaveable",
+        [collection.hiddenSaveableCount]
       )
     );
   }
 
-  if (capped.hiddenIgnoredCount > 0) {
+  if (collection.hiddenAlreadyCoveredCount > 0) {
     hiddenParts.push(
-      getMessage(capped.hiddenIgnoredCount === 1 ? "popupRelatedHiddenIgnoredOne" : "popupRelatedHiddenIgnored", [
-        capped.hiddenIgnoredCount
-      ])
+      getMessage(
+        collection.hiddenAlreadyCoveredCount === 1 ? "popupRelatedHiddenCoveredOne" : "popupRelatedHiddenCovered",
+        [collection.hiddenAlreadyCoveredCount]
+      )
+    );
+  }
+
+  if (collection.hiddenIgnoredCount > 0) {
+    hiddenParts.push(
+      getMessage(
+        collection.hiddenIgnoredCount === 1 ? "popupRelatedHiddenIgnoredOne" : "popupRelatedHiddenIgnored",
+        [collection.hiddenIgnoredCount]
+      )
     );
   }
 
@@ -1301,9 +1034,12 @@ export function buildRelatedDomainPopupView(
     message: hiddenParts.length > 0 ? `${message} ${hiddenParts.join(". ")}.` : message,
     kind: status.kind,
     resultState,
-    summary,
-    diagnosticSummary: previewDiagnosticSummary(summary),
-    ...capped
+    summary: collection.summary,
+    diagnosticSummary: previewDiagnosticSummary(collection.summary),
+    candidates,
+    hiddenSaveableCount: collection.hiddenSaveableCount,
+    hiddenAlreadyCoveredCount: collection.hiddenAlreadyCoveredCount,
+    hiddenIgnoredCount: collection.hiddenIgnoredCount
   };
 }
 
@@ -1314,138 +1050,29 @@ export function addSelectedRelatedDomainRules(
   createdAt: string = new Date().toISOString(),
   source: RuleSource = "diagnostic"
 ): AddSelectedRelatedDomainRulesResult {
-  if (selectedDomains.size === 0) {
+  const result = prepareSelectedRelatedDomainRules(
+    currentSettings,
+    candidates,
+    selectedDomains,
+    createdAt,
+    source
+  );
+
+  if (result.ok) {
+    return result;
+  }
+
+  if (result.reason === "action-conflict") {
     return {
-      ok: true,
-      status: "none-selected",
-      rules: [...currentSettings.rules],
-      addedRules: [],
-      skippedDomains: []
+      ok: false,
+      error: getMessage("ruleActionExistsForDomainScope", [
+        ruleActionDisplayLabel(result.action),
+        result.domain
+      ])
     };
   }
 
-  const rules = [...currentSettings.rules];
-  const addedRules: DomainRule[] = [];
-  const expandedRules: DomainRule[] = [];
-  const skippedDomains: string[] = [];
-  const seenSelectedDomains = new Set<string>();
-
-  for (const candidate of candidates) {
-    if (!selectedDomains.has(candidate.domain) || seenSelectedDomains.has(candidate.domain)) {
-      continue;
-    }
-
-    seenSelectedDomains.add(candidate.domain);
-
-    const domain = normalizeSafeRelatedDomain(candidate.domain, currentSettings.denylist);
-
-    if (!domain || candidate.category === "ignored" || !candidate.saveable) {
-      skippedDomains.push(candidate.domain);
-      continue;
-    }
-
-    const action = candidate.action ?? "proxy";
-    const coveringRule = findCoveringRouteTargetRule(domain, candidate.includeSubdomains, action, rules);
-
-    if (coveringRule) {
-      skippedDomains.push(domain);
-      continue;
-    }
-
-    const exactRule = rules.find(
-      (rule) => !rule.includeSubdomains && normalizeKnownDomain(rule.domain) === domain
-    );
-
-    if (candidate.includeSubdomains && exactRule && exactRule.action !== action) {
-      return {
-        ok: false,
-        error: getMessage("ruleActionExistsForDomainScope", [
-          ruleActionDisplayLabel(exactRule.action),
-          domain
-        ])
-      };
-    }
-
-    if (
-      exactRule &&
-      (candidate.scopeUpgrade === true ||
-        (candidate.includeSubdomains && exactRule.action === action && exactRule.includeSubdomains === false))
-    ) {
-      const replacement = replaceRuleAtomically(rules, getRuleStableId(exactRule), {
-        domain,
-        includeSubdomains: true,
-        action
-      });
-
-      if (!replacement.ok) {
-        return { ok: false, error: replacement.error };
-      }
-
-      rules.splice(0, rules.length, ...replacement.rules);
-      expandedRules.push(replacement.updatedRule);
-      continue;
-    }
-
-    const rule: DomainRule = {
-      domain,
-      includeSubdomains: candidate.includeSubdomains,
-      action,
-      mode: "proxy",
-      source,
-      createdAt
-    };
-    const targetCheck = checkRouteTargetAddition(rules, rule);
-
-    if (targetCheck.status === "conflict") {
-      return {
-        ok: false,
-        error: getMessage("ruleActionExistsForDomainScope", [
-          ruleActionDisplayLabel(targetCheck.existingRule.action),
-          domain
-        ])
-      };
-    }
-
-    if (targetCheck.status === "duplicate") {
-      skippedDomains.push(domain);
-      continue;
-    }
-
-    rules.push(rule);
-    addedRules.push(rule);
-  }
-
-  if (addedRules.length === 0 && expandedRules.length === 0) {
-    return {
-      ok: true,
-      status: "no-new-rules",
-      rules,
-      addedRules: [],
-      skippedDomains
-    };
-  }
-
-  return {
-    ok: true,
-    status: "added",
-    rules,
-    addedRules,
-    ...(expandedRules.length > 0 ? { expandedRules } : {}),
-    skippedDomains
-  };
-}
-
-export function addRelatedDomainClassificationOverride(
-  currentOverrides: UserClassificationOverrides,
-  currentDomain: string,
-  candidateDomain: string,
-  action: DomainCandidateUserOverrideAction
-): AddRelatedDomainClassificationOverrideResult {
-  return upsertUserClassificationOverride(currentOverrides, {
-    domain: candidateDomain,
-    siteDomain: currentDomain,
-    action
-  });
+  return { ok: false, error: result.error };
 }
 
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
