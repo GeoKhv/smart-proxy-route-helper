@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,13 +32,10 @@ function crc32(buffer) {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-function dosDateTime(date) {
-  const year = Math.max(date.getFullYear(), 1980);
-  const time = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
-  const day = (year - 1980) << 9 | (date.getMonth() + 1) << 5 | date.getDate();
-
-  return { time, day };
-}
+const deterministicDosTimestamp = {
+  time: 0,
+  day: 1 << 5 | 1
+};
 
 function uint16(value) {
   const buffer = Buffer.alloc(2);
@@ -86,7 +83,7 @@ function createZip(entries) {
   for (const entry of entries) {
     const name = Buffer.from(entry.name, "utf8");
     const checksum = crc32(entry.data);
-    const { time, day } = dosDateTime(entry.modifiedAt);
+    const { time, day } = deterministicDosTimestamp;
 
     const localHeader = Buffer.concat([
       uint32(0x04034b50),
@@ -157,11 +154,9 @@ async function main() {
 
   const files = await listFiles(distDir);
   const entries = await Promise.all(files.map(async (path) => {
-    const info = await stat(path);
     return {
       name: relative(distDir, path).split(sep).join("/"),
-      data: await readFile(path),
-      modifiedAt: info.mtime
+      data: await readFile(path)
     };
   }));
 

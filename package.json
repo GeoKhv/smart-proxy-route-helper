@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "build:local-stable-id": "node scripts/build-local-stable-id.mjs",
+    "check:release-surface": "node scripts/check-release-surface.mjs",
     "package": "node scripts/package-extension.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
