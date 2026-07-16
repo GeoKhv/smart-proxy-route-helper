@@ -1,6 +1,8 @@
 # Chrome Web Store v0.2.0 Update — Draft
 
-Draft only. This file is repository preparation, not Dashboard state. The GitHub v0.2.0 release does not authorize a Store upload; use this draft only in a separate later Chrome Web Store Dashboard task.
+Historical draft only. This file preserves the proposed `v0.2.0` Store-update copy; it is not
+current Dashboard state or a current action list. Version `v0.3.0` has since been submitted for
+review.
 
 ## Draft What's New
 

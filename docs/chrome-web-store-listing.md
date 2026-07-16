@@ -1,6 +1,8 @@
-# Chrome Web Store Listing Reference
+# Historical Chrome Web Store v0.1.0 Listing Reference
 
-This document records the public listing text and maintenance references for the published `v0.1.0` Chrome Web Store listing. It is not Chrome Web Store Dashboard automation and does not modify the live listing.
+This document preserves the public listing snapshot for the historical `v0.1.0` Store release. It
+is not the current `v0.3.0` listing package, Dashboard automation, or evidence of the version now
+visible to Store users. Version `v0.3.0` has been submitted for review and is awaiting review.
 
 Published listing:
 
@@ -80,11 +82,11 @@ Project repository:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper
 
-Current GitHub release:
+Historical GitHub release associated with this snapshot:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.1.0
 
-Current release asset:
+Historical release asset associated with this snapshot:
 
 - `smart-proxy-route-helper-v0.1.0.zip`
 
@@ -137,7 +139,9 @@ None. The MVP does not request host permissions, `<all_urls>`, `webRequest`, or 
 
 ## Publication Status
 
-Current status: `v0.1.0` is published in Chrome Web Store.
+Historical snapshot status: `v0.1.0` was the published Store version recorded when this document
+was finalized. The current public Store version was not independently verified in the post-release
+repository audit.
 
 Publication reference status:
 

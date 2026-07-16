@@ -1,6 +1,8 @@
 # v0.2.0 Release Readiness Audit
 
-Status: **ready for the GitHub v0.2.0 release**. The automated implementation audit and the full must-pass manual smoke gate pass. Chrome Web Store submission remains a separate later task with its own Dashboard, privacy, asset, review, and publication steps.
+Historical status: **the GitHub v0.2.0 release-readiness audit and manual smoke gate passed, and
+the release was subsequently completed**. This file preserves the pre-release evidence and does not
+describe current `main` or current Store state.
 
 This document records the explicit GitHub release task. It covers the version bump, verified release package, release commit, tag, and GitHub release preparation. It does not upload to Chrome Web Store, change Dashboard declarations, or modify any published `v0.1.0` artifact.
 

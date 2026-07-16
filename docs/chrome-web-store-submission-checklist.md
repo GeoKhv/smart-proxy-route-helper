@@ -1,6 +1,9 @@
 # Chrome Web Store Submission Readiness Checklist
 
-This checklist was used to prepare Smart Proxy Route Helper for Chrome Web Store submission and remains the reference checklist for future Store package or listing updates. It is not submission automation and must not be used to modify the Chrome Web Store Developer Dashboard without an explicit release decision.
+Status: **historical `v0.1.0` preparation record plus reusable gates for later updates**. Version
+`v0.3.0` has already been submitted to Chrome Web Store and is awaiting review. The unchecked
+historical boxes below are not a claim that the completed `v0.3.0` submission still needs to be
+performed. This file is not submission automation and does not authorize Dashboard changes.
 
 ## Submission Boundary For Future Store Updates
 
@@ -11,7 +14,10 @@ This checklist was used to prepare Smart Proxy Route Helper for Chrome Web Store
 - [ ] Do not add manifest permissions.
 - [ ] Do not add `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, persistent content scripts, backend calls, telemetry, or remote executable code.
 
-## Version and Release Baseline
+## Historical v0.1.0 Version and Release Baseline
+
+The values in this section preserve the first Store-release preparation record. For current
+release evidence, use [releases/v0.3.0-release-record.md](releases/v0.3.0-release-record.md).
 
 - [ ] Confirm `manifest.json` version is `0.1.0`.
 - [ ] Confirm `package.json` version is `0.1.0`.
@@ -178,9 +184,14 @@ esbuild 0.27.3 - 0.28.0, GHSA-g7r4-m6w7-qqqr.
 
 If findings appear, do not upgrade dependencies inside a Store-preparation slice unless a separate dependency-maintenance task is approved.
 
-## Publication Status And Future Manual Gates
+## Historical Publication Status And Future Manual Gates
 
-Current status: `v0.1.0` is published in Chrome Web Store at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
+Historical status recorded by this checklist: `v0.1.0` was published in Chrome Web Store at
+https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
+
+Current release workflow status: `v0.3.0` is a public GitHub Release and has been submitted to
+Chrome Web Store for review. It is awaiting review; the current public Store version was not
+independently verified during this repository audit.
 
 Repository asset blockers closed before publication:
 
@@ -195,7 +206,9 @@ Manual gates to repeat before any future Store package or listing update:
 - Release asset verification against the exact submitted build.
 - `npm audit` review from the final pre-submission run.
 
-Recommendation for future updates: perform a manual Chrome Web Store Dashboard dry-run / final human review before pressing Submit.
+Recommendation for any later update: perform a manual Chrome Web Store Dashboard dry-run and
+final human review before a new submission. No additional Dashboard action is part of the current
+post-release audit.
 
 ## Official References
 

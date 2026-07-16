@@ -1,6 +1,7 @@
 # v0.2.0 GitHub Release Checklist
 
-Status: **pre-release gates passed; GitHub release preparation in progress**. Chrome Web Store submission is a separate later task and is not part of this checklist execution.
+Historical status: **the v0.2.0 gates passed and the GitHub release was subsequently completed**.
+This file preserves the pre-release execution record; it is not the current release checklist.
 
 ## Automated Gate
 

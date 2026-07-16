@@ -1,6 +1,9 @@
-# Manual Chrome Web Store Dashboard Checklist — v0.3.0 Candidate
+# Historical Manual Chrome Web Store Dashboard Preparation — v0.3.0
 
-Preparation only. Do not open or modify the Chrome Web Store Developer Dashboard, upload assets, or submit for review in this slice.
+Historical record: this checklist was prepared before the `v0.3.0` Store submission. Version
+`v0.3.0` has since been submitted and is awaiting review. The boxes below preserve the preparation
+review; they are not current instructions to upload or submit again, and they do not claim Store
+publication.
 
 ## Listing locales
 
@@ -31,8 +34,9 @@ Preparation only. Do not open or modify the Chrome Web Store Developer Dashboard
 - [ ] Do not change permission declarations or add permissions.
 - [ ] Recheck the English and Russian claims against the current manifest and production build before a future upload.
 
-## Release gate
+## Recorded release gate
 
-- [ ] Do not change the Dashboard, version, tag, or GitHub Release here.
-- [ ] Do not press **Submit for review**.
-- [ ] Treat this as a v0.3.0 candidate package while the local manifest and package remain `0.2.0`.
+- [x] Local manifest and package versions were updated to `0.3.0` for the release.
+- [x] Annotated tag and public GitHub Release `v0.3.0` were created from release commit `ff2662af1658be0d3a80912dc8f5adf2afcecfca`.
+- [x] The `v0.3.0` package was submitted to Chrome Web Store for review.
+- [ ] Store review/publication is not confirmed by this repository record.

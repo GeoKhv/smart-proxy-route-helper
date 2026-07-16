@@ -1,6 +1,9 @@
 # Release Plan
 
-This repository has moved beyond the documentation-only bootstrap phase. The versions below describe intended release slices; some runtime pieces are already implemented on `main`.
+This repository has moved beyond the documentation-only bootstrap phase. Versions `v0.1.0`,
+`v0.2.0`, and `v0.3.0` are public GitHub releases. Version `v0.3.0` is the current source/release
+baseline and has been submitted to Chrome Web Store for review; Store publication of `v0.3.0` is
+not claimed. The version sections below preserve the staged product plan and its guardrails.
 
 ## v0.1: Manual PAC MVP
 
@@ -86,11 +89,11 @@ Exit criteria:
 - Diagnostic recording remains bounded, user-invoked, hostname-only across the page/extension bridge, and unable to add rules without a separate explicit confirmation.
 - Release artifact is reproducible from repository source.
 
-## v0.3: Optional Safe Diagnostics
+## v0.3: Optional Safe Diagnostics and Localization
 
 Goal: keep the current manual diagnostics path carefully scoped, and expand it only if the design can satisfy privacy, permission, and Chrome Web Store constraints.
 
-Candidate scope:
+Released scope and continuing guardrails:
 
 - Pure related-domain candidate engine that categorizes caller-provided observed hosts or URLs through a local bundled classification layer.
 - Small built-in classification data for high-confidence noise and site-scoped related hints.
@@ -102,6 +105,7 @@ Candidate scope:
 - Recommendation UI that suggests a domain rule only when appropriate.
 - Explicit confirmation before adding a suggested rule.
 - Minimal local diagnostic status with no developer upload.
+- Bundled English and Russian interface catalogs with a device-local language preference.
 
 Permissions:
 
@@ -133,7 +137,10 @@ Exit criteria:
 - Classification data is bundled locally or provided explicitly by the user.
 - Privacy and Chrome Web Store disclosures are updated before release.
 
-The published `v0.1.0` tag, release, and package remain immutable. Smart Proxy Route Helper v0.2.0 is released separately on GitHub from the verified release commit. Chrome Web Store remains on v0.1.0 until a later manual Dashboard update, review, and publication step is completed.
+Historical tags, releases, and packages remain immutable. Smart Proxy Route Helper `v0.3.0` is a
+normal public GitHub Release from commit `ff2662af1658be0d3a80912dc8f5adf2afcecfca` and has been
+submitted to Chrome Web Store for review. Review and publication remain external Store states;
+the repository must not infer that `v0.3.0` is publicly available in Store until verified.
 
 ## Chrome Web Store Submission Checklist
 

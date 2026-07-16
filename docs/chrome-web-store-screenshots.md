@@ -1,6 +1,9 @@
 # Chrome Web Store Screenshot Plan
 
-The current v0.3.0 candidate screenshot package is the five-image English set under `../store-assets/screenshots/v0.3.0/en/`. Chrome Web Store supports at least one `1280x800` screenshot and up to five total; the repository package uses all five slots for the focused user scenarios.
+The `v0.3.0` submitted screenshot package is the five-image English set under
+`../store-assets/screenshots/v0.3.0/en/`. The Store submission is awaiting review; screenshot
+presence in the repository does not imply publication. Chrome Web Store supports at least one
+`1280x800` screenshot and up to five total; this package uses all five slots for focused scenarios.
 
 ## Shared locale policy
 

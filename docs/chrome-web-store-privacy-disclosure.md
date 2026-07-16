@@ -1,6 +1,9 @@
-# Chrome Web Store Privacy Disclosure Reference
+# Chrome Web Store Privacy Disclosure Reference for v0.3.0
 
-This document records Store privacy-field language for the published `v0.1.0` listing and remains a reference for future Store package or listing updates. Review it against the exact submitted build before any future upload.
+This document records privacy-field language reviewed against the `v0.3.0` package submitted to
+Chrome Web Store. The submission is awaiting review; this document does not claim that Store
+`v0.3.0` is published. The exact version currently visible to Store users was not independently
+verified during the repository audit.
 
 ## Single Purpose
 
@@ -39,6 +42,10 @@ Local storage with `chrome.storage.local`:
 - Local proxy port.
 - Device enabled/disabled state.
 - Local diagnostics preference.
+- Interface language preference: `Auto (Chrome)`, `English`, or `Русский`.
+
+The language preference is an ordinary device-local UI setting. It is not sensitive data, does not
+sync through `chrome.storage.sync`, and is not collected or received by the developer.
 
 Temporary session storage with `chrome.storage.session`:
 
@@ -110,6 +117,7 @@ Used to apply the locally generated PAC configuration in Chrome. The extension u
 `storage`
 
 Used to save extension settings. Domain-level routing rules and classification overrides are synced with Chrome Sync when available. Local proxy settings stay on the current device.
+The interface language preference also stays on the current device.
 
 `activeTab`
 

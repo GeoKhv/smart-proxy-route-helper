@@ -4,7 +4,10 @@ Audit date: 2026-06-26; refreshed 2026-06-28 after the clean popup screenshot an
 
 Asset updates: 2026-06-28 added the mandatory small promotional image draft asset and replaced popup screenshots `04` and `05` from clean manually captured Chrome sources. These updates do not publish the extension, modify Chrome Web Store Developer Dashboard fields, change runtime code, change manifest permissions, or bump the version.
 
-Post-publication update: `v0.1.0` is now published in Chrome Web Store at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj. This report remains the pre-submit audit record and a future Store update reference.
+Historical-record notice: this report preserves the `v0.1.0` pre-submit and first-publication
+evidence. It is not an audit of the current package or a current Store-version claim. Version
+`v0.3.0` has since been submitted for review; use `docs/releases/v0.3.0-release-record.md` for the
+current release state.
 
 This report reviewed Smart Proxy Route Helper for Chrome Web Store submission readiness before publication. It is a review artifact only. It did not publish the extension, modify Chrome Web Store Developer Dashboard fields, create a release, create a tag, change runtime code, change manifest permissions, or bump the version.
 

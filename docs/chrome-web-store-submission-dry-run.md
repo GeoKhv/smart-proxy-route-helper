@@ -4,7 +4,9 @@ This document was a manual dry-run pack for the Chrome Web Store submission and 
 
 Dry-run date: 2026-06-26; refreshed 2026-06-28 after clean screenshot and promotional image updates.
 
-Post-publication update: `v0.1.0` is now published in Chrome Web Store at https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj. This dry-run pack remains a preparation record and a reference checklist for future Store package or listing updates.
+Historical-record notice: this file preserves the `v0.1.0` dry-run and first-publication evidence.
+It is not a current submission checklist or current Store-version claim. Version `v0.3.0` has since
+been submitted for review; use `docs/releases/v0.3.0-release-record.md` for current release state.
 
 Repository baseline checked:
 
@@ -28,7 +30,7 @@ Preflight checks run:
 
 ## 1. Submission Status
 
-Current status: published in Chrome Web Store as `v0.1.0`.
+Historical snapshot status: published in Chrome Web Store as `v0.1.0` at the time of this record.
 
 Publication reference state:
 

@@ -1,6 +1,8 @@
 # Privacy Policy
 
-This document describes the privacy posture of current `main`; the published `v0.1.0` tag and package remain an immutable earlier baseline.
+This document describes the privacy posture of current `main` at version `0.3.0`. Version `v0.3.0`
+is a public GitHub Release and has been submitted to Chrome Web Store for review; Store publication
+of `v0.3.0` is not claimed here.
 
 The repository contains a Manifest V3 extension runtime. The statements below must be kept aligned with the actual extension behavior before any public release.
 
@@ -20,7 +22,7 @@ Smart Proxy Route Helper is local-first:
 - No raw URLs stored, synced, or sent by the project.
 - No settings backup upload or remote settings sync.
 
-## Data the Extension Is Expected to Store
+## Data the Extension Stores
 
 The MVP stores only user-provided settings needed for proxy routing and personal domain classification preferences.
 
@@ -38,6 +40,10 @@ Stored only on the local device with `chrome.storage.local`:
 - Local proxy scheme.
 - Device enabled/disabled state.
 - Local diagnostics preference.
+- Interface language preference: `Auto (Chrome)`, `English`, or `Русский`.
+
+The interface language preference is an ordinary local UI setting. It is not sensitive data, is
+not synced through `chrome.storage.sync`, and is not collected or received by the developer.
 
 Stored temporarily with `chrome.storage.session` while diagnostic recording is active or awaiting explicit handling after expiry:
 
@@ -61,6 +67,9 @@ User-controlled settings exports:
 
 Settings imports are parsed locally, validated for the supported format/version, sanitized, previewed, and applied only after an explicit user click. Import rejects malformed rules and protected/internal/private imported domains. The extension does not upload import files or backup contents.
 
+The interface language preference is not included in settings exports or imports. Changing it only
+changes which bundled English or Russian message catalog is rendered on the current device.
+
 User-invoked related-domain preview and diagnostic recording may collect sanitized resource hostnames from bounded signals visible to the current page in memory. During recording, bundled temporary MAIN-world hooks observe page-level `fetch`, XMLHttpRequest, and `sendBeacon` initiation, including attempts that later fail. A continuous resource timing observer and a capturing resource-element error listener provide additional hostname signals. Only `src`, `currentSrc`, `href`, and `poster` are read from failed resource elements; arbitrary page text and error messages are not read. Request values are reduced immediately to hostnames before crossing the session-bound bridge. These collected hosts and transient diagnostic summary counts are not stored in synced storage or local storage. Raw URLs, paths, query strings, signatures, expiry values, fragments, credentials, headers, bodies, cookies, response contents, form values, uploaded file contents, screenshots, and page text are not retained, logged, rendered, exported, synced, or persisted. If the user selects related-domain candidates and clicks the separate add button, only the selected candidate domains are stored as synced proxy rules. Direct exceptions are created only through explicit route-rule actions, not through related-domain preview. If the user clicks a classification override action, only normalized domain-level override preferences are stored in synced storage.
 
 ## Chrome Sync
@@ -82,6 +91,7 @@ The project must not send the developer:
 - Related-domain preview resource hosts.
 - Diagnostic recording resource hosts.
 - Classification overrides.
+- Interface language preference.
 - Settings backup files.
 - IP addresses.
 - Error logs.

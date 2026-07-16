@@ -1,13 +1,17 @@
 # Security Policy
 
-This repository contains the initial Manifest V3 extension runtime. GitHub pre-release `v0.1.0` is available for Store-preparation testing, but the extension is not yet published on Chrome Web Store.
+This repository contains the Smart Proxy Route Helper Manifest V3 runtime. Version `v0.3.0` is the
+current public GitHub Release and the source version on `main`. The same version has been submitted
+to Chrome Web Store for review and is awaiting review; this document does not claim that Store
+`v0.3.0` is published.
 
 ## Supported Versions
 
 | Version | Status |
 | --- | --- |
-| `v0.1.0` pre-release | Best-effort security fixes while this is the active MVP release candidate. |
-| Unreleased `main` | Security fixes may land here before the next release candidate. |
+| `main` | Supported; security fixes land here first. |
+| `v0.3.0` | Current released baseline; security fixes are assessed against `main`. |
+| `v0.2.0` and older | Not actively supported; upgrade to the current release before reporting version-specific issues where possible. |
 
 ## Reporting a Vulnerability
 
@@ -26,7 +30,8 @@ Implementation work must follow these principles:
 
 - Bundle all executable code with the extension package.
 - Do not load or execute remote JavaScript, WebAssembly, or remotely supplied logic.
-- Do not use `eval`, `new Function`, dynamic script injection, or string-based code execution.
+- Do not use `eval`, `new Function`, or any other string-based execution path in extension runtime code.
+- `chrome.scripting.executeScript` may invoke only functions or files bundled in the reviewed extension package, after the user invokes the corresponding feature. It must never execute downloaded, remotely supplied, or remotely controlled logic.
 - Keep dependencies minimal and audit compiled output before release.
 - Request the narrowest permissions needed for shipped features.
 - Keep diagnostics optional, opt-in, and user-initiated.
@@ -35,11 +40,13 @@ Implementation work must follow these principles:
 
 ## Manifest V3 and Remote Code
 
-Chrome Web Store review requires Manifest V3 extension logic to be understandable from the submitted package. Remote resources may be data, but they must not contain executable logic that controls extension behavior.
+Chrome Web Store review requires Manifest V3 extension logic to be understandable from the submitted package. Remote JavaScript, WebAssembly, fetched strings evaluated as code, and remotely controlled executable logic are prohibited. Calling a bundled extension function through `chrome.scripting.executeScript` is distinct from remote code: the function is part of the submitted package and runs only through the declared `scripting` plus temporary `activeTab` permission path.
 
 This project should avoid remote configuration entirely in the MVP.
 
 Reference: https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements
+
+Bundled script injection reference: https://developer.chrome.com/docs/extensions/reference/api/scripting
 
 ## Planned High-Risk Areas
 

@@ -30,4 +30,5 @@ The English runtime `extensionDescription` is the primary summary above. The Rus
 Направляет выбранные сайты через локальный прокси, а остальные открывает напрямую.
 ```
 
-This is a candidate listing package for v0.3.0; it does not change the manifest or package version.
+This summary belongs to the `v0.3.0` package submitted for Chrome Web Store review. Submission is
+not publication, and the current public Store version is not inferred from this repository file.

@@ -1,6 +1,7 @@
 # Smart Proxy Route Helper v0.3.0 Release Notes
 
-Prepared for the owner's manual smoke test. These notes do not state that v0.3.0 has been published.
+Published as the normal GitHub Release `v0.3.0` and submitted to Chrome Web Store for review.
+These notes do not state that Store `v0.3.0` has been published.
 
 ## English
 
@@ -27,10 +28,10 @@ Related-domain preview and recording remain user-invoked, hostname-only, and una
 
 - Добавлено действие «Добавить» рядом с каждым кандидатом связанного домена.
 - Добавлено закреплённое групповое действие для выбранных связанных доменов.
-- Вторичные действия перенесены в меню More actions.
-- Добавлен переход Back to site для возврата к статусу текущего сайта.
+- Вторичные действия перенесены в меню «Другие действия».
+- Добавлен переход «Вернуться к статусу сайта» для возврата к статусу текущего сайта.
 - Добавлена локализация интерфейса на английский и русский языки.
-- Добавлен переключатель языка интерфейса: автоматически, English и Русский.
+- Добавлен переключатель языка интерфейса: «Авто (Chrome)», English и Русский.
 - Для связанных доменов расширение теперь предлагает расширить существующее точное правило на поддомены, а не показывает его как новый домен.
 - Статусы и ошибки записи локализованы для обоих языков интерфейса.
 - Стандартные hostname вида www.example.com канонизируются в example.com.
