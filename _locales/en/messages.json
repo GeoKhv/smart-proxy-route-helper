@@ -830,6 +830,8 @@
     "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
   },
   "optionsRuleRemoved": { "message": "Synced rule removed." },
+  "optionsRuleRemovalNotFound": { "message": "The selected rule is no longer available. Nothing was removed." },
+  "optionsRuleRemovalAmbiguous": { "message": "The selected rule cannot be safely identified because multiple matching rules exist. Nothing was removed." },
   "optionsRedundantRemoved": { "message": "Redundant rule removed after confirmation." },
   "optionsCleanupComplete": { "message": "Rule cleanup scan complete. Nothing was removed automatically." },
   "optionsOverrideRemoveUnknown": { "message": "Could not identify the classification override to remove." },

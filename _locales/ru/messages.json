@@ -830,6 +830,8 @@
     "placeholders": { "hostname": { "content": "$1", "example": "example.com" } }
   },
   "optionsRuleRemoved": { "message": "Синхронизируемое правило удалено." },
+  "optionsRuleRemovalNotFound": { "message": "Выбранное правило больше недоступно. Ничего не удалено." },
+  "optionsRuleRemovalAmbiguous": { "message": "Выбранное правило нельзя безопасно определить: найдено несколько совпадающих правил. Ничего не удалено." },
   "optionsRedundantRemoved": { "message": "Избыточное правило удалено после подтверждения." },
   "optionsCleanupComplete": { "message": "Поиск избыточных правил завершён. Автоматически ничего не удалено." },
   "optionsOverrideRemoveUnknown": { "message": "Не удалось определить исключение классификации для удаления." },

@@ -2,13 +2,16 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { addDomainRule, parseLocalProxyForm, removeRuleAtIndex } from "../src/options/options";
+import { findRedundantDomainRules } from "../src/rules/domainMatcher";
+import { getRuleStableId, removeRuleByStableId } from "../src/rules/ruleEditing";
+import { addDomainRule, parseLocalProxyForm } from "../src/options/options";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
 const createdAt = "2026-06-24T00:00:00.000Z";
 
-function manualRule(domain: string, includeSubdomains = true): DomainRule {
+function manualRule(domain: string, includeSubdomains = true, id?: string): DomainRule {
   return {
+    ...(id ? { id } : {}),
     domain,
     includeSubdomains,
     action: "proxy",
@@ -146,12 +149,68 @@ describe("options synced rule helpers", () => {
     });
   });
 
-  it("removes rules by index without mutating the original list", () => {
-    const currentRules = [manualRule("letterboxd.com", true), manualRule("ltrbxd.com", true)];
+  it("removes an ordinary rule by its stable ID without mutating the original list", () => {
+    const target = manualRule("letterboxd.com", true, "rule-letterboxd");
+    const sibling = manualRule("ltrbxd.com", true, "rule-ltrbxd");
+    const currentRules = [target, sibling];
+    const result = removeRuleByStableId(currentRules, getRuleStableId(target));
 
-    expect(removeRuleAtIndex(currentRules, 0)).toEqual([manualRule("ltrbxd.com", true)]);
-    expect(removeRuleAtIndex(currentRules, 99)).toEqual(currentRules);
-    expect(currentRules).toEqual([manualRule("letterboxd.com", true), manualRule("ltrbxd.com", true)]);
+    expect(result).toMatchObject({
+      status: "removed",
+      removedRule: target,
+      removedIndex: 0,
+      rules: [sibling]
+    });
+    expect(currentRules).toEqual([target, sibling]);
+  });
+
+  it("removes the rendered rule after the current list has been reordered", () => {
+    const target = manualRule("letterboxd.com", true, "rule-letterboxd");
+    const sibling = manualRule("ltrbxd.com", true, "rule-ltrbxd");
+    const currentRules = [sibling, target];
+    const result = removeRuleByStableId(currentRules, getRuleStableId(target));
+
+    expect(result).toMatchObject({ status: "removed", rules: [sibling] });
+    expect(currentRules).toEqual([sibling, target]);
+  });
+
+  it("does not remove a newly inserted rule before the rendered rule", () => {
+    const target = manualRule("letterboxd.com", true, "rule-letterboxd");
+    const sibling = manualRule("ltrbxd.com", true, "rule-ltrbxd");
+    const inserted = manualRule("new.example", false, "rule-new");
+    const result = removeRuleByStableId([inserted, target, sibling], getRuleStableId(target));
+
+    expect(result).toMatchObject({ status: "removed", rules: [inserted, sibling] });
+  });
+
+  it("does not change the list when another operation already removed the selected rule", () => {
+    const remaining = manualRule("ltrbxd.com", true, "rule-ltrbxd");
+    const result = removeRuleByStableId([remaining], "rule-letterboxd");
+
+    expect(result).toEqual({ status: "not-found", rules: [remaining] });
+  });
+
+  it("does not remove a rule when a legacy stable ID is ambiguous", () => {
+    const ambiguousFirst = manualRule("letterboxd.com", true);
+    const ambiguousSecond = manualRule("letterboxd.com", true);
+    const unrelated = manualRule("ltrbxd.com", true, "rule-ltrbxd");
+    const currentRules = [ambiguousFirst, unrelated, ambiguousSecond];
+    const result = removeRuleByStableId(currentRules, getRuleStableId(ambiguousFirst));
+
+    expect(result).toEqual({ status: "ambiguous", rules: currentRules });
+  });
+
+  it("removes a cleanup suggestion by the same stable-ID semantics after the list changes", () => {
+    const parent = manualRule("example.com", true, "rule-parent");
+    const redundant = manualRule("media.example.com", true, "rule-redundant");
+    const suggestion = findRedundantDomainRules([parent, redundant])[0];
+    const inserted = manualRule("new.example", false, "rule-new");
+    const currentRules = [inserted, redundant, parent];
+    const result = removeRuleByStableId(currentRules, getRuleStableId(suggestion.redundantRule));
+
+    expect(suggestion.redundantRuleIndex).toBe(1);
+    expect(result).toMatchObject({ status: "removed", rules: [inserted, parent] });
+    expect(currentRules).toEqual([inserted, redundant, parent]);
   });
 });
 

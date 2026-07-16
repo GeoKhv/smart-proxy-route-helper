@@ -25,7 +25,9 @@ import {
   getRuleScopeOptions,
   getRuleStableId,
   planRuleEdit,
+  removeRuleByStableId,
   type RuleEditPlan,
+  type RuleRemovalResult,
   type RuleScope
 } from "../rules/ruleEditing";
 import {
@@ -223,14 +225,6 @@ export function addDomainRule(
   };
 }
 
-export function removeRuleAtIndex(currentRules: readonly DomainRule[], index: number): DomainRule[] {
-  if (!Number.isInteger(index) || index < 0 || index >= currentRules.length) {
-    return [...currentRules];
-  }
-
-  return currentRules.filter((_, ruleIndex) => ruleIndex !== index);
-}
-
 function getElement<T extends HTMLElement>(selector: string, root: ParentNode = document): T {
   const element = root.querySelector<T>(selector);
 
@@ -300,9 +294,7 @@ function renderRules(settings: SyncSettings): void {
   const list = getElement<HTMLUListElement>("#rule-list");
   const conflicts = findRouteTargetConflicts(settings.rules);
   const conflictKeys = new Set(conflicts.map((conflict) => conflict.key));
-  const visibleRules = settings.rules
-    .map((rule, index) => ({ rule, index }))
-    .filter(({ rule }) => !conflictKeys.has(getRouteTargetKey(rule)));
+  const visibleRules = settings.rules.filter((rule) => !conflictKeys.has(getRouteTargetKey(rule)));
 
   currentSyncSettingsSnapshot = settings;
   renderRouteTargetConflicts(settings);
@@ -317,7 +309,7 @@ function renderRules(settings: SyncSettings): void {
     return;
   }
 
-  visibleRules.forEach(({ rule, index }) => {
+  visibleRules.forEach((rule) => {
     const item = document.createElement("li");
     item.className = "rule-item";
 
@@ -344,7 +336,7 @@ function renderRules(settings: SyncSettings): void {
     editButton.setAttribute("aria-label", getMessage("optionsEditRuleAria", [rule.domain]));
     removeButton.type = "button";
     removeButton.textContent = getMessage("commonRemove");
-    removeButton.dataset.ruleIndex = String(index);
+    removeButton.dataset.ruleId = getRuleStableId(rule);
     removeButton.setAttribute("aria-label", getMessage("optionsRemoveRuleAria", [rule.domain]));
 
     actions.append(editButton, removeButton);
@@ -547,7 +539,7 @@ function renderRuleCleanupSuggestions(settings: SyncSettings): void {
     metadata.textContent = getMessage("optionsCoveredBy", [suggestion.reason, suggestion.coveringRule.domain]);
     removeButton.type = "button";
     removeButton.textContent = getMessage("optionsRemoveSuggestion");
-    removeButton.dataset.cleanupRuleIndex = String(suggestion.redundantRuleIndex);
+    removeButton.dataset.cleanupRuleId = getRuleStableId(suggestion.redundantRule);
     removeButton.setAttribute("aria-label", getMessage("optionsRemoveSuggestionAria", [suggestion.redundantRule.domain]));
 
     summary.append(domain, metadata);
@@ -955,43 +947,66 @@ async function handleRuleListClick(event: MouseEvent): Promise<void> {
     return;
   }
 
-  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-rule-index]");
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-rule-id]");
 
-  if (!button) {
+  const ruleId = button?.dataset.ruleId;
+
+  if (!ruleId) {
     return;
   }
 
-  const index = Number(button.dataset.ruleIndex);
+  let removal!: RuleRemovalResult;
   const updated = await updateSyncSettings((current) => ({
     ...current,
-    rules: removeRuleAtIndex(current.rules, index)
+    rules: (removal = removeRuleByStableId(current.rules, ruleId)).rules
   }));
 
   renderRules(updated);
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
+  renderRuleCleanupSuggestions(updated);
+
+  if (removal.status !== "removed") {
+    setStatus(
+      getElement<HTMLElement>("#rule-status"),
+      getMessage(removal.status === "ambiguous" ? "optionsRuleRemovalAmbiguous" : "optionsRuleRemovalNotFound"),
+      "error"
+    );
+    return;
+  }
+
   closeRuleEditor();
   setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsRuleRemoved"), "success");
-  renderRuleCleanupSuggestions(updated);
 }
 
 async function handleRuleCleanupClick(event: MouseEvent): Promise<void> {
-  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-cleanup-rule-index]");
+  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-cleanup-rule-id]");
+  const ruleId = button?.dataset.cleanupRuleId;
 
-  if (!button) {
+  if (!ruleId) {
     return;
   }
 
-  const index = Number(button.dataset.cleanupRuleIndex);
+  let removal!: RuleRemovalResult;
   const updated = await updateSyncSettings((current) => ({
     ...current,
-    rules: removeRuleAtIndex(current.rules, index)
+    rules: (removal = removeRuleByStableId(current.rules, ruleId)).rules
   }));
 
   renderRules(updated);
   renderStoredLists(updated);
   renderClassificationOverrides(updated);
   renderRuleCleanupSuggestions(updated);
+
+  if (removal.status !== "removed") {
+    setStatus(
+      getElement<HTMLElement>("#rule-cleanup-status"),
+      getMessage(removal.status === "ambiguous" ? "optionsRuleRemovalAmbiguous" : "optionsRuleRemovalNotFound"),
+      "error"
+    );
+    return;
+  }
+
   setStatus(getElement<HTMLElement>("#rule-cleanup-status"), getMessage("optionsRedundantRemoved"), "success");
 }
 

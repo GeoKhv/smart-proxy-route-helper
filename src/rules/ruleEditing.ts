@@ -68,6 +68,18 @@ export type AtomicRuleReplacementResult =
       reason: "invalid-domain" | "rule-not-found" | "ambiguous-rule" | "duplicate" | "conflict";
     };
 
+export type RuleRemovalResult =
+  | {
+      status: "removed";
+      rules: DomainRule[];
+      removedRule: DomainRule;
+      removedIndex: number;
+    }
+  | {
+      status: "not-found" | "ambiguous";
+      rules: DomainRule[];
+    };
+
 function normalizedRuleDomain(rule: Pick<DomainRule, "domain">): string {
   const normalized = normalizeDomain(rule.domain);
 
@@ -109,6 +121,36 @@ export function getRuleStableId(rule: DomainRule): string {
   const explicitId = rule.id?.trim();
 
   return explicitId ? explicitId : legacyRuleId(rule);
+}
+
+export function removeRuleByStableId(
+  currentRules: readonly DomainRule[],
+  ruleId: string
+): RuleRemovalResult {
+  const indexes = findRuleIndexes(currentRules, ruleId);
+
+  if (indexes.length === 0) {
+    return {
+      status: "not-found",
+      rules: [...currentRules]
+    };
+  }
+
+  if (indexes.length > 1) {
+    return {
+      status: "ambiguous",
+      rules: [...currentRules]
+    };
+  }
+
+  const removedIndex = indexes[0];
+
+  return {
+    status: "removed",
+    rules: currentRules.filter((_, index) => index !== removedIndex),
+    removedRule: currentRules[removedIndex],
+    removedIndex
+  };
 }
 
 export function getRuleScopeOptions(input: string, denylist: readonly string[] = []): RuleScopeOption[] {
