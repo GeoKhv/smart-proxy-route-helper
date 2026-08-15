@@ -15,8 +15,18 @@
         box-sizing: border-box;
       }
 
+      html,
       body {
         width: 330px;
+        min-width: 330px;
+        max-width: 330px;
+      }
+
+      html {
+        overflow-x: hidden;
+      }
+
+      body {
         margin: 0;
         padding: 16px;
         background: Canvas;

@@ -774,6 +774,21 @@ describe("popup runtime boundaries", () => {
     expect(popupHtml).not.toContain(">Add selected domains</button>");
   });
 
+  it("pins the popup root width without adding a fixed height", async () => {
+    const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
+
+    expect(popupHtml).toContain(`html,
+      body {
+        width: 330px;
+        min-width: 330px;
+        max-width: 330px;
+      }
+
+      html {
+        overflow-x: hidden;
+      }`);
+  });
+
   it("exposes text, aria status, exact-host microcopy, and explicit scope confirmation controls", async () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
