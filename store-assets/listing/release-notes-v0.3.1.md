@@ -6,6 +6,7 @@
 - Routing rules are now stored internally in multiple Sync chunks.
 - Existing rules migrate automatically without changing their content or order.
 - Added a clear localized message if the overall Chrome Sync storage limit is reached.
+- Fixed an issue where the extension popup could unexpectedly expand to a very wide window on some Chrome profiles.
 
 ## Русский
 
@@ -13,3 +14,4 @@
 - Правила теперь внутренне хранятся в нескольких Sync-чанках.
 - Существующие правила мигрируют автоматически без изменения содержимого и порядка.
 - Добавлено понятное локализованное сообщение при достижении общего лимита Chrome Sync.
+- Исправлена ошибка, из-за которой на некоторых профилях Chrome окно расширения могло неожиданно растягиваться по ширине.
