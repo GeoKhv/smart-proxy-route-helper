@@ -11,6 +11,8 @@ import {
 } from "../src/settingsBackup/settingsBackup";
 import type { DomainRule } from "../src/rules/ruleTypes";
 import type { LocalSettings, StorageAreaAdapter, SyncSettings } from "../src/storage/storageTypes";
+import { isRuleChunkStorageKey, rulesMetaStorageKey } from "../src/storage/ruleChunks";
+import { getSyncSettings } from "../src/storage/syncStore";
 
 type MemoryStorageArea = StorageAreaAdapter & {
   dump(): Record<string, unknown>;
@@ -48,6 +50,45 @@ function createMemoryStorage(initialState: Record<string, unknown> = {}): Memory
         ...state,
         ...items
       };
+    },
+    dump() {
+      return { ...state };
+    }
+  };
+}
+
+function createRemovableMemoryStorage(initialState: Record<string, unknown> = {}): MemoryStorageArea {
+  let state = { ...initialState };
+
+  return {
+    async get(keys?: string | string[] | Record<string, unknown> | null) {
+      if (keys === undefined || keys === null) {
+        return { ...state };
+      }
+
+      if (typeof keys === "string") {
+        return { [keys]: state[keys] };
+      }
+
+      if (Array.isArray(keys)) {
+        return Object.fromEntries(keys.map((key) => [key, state[key]]));
+      }
+
+      return {
+        ...keys,
+        ...Object.fromEntries(Object.keys(keys).filter((key) => key in state).map((key) => [key, state[key]]))
+      };
+    },
+    async set(items: Record<string, unknown>) {
+      state = {
+        ...state,
+        ...items
+      };
+    },
+    async remove(keys: string | string[]) {
+      for (const key of typeof keys === "string" ? [keys] : keys) {
+        delete state[key];
+      }
     },
     dump() {
       return { ...state };
@@ -792,7 +833,7 @@ describe("settings import apply", () => {
         createdAt: importedAt
       }
     ]);
-    expect(syncStorage.dump()).toEqual(result.syncSettings);
+    await expect(getSyncSettings(syncStorage)).resolves.toEqual(result.syncSettings);
     expect(localStorage.dump()).toEqual({
       deviceProxy: {
         enabled: true,
@@ -827,9 +868,39 @@ describe("settings import apply", () => {
     expect(result.syncSettings.rules).toEqual([
       expect.objectContaining({ domain: "wikipedia.org", includeSubdomains: false, action: "proxy" })
     ]);
-    expect(syncStorage.dump()).toMatchObject({
+    await expect(getSyncSettings(syncStorage)).resolves.toMatchObject({
       rules: [expect.objectContaining({ domain: "wikipedia.org" })]
     });
+  });
+
+  it("keeps the external backup schema while Apply writes route rules as chunks", async () => {
+    const syncStorage = createRemovableMemoryStorage(syncSettings());
+    const preview = expectReady(
+      previewSettingsImport(
+        exportJson({
+          syncSettings: {
+            rules: [{ domain: "imported.example", includeSubdomains: true, action: "proxy", mode: "proxy" }]
+          }
+        }),
+        syncSettings(),
+        localSettings(),
+        importedAt
+      )
+    );
+
+    const result = await applySettingsImportPreview(preview, { syncStorage });
+    const exported = JSON.parse(serializeSettingsExport(result.syncSettings, localSettings())) as {
+      data: { syncSettings: Record<string, unknown> };
+    };
+
+    expect(exported.data.syncSettings).toEqual(
+      expect.objectContaining({ rules: [expect.objectContaining({ domain: "imported.example" })] })
+    );
+    expect(exported.data.syncSettings).not.toHaveProperty(rulesMetaStorageKey);
+    expect(Object.keys(exported.data.syncSettings).some(isRuleChunkStorageKey)).toBe(false);
+    expect(syncStorage.dump().rules).toBeUndefined();
+    expect(syncStorage.dump()).toHaveProperty(rulesMetaStorageKey);
+    expect(Object.keys(syncStorage.dump()).some(isRuleChunkStorageKey)).toBe(true);
   });
 
   it("does not write storage for malformed JSON", async () => {
@@ -912,24 +983,25 @@ describe("settings import apply", () => {
     await expect(applySettingsImportPreview(preview, { syncStorage, localStorage })).rejects.toThrow(
       "Local proxy settings were not applied. Synced settings were restored to their previous values."
     );
-    expect(syncStorage.dump()).toEqual(previousSyncSettings);
+    await expect(getSyncSettings(syncStorage)).resolves.toEqual(previousSyncSettings);
   });
 
   it("reports an explicit partial import when both local apply and sync rollback fail", async () => {
     const previousSyncSettings = syncSettings({ rules: [manualRule("existing.example")] });
-    const storedSync = createMemoryStorage(previousSyncSettings);
+    const storedSync = createRemovableMemoryStorage(previousSyncSettings);
     let syncSetCalls = 0;
     const syncStorage: StorageAreaAdapter = {
       get: storedSync.get,
       async set(items) {
         syncSetCalls += 1;
 
-        if (syncSetCalls > 1) {
+        if (syncSetCalls >= 5) {
           throw new Error("sync rollback failed");
         }
 
         await storedSync.set(items);
-      }
+      },
+      remove: storedSync.remove
     };
     const preview = expectReady(
       previewSettingsImport(
@@ -965,7 +1037,7 @@ describe("settings import apply", () => {
     await expect(applySettingsImportPreview(preview, { syncStorage, localStorage })).rejects.toThrow(
       "Local proxy settings were not applied, but the synced import was applied and could not be rolled back."
     );
-    expect(storedSync.dump()).toMatchObject({
+    await expect(getSyncSettings(storedSync)).resolves.toMatchObject({
       rules: [
         manualRule("existing.example"),
         expect.objectContaining({ domain: "new.example", source: "import" })

@@ -44,6 +44,7 @@ import { getLocalSettings, updateLocalSettings } from "../storage/localStore";
 import {
   addSyncRules,
   getSyncSettings,
+  hasSyncRulesStorageChange,
   resolveSyncRouteTargetConflict,
   updateSyncRule,
   updateSyncSettings
@@ -744,6 +745,7 @@ async function refreshSyncView(): Promise<SyncSettings> {
   renderRules(settings);
   renderStoredLists(settings);
   renderClassificationOverrides(settings);
+  renderRuleCleanupSuggestions(settings);
   return settings;
 }
 
@@ -1232,6 +1234,13 @@ async function initOptionsPage(): Promise<void> {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "local" && changes.language) {
         void refreshOptionsLanguageState();
+        return;
+      }
+
+      if (areaName === "sync" && hasSyncRulesStorageChange(changes)) {
+        // A generation can arrive from Chrome Sync before every chunk. Keep the
+        // current view until getSyncSettings can reconstruct the complete set.
+        void refreshSyncView().catch(() => undefined);
       }
     });
   }

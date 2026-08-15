@@ -154,6 +154,10 @@
     "placeholders": { "action": { "content": "$1", "example": "Direct" } }
   },
   "ruleConflictSaveBlocked": { "message": "Conflicting route rules must be resolved explicitly before these synced settings can be saved." },
+  "syncStorageFull": { "message": "Chrome Sync storage is full. Remove some synced rules or export a backup before adding more." },
+  "syncRulesUpdating": { "message": "Synced route rules are still updating. Please try again in a moment." },
+  "syncRulesVerificationFailed": { "message": "Synced route rules could not be verified. Existing rules were kept unchanged." },
+  "syncRulesSaveFailed": { "message": "Could not save synced route rules. Existing rules were kept unchanged." },
   "ruleProxyDirectExists": { "message": "A Proxy/Direct rule already exists for this hostname and scope. Edit the existing rule instead." },
   "ruleConflictUseKeep": { "message": "Use Keep Proxy or Keep Direct to resolve conflicting route rules explicitly." },
   "ruleConflictResolveBeforeEdit": { "message": "Resolve this conflicting route target with Keep Proxy or Keep Direct before editing it." },

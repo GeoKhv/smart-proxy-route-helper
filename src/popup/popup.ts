@@ -72,6 +72,7 @@ import {
   addSyncRules,
   applySyncRuleChanges,
   getSyncSettings,
+  hasSyncRulesStorageChange,
   updateSyncRule,
   updateSyncSettings
 } from "../storage/syncStore";
@@ -2643,6 +2644,16 @@ async function initPopupPage(): Promise<void> {
   getElement<HTMLButtonElement>("#open-options").addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
+
+  if (chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "sync" && hasSyncRulesStorageChange(changes)) {
+        // Ignore a temporarily incomplete generation; the next chunk event will
+        // refresh the Popup once the active set is complete.
+        void refreshPopup().catch(() => undefined);
+      }
+    });
+  }
 
   await refreshPopup().catch((error: unknown) => {
     setStatus(

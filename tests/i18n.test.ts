@@ -209,6 +209,9 @@ describe("localized related-domain UI strings", () => {
     expect(getMessage("backupRuleConflictExisting", ["Прокси", "Напрямую", "wikipedia.org", ""])).toContain(
       "wikipedia.org"
     );
+    expect(getMessage("syncStorageFull")).toBe(
+      "Хранилище Chrome Sync заполнено. Удалите часть синхронизируемых правил или сохраните резервную копию перед добавлением новых."
+    );
   });
 });
 

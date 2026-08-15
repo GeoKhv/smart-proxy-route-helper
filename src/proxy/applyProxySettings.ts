@@ -1,7 +1,7 @@
 import { getLocalSettings } from "../storage/localStore";
 import { getMessage } from "../i18n/i18n";
 import type { LocalSettings, StorageAreaAdapter, SyncSettings } from "../storage/storageTypes";
-import { getSyncSettings } from "../storage/syncStore";
+import { getSyncSettings, hasSyncRulesStorageChange } from "../storage/syncStore";
 import { buildPacScript } from "./buildPac";
 
 type StorageChanges = Record<string, chrome.storage.StorageChange>;
@@ -85,7 +85,7 @@ export type ProxySettingsControllerOptions = {
 };
 
 const relevantStorageKeysByArea: Record<"sync" | "local", ReadonlySet<string>> = {
-  sync: new Set(["rules"]),
+  sync: new Set(),
   local: new Set(["deviceProxy"])
 };
 
@@ -175,6 +175,10 @@ export function buildProxyApplyPlan(syncSettings: SyncSettings, localSettings: L
 export function hasRelevantStorageChange(changes: StorageChanges, areaName: StorageAreaName): boolean {
   if (areaName !== "sync" && areaName !== "local") {
     return false;
+  }
+
+  if (areaName === "sync") {
+    return hasSyncRulesStorageChange(changes);
   }
 
   const relevantKeys = relevantStorageKeysByArea[areaName];

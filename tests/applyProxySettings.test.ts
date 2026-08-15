@@ -9,6 +9,7 @@ import {
 import type { DomainRule } from "../src/rules/ruleTypes";
 import type { StorageAreaAdapter } from "../src/storage/storageTypes";
 import { updateSyncRule } from "../src/storage/syncStore";
+import { packRulesIntoChunks, rulesMetaStorageKey } from "../src/storage/ruleChunks";
 
 type MemoryStorageArea = StorageAreaAdapter & {
   dump(): Record<string, unknown>;
@@ -379,6 +380,51 @@ describe("proxy settings storage change handling", () => {
     expect(proxySettings.calls[2]).toEqual({
       type: "clear"
     });
+  });
+
+  it("does not replace the active PAC with an incomplete incoming chunk generation", async () => {
+    const oldRules = [manualRule("old.example")];
+    const newRules = [manualRule("new.example")];
+    const oldPacked = packRulesIntoChunks(oldRules, "old-generation");
+    const newPacked = packRulesIntoChunks(newRules, "new-generation");
+    const syncStorage = createMemoryStorage({
+      ...oldPacked.chunks,
+      [rulesMetaStorageKey]: oldPacked.meta
+    });
+    const proxySettings = createProxySettingsRecorder();
+    const controller = createProxySettingsController({
+      proxySettings: proxySettings.adapter,
+      syncStorage,
+      localStorage: createMemoryStorage(enabledLocalProxyState()),
+      logger: silentLogger
+    });
+
+    await expect(controller.apply("startup")).resolves.toMatchObject({ status: "applied-pac" });
+    expect(proxySettings.calls).toHaveLength(1);
+
+    await syncStorage.set({ [rulesMetaStorageKey]: newPacked.meta });
+    const incomplete = await controller.handleStorageChange(
+      { [rulesMetaStorageKey]: { oldValue: oldPacked.meta, newValue: newPacked.meta } },
+      "sync"
+    );
+
+    expect(incomplete).toMatchObject({ ok: false, attemptedAction: "read-settings" });
+    expect(proxySettings.calls).toHaveLength(1);
+
+    await syncStorage.set(newPacked.chunks);
+    const complete = await controller.handleStorageChange(
+      { "rulesChunk:new-generation:0": { oldValue: undefined, newValue: newRules } },
+      "sync"
+    );
+
+    expect(complete).toMatchObject({ ok: true, status: "applied-pac" });
+    expect(proxySettings.calls).toHaveLength(2);
+    const latestCall = proxySettings.calls[1];
+    expect(latestCall.type).toBe("apply-pac");
+    if (latestCall.type === "apply-pac") {
+      expect(runPac(latestCall.pacScript, "new.example")).toBe("SOCKS5 127.0.0.1:10808");
+      expect(runPac(latestCall.pacScript, "old.example")).toBe("DIRECT");
+    }
   });
 
   it("applies proxy settings once after one confirmed atomic rule update", async () => {

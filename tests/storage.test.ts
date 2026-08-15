@@ -10,6 +10,12 @@ import {
   updateSyncRule,
   updateSyncSettings
 } from "../src/storage/syncStore";
+import {
+  estimateStorageItemBytes,
+  isRuleChunkStorageKey,
+  rulesChunkSchemaVersion,
+  rulesMetaStorageKey
+} from "../src/storage/ruleChunks";
 import { getRouteTargetKey } from "../src/rules/routeTarget";
 import type { StorageAreaAdapter } from "../src/storage/storageTypes";
 import type { DomainRule } from "../src/rules/ruleTypes";
@@ -17,6 +23,11 @@ import type { DomainRule } from "../src/rules/ruleTypes";
 type MemoryStorageArea = StorageAreaAdapter & {
   dump(): Record<string, unknown>;
   setCount(): number;
+};
+
+type RemovableMemoryStorageArea = MemoryStorageArea & {
+  setByteLimit(limit: number | null): void;
+  corruptNextRuleChunkWrite(): void;
 };
 
 const createdAt = "2026-06-24T00:00:00.000Z";
@@ -56,6 +67,80 @@ function createMemoryStorage(initialState: Record<string, unknown> = {}): Memory
     },
     setCount() {
       return writes;
+    }
+  };
+}
+
+function totalStorageBytes(state: Record<string, unknown>): number {
+  return Object.entries(state).reduce((total, [key, value]) => total + estimateStorageItemBytes(key, value), 0);
+}
+
+function createRemovableMemoryStorage(initialState: Record<string, unknown> = {}): RemovableMemoryStorageArea {
+  let state = { ...initialState };
+  let writes = 0;
+  let byteLimit: number | null = null;
+  let corruptNextRuleChunks = false;
+
+  return {
+    async get(keys?: string | string[] | Record<string, unknown> | null) {
+      if (keys === undefined || keys === null) {
+        return { ...state };
+      }
+
+      if (typeof keys === "string") {
+        return { [keys]: state[keys] };
+      }
+
+      if (Array.isArray(keys)) {
+        return Object.fromEntries(keys.map((key) => [key, state[key]]));
+      }
+
+      return {
+        ...keys,
+        ...Object.fromEntries(Object.keys(keys).filter((key) => key in state).map((key) => [key, state[key]]))
+      };
+    },
+    async set(items: Record<string, unknown>) {
+      const nextState = {
+        ...state,
+        ...items
+      };
+
+      if (byteLimit !== null && totalStorageBytes(nextState) > byteLimit) {
+        throw new Error("QUOTA_BYTES quota exceeded");
+      }
+
+      writes += 1;
+      state = nextState;
+
+      if (corruptNextRuleChunks) {
+        const chunkKey = Object.keys(items).find(isRuleChunkStorageKey);
+
+        if (chunkKey && Array.isArray(state[chunkKey]) && state[chunkKey].length > 0) {
+          const firstRule = state[chunkKey][0] as DomainRule;
+          state[chunkKey] = [{ ...firstRule, domain: "corrupted.example" }, ...state[chunkKey].slice(1)];
+          corruptNextRuleChunks = false;
+        }
+      }
+    },
+    async remove(keys: string | string[]) {
+      const targetKeys = typeof keys === "string" ? [keys] : keys;
+
+      for (const key of targetKeys) {
+        delete state[key];
+      }
+    },
+    dump() {
+      return { ...state };
+    },
+    setCount() {
+      return writes;
+    },
+    setByteLimit(limit) {
+      byteLimit = limit;
+    },
+    corruptNextRuleChunkWrite() {
+      corruptNextRuleChunks = true;
     }
   };
 }
@@ -268,7 +353,7 @@ describe("sync storage settings", () => {
         site: {}
       }
     });
-    expect(storage.dump()).toEqual(updatedSettings);
+    await expect(getSyncSettings(storage)).resolves.toEqual(updatedSettings);
   });
 
   it("allows unrelated sync updates while preserving a legacy conflict byte-for-byte", async () => {
@@ -284,7 +369,7 @@ describe("sync storage settings", () => {
 
     expect(result.rules).toEqual([proxy, direct]);
     expect(storage.dump().rules).toEqual([proxy, direct]);
-    expect(storage.setCount()).toBe(1);
+    expect(storage.setCount()).toBe(2);
   });
 
   it("rejects generic updates that reorder or mutate a legacy conflict", async () => {
@@ -303,7 +388,7 @@ describe("sync storage settings", () => {
     expect(storage.setCount()).toBe(0);
   });
 
-  it("updates a rule atomically with one storage write and preserves its stable metadata", async () => {
+  it("updates a rule through staged chunks while preserving its stable metadata", async () => {
     const currentRule = {
       ...manualRule("child.example.com", false),
       id: "rule-atomic"
@@ -351,7 +436,7 @@ describe("sync storage settings", () => {
         ]
       }
     });
-    expect(storage.setCount()).toBe(1);
+    expect(storage.setCount()).toBe(2);
     expect(result.settings.rules).toHaveLength(2);
   });
 
@@ -384,8 +469,8 @@ describe("sync storage settings", () => {
       ok: true,
       updatedRule: { id: "route-action", action: "proxy" }
     });
-    expect(storage.setCount()).toBe(2);
-    expect(storage.dump().rules).toHaveLength(1);
+    expect(storage.setCount()).toBe(4);
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules: [{ id: "route-action", action: "proxy" }] });
   });
 
   it("validates additions against the latest stored rules immediately before one final write", async () => {
@@ -413,9 +498,9 @@ describe("sync storage settings", () => {
       ok: true,
       addedRules: [{ domain: "example.com", includeSubdomains: false, action: "proxy" }]
     });
-    expect(storage.dump().rules).toEqual([
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules: [
       expect.objectContaining({ domain: "example.com", includeSubdomains: false, action: "proxy" })
-    ]);
+    ] });
   });
 
   it("does not migrate an already stored WWW rule during sanitization-only reads", async () => {
@@ -451,7 +536,7 @@ describe("sync storage settings", () => {
     expect(storage.dump().rules).toEqual([editedRule, latestOccupant]);
   });
 
-  it.each(["proxy", "direct"] as const)("resolves a stored conflict by keeping %s in one write", async (action) => {
+  it.each(["proxy", "direct"] as const)("resolves a stored conflict by keeping %s through staged chunks", async (action) => {
     const proxy = { ...manualRule("routing-test.test", true), id: "proxy" };
     const direct = { ...directRule("routing-test.test", true), id: "direct" };
     const storage = createMemoryStorage({ rules: [proxy, direct] });
@@ -462,11 +547,11 @@ describe("sync storage settings", () => {
       keptRule: action === "proxy" ? proxy : direct,
       removedRules: [action === "proxy" ? direct : proxy]
     });
-    expect(storage.setCount()).toBe(1);
-    expect(storage.dump().rules).toEqual([action === "proxy" ? proxy : direct]);
+    expect(storage.setCount()).toBe(2);
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules: [action === "proxy" ? proxy : direct] });
   });
 
-  it("expands an existing rule and adds a new rule in one atomic sync write", async () => {
+  it("expands an existing rule and adds a new rule through staged chunks", async () => {
     const exact = {
       ...manualRule("wikipedia.org", false),
       id: "wikipedia-rule",
@@ -496,8 +581,186 @@ describe("sync storage settings", () => {
       expandedRules: [{ id: "wikipedia-rule", includeSubdomains: true, source: "import", createdAt: "2026-07-01T00:00:00.000Z" }],
       addedRules: [{ domain: "cdn.example.net", source: "diagnostic" }]
     });
-    expect(storage.setCount()).toBe(1);
-    expect(storage.dump().rules).toHaveLength(2);
+    expect(storage.setCount()).toBe(2);
+    await expect(getSyncSettings(storage)).resolves.toHaveProperty("rules", expect.arrayContaining([
+      expect.objectContaining({ domain: "wikipedia.org" }),
+      expect.objectContaining({ domain: "cdn.example.net" })
+    ]));
+  });
+});
+
+describe("chunked Sync rule storage", () => {
+  it("migrates legacy rules without changing their content or order, then removes the legacy key", async () => {
+    const rules = [
+      { ...manualRule("first.example"), id: "first" },
+      {
+        ...directRule("second.example", false),
+        id: "second",
+        source: "import" as const,
+        createdAt: "2026-07-01T00:00:00.000Z"
+      }
+    ];
+    const storage = createRemovableMemoryStorage({ rules });
+
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules });
+
+    const migrated = storage.dump();
+    expect(migrated.rules).toBeUndefined();
+    expect(migrated[rulesMetaStorageKey]).toMatchObject({
+      schemaVersion: rulesChunkSchemaVersion,
+      ruleCount: rules.length
+    });
+    expect(Object.keys(migrated).filter(isRuleChunkStorageKey)).not.toHaveLength(0);
+
+    const writesAfterMigration = storage.setCount();
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules });
+    expect(storage.setCount()).toBe(writesAfterMigration);
+  });
+
+  it("keeps legacy rules when a migration write fails", async () => {
+    const rules = [manualRule("existing.example")];
+    const storage = createRemovableMemoryStorage({ rules });
+    storage.setByteLimit(1);
+
+    await expect(getSyncSettings(storage)).rejects.toMatchObject({
+      code: "quota-exceeded",
+      message: "Chrome Sync storage is full. Remove some synced rules or export a backup before adding more."
+    });
+    expect(storage.dump().rules).toEqual(rules);
+    expect(storage.dump()[rulesMetaStorageKey]).toBeUndefined();
+  });
+
+  it("keeps legacy rules when staged chunks fail verification", async () => {
+    const rules = [manualRule("existing.example")];
+    const storage = createRemovableMemoryStorage({ rules });
+    storage.corruptNextRuleChunkWrite();
+
+    await expect(getSyncSettings(storage)).rejects.toMatchObject({
+      code: "verification-failed",
+      message: "Synced route rules could not be verified. Existing rules were kept unchanged."
+    });
+    expect(storage.dump().rules).toEqual(rules);
+    expect(storage.dump()[rulesMetaStorageKey]).toBeUndefined();
+  });
+
+  it("recovers a partial chunked migration from intact legacy rules", async () => {
+    const rules = [manualRule("existing.example")];
+    const storage = createRemovableMemoryStorage({
+      rules,
+      [rulesMetaStorageKey]: {
+        schemaVersion: rulesChunkSchemaVersion,
+        generation: "partial-generation",
+        chunkCount: 1,
+        ruleCount: 1
+      }
+    });
+
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules });
+    expect(storage.dump().rules).toBeUndefined();
+    expect(storage.dump()[rulesMetaStorageKey]).toMatchObject({ ruleCount: 1 });
+    expect(Object.keys(storage.dump()).some((key) => key.includes("partial-generation"))).toBe(false);
+  });
+
+  it("writes additions, edits, and removals through chunks and removes stale chunks after a shrink", async () => {
+    const initialRules = Array.from({ length: 180 }, (_, index) => ({
+      ...manualRule(`rule-${index}.long-example-domain.test`, index % 2 === 0),
+      id: `rule-${index}`
+    }));
+    const storage = createRemovableMemoryStorage();
+
+    await setSyncSettings(
+      {
+        rules: initialRules,
+        ignoredDomains: [],
+        denylist: [],
+        classificationOverrides: { global: {}, site: {} }
+      },
+      storage
+    );
+    const initialChunkCount = Object.keys(storage.dump()).filter(isRuleChunkStorageKey).length;
+    expect(initialChunkCount).toBeGreaterThan(1);
+
+    const added = await addSyncRules([manualRule("added.example")], storage);
+    expect(added).toMatchObject({ ok: true, addedRules: [{ domain: "added.example" }] });
+
+    const edited = await updateSyncRule(
+      "rule-0",
+      { domain: "edited.example", includeSubdomains: false, action: "direct" },
+      storage
+    );
+    expect(edited).toMatchObject({ ok: true, updatedRule: { id: "rule-0", domain: "edited.example", action: "direct" } });
+
+    if (!edited.ok) {
+      throw new Error(edited.error);
+    }
+
+    const reduced = await updateSyncSettings({ rules: [edited.settings.rules[0]] }, storage);
+    expect(reduced.rules).toEqual([edited.settings.rules[0]]);
+    expect(Object.keys(storage.dump()).filter(isRuleChunkStorageKey)).toHaveLength(1);
+    await expect(getSyncSettings(storage)).resolves.toEqual(reduced);
+  });
+
+  it("keeps batch-add, scope-upgrade, duplicate, and conflict semantics with chunked storage", async () => {
+    const exactRule = { ...manualRule("scope.example", false), id: "scope-rule" };
+    const storage = createRemovableMemoryStorage();
+
+    await setSyncSettings(
+      {
+        rules: [exactRule],
+        ignoredDomains: [],
+        denylist: [],
+        classificationOverrides: { global: {}, site: {} }
+      },
+      storage
+    );
+    const batch = await applySyncRuleChanges(
+      [
+        {
+          ruleId: exactRule.id,
+          proposed: { domain: "scope.example", includeSubdomains: true, action: "proxy" }
+        }
+      ],
+      [manualRule("batch-one.example"), manualRule("batch-two.example", false)],
+      storage
+    );
+
+    expect(batch).toMatchObject({
+      ok: true,
+      expandedRules: [{ id: "scope-rule", includeSubdomains: true }],
+      addedRules: [{ domain: "batch-one.example" }, { domain: "batch-two.example" }]
+    });
+    const duplicate = await addSyncRules([manualRule("batch-one.example")], storage);
+    expect(duplicate).toMatchObject({ ok: true, addedRules: [], duplicateRules: [{ domain: "batch-one.example" }] });
+    const conflict = await addSyncRules([directRule("batch-one.example")], storage);
+    expect(conflict).toMatchObject({ ok: false, reason: "conflict" });
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({
+      rules: expect.arrayContaining([expect.objectContaining({ id: "scope-rule", includeSubdomains: true })])
+    });
+  });
+
+  it("reports general Sync quota exhaustion without changing the active rules", async () => {
+    const rules = Array.from({ length: 70 }, (_, index) => ({
+      ...manualRule(`quota-${index}.long-example-domain.test`),
+      id: `quota-${index}`
+    }));
+    const storage = createRemovableMemoryStorage();
+
+    await setSyncSettings(
+      {
+        rules,
+        ignoredDomains: [],
+        denylist: [],
+        classificationOverrides: { global: {}, site: {} }
+      },
+      storage
+    );
+    storage.setByteLimit(totalStorageBytes(storage.dump()) + 100);
+
+    await expect(addSyncRules([manualRule("cannot-fit.example")], storage)).rejects.toMatchObject({
+      code: "quota-exceeded",
+      message: "Chrome Sync storage is full. Remove some synced rules or export a backup before adding more."
+    });
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules });
   });
 });
 
@@ -676,7 +939,7 @@ describe("storage writes", () => {
       storage
     );
 
-    expect(storage.dump()).toEqual({
+    await expect(getSyncSettings(storage)).resolves.toEqual({
       rules: [manualRule("example.com", true)],
       ignoredDomains: ["ignored.example"],
       denylist: ["denied.example"],
