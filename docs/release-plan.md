@@ -1,11 +1,9 @@
 # Release Plan
 
 This repository has moved beyond the documentation-only bootstrap phase. Versions `v0.1.0`,
-`v0.2.0`, and `v0.3.0` are public GitHub releases. Version `v0.3.0` is the latest immutable release
-and has been submitted to Chrome Web Store for review; Store publication of `v0.3.0` is not
-claimed. Current `main` is development version `0.3.1`; its post-release fixes have not been
-published as a new GitHub Release or Store update. The version sections below preserve the staged
-product plan and its guardrails.
+`v0.2.0`, `v0.3.0`, and `v0.3.1` are public GitHub releases. Version `v0.3.1` is the latest
+immutable release and is published in Chrome Web Store. The version sections below preserve the
+staged product plan and its guardrails.
 
 ## v0.1: Manual PAC MVP
 
@@ -139,10 +137,10 @@ Exit criteria:
 - Classification data is bundled locally or provided explicitly by the user.
 - Privacy and Chrome Web Store disclosures are updated before release.
 
-Historical tags, releases, and packages remain immutable. Smart Proxy Route Helper `v0.3.0` is a
-normal public GitHub Release from commit `ff2662af1658be0d3a80912dc8f5adf2afcecfca` and has been
-submitted to Chrome Web Store for review. Review and publication remain external Store states;
-the repository must not infer that `v0.3.0` is publicly available in Store until verified.
+Historical tags, releases, and packages remain immutable. Smart Proxy Route Helper `v0.3.1` is a
+normal public GitHub Release from commit `ec43f22c2300a19d882a08069620c5cde62e6e11` and is
+published in Chrome Web Store. The `v0.3.0` release record remains the historical record for that
+earlier release.
 
 ## Chrome Web Store Submission Checklist
 

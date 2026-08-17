@@ -1,17 +1,15 @@
 # Security Policy
 
-This repository contains the Smart Proxy Route Helper Manifest V3 runtime. Development version
-`0.3.1` is on `main`; the latest immutable public GitHub Release is `v0.3.0`. Release `v0.3.0` has
-been submitted to Chrome Web Store for review and is awaiting review; this document does not claim
-that Store `v0.3.0` is published. The post-release fixes on `main` have not been published as a new
-GitHub Release or Store update.
+This repository contains the Smart Proxy Route Helper Manifest V3 runtime. The current published
+production version on `main` is `0.3.1`; the latest immutable public GitHub Release is `v0.3.1`,
+and Chrome Web Store production is published at `0.3.1`.
 
 ## Supported Versions
 
 | Version | Status |
 | --- | --- |
 | `main` | Supported; security fixes land here first. |
-| `v0.3.0` | Current released baseline; security fixes are assessed against `main`. |
+| `v0.3.1` | Current released baseline; security fixes are assessed against `main`. |
 | `v0.2.0` and older | Not actively supported; upgrade to the current release before reporting version-specific issues where possible. |
 
 ## Reporting a Vulnerability

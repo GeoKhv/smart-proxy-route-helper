@@ -1,9 +1,8 @@
 # Privacy Policy
 
-This document describes the privacy posture of current `main` at development version `0.3.1`.
-Version `v0.3.0` is the latest immutable public GitHub Release and has been submitted to Chrome Web
-Store for review; Store publication of `v0.3.0` is not claimed here. The post-release fixes on
-`main` have not been published as a new GitHub Release or Store update.
+This document describes the privacy posture of the current published production version `0.3.1`
+on `main`. The latest immutable public GitHub Release is `v0.3.1`, and Chrome Web Store production
+is published at `0.3.1`.
 
 The repository contains a Manifest V3 extension runtime. The statements below must be kept aligned with the actual extension behavior before any public release.
 

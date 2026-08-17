@@ -6,9 +6,9 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 ## Current Release Status
 
-The current development version on `main` is `0.3.1`, and the latest immutable public GitHub
-Release is `v0.3.0`. The post-release fixes on `main` have not been published as a new GitHub
-Release or Chrome Web Store update.
+The current published production version on `main` is `0.3.1`, and the latest immutable public
+GitHub Release is `v0.3.1`. At the time of this documentation cleanup, `main` corresponds to the
+published `0.3.1` release.
 The current runtime includes:
 
 - Options UI for device-specific local proxy configuration, synced editable proxy/direct rules, explicit scope previews, and redundant-rule cleanup suggestions.
@@ -32,16 +32,12 @@ The Smart Proxy Route Helper item is available in Chrome Web Store:
 
 - https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
-Version `0.3.0` has been submitted to Chrome Web Store for review and is awaiting review. This
-repository audit did not independently verify which version is currently visible to Store users,
-so it does not claim that Store `v0.3.0` is published.
+Production version `0.3.1` is published in Chrome Web Store.
 
-The latest public GitHub Release is `v0.3.0`:
+The latest public GitHub Release is `v0.3.1`:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.3.0
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.3.1
 
-The `v0.3.0` Store submission remains separate from Store review and publication. No further
-Dashboard action is part of the current post-release audit.
 The shared Store screenshot set is the five English PNGs documented in
 [store-assets/screenshots/README.md](store-assets/screenshots/README.md), used for every Store locale.
 
@@ -229,6 +225,8 @@ See [docs/permissions.md](docs/permissions.md) for the detailed strategy.
 Synced across the user's Chrome profile:
 
 - Domain routing rules, including whether each rule routes through proxy or directly.
+- Routing rules are stored internally across multiple Chrome Sync items to avoid per-item quota
+  limits; legacy single-item data is migrated safely when read or written.
 - Domain-level classification overrides for related-domain preview.
 - Domain-level ignored domains and denylist entries.
 - Rule metadata such as stable identity where assigned, source, and creation timestamps.
@@ -307,6 +305,7 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/release-notes-v0.2.0.md](docs/release-notes-v0.2.0.md): final GitHub release notes for v0.2.0.
 - [store-assets/listing/release-notes-v0.3.0.md](store-assets/listing/release-notes-v0.3.0.md): English and Russian v0.3.0 release notes.
 - [docs/releases/v0.3.0-release-record.md](docs/releases/v0.3.0-release-record.md): verified GitHub release, package, checks, smoke status, and Chrome Web Store submission record.
+- [docs/releases/v0.3.1-release-record.md](docs/releases/v0.3.1-release-record.md): final production release, package, checks, smoke status, and publication record.
 - [docs/chrome-web-store-update-v0.2.0-draft.md](docs/chrome-web-store-update-v0.2.0-draft.md): historical unpublished v0.2.0 Store update draft, disclosure changes, and screenshot plan.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.

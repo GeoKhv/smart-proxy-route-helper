@@ -1,13 +1,13 @@
 # Smart Proxy Route Helper — Product Roadmap
 
-Last updated: 2026-07-16
+Last updated: 2026-08-17
 
 This is the living product plan for Smart Proxy Route Helper. It records the product thesis, release priorities, competitor lessons, explicit non-goals, and the intended scope of the next meaningful release.
 
 ## Release decision
 
-- The latest public release remains `v0.3.0`.
-- Development version `0.3.1` is not intended to be published as a separate GitHub Release or Chrome Web Store update.
+- The latest public release is `v0.3.1`, published in GitHub and Chrome Web Store.
+- The `0.3.1` production release includes the Chrome Sync chunking/migration and Popup width bugfixes.
 - The next planned public release is `v0.4.0`, after it contains meaningful user-facing improvements.
 - Documentation-only planning changes do not change this release boundary.
 
