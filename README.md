@@ -6,9 +6,9 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 ## Current Release Status
 
-The current published production version on `main` is `0.3.1`, and the latest immutable public
-GitHub Release is `v0.3.1`. At the time of this documentation cleanup, `main` corresponds to the
-published `0.3.1` release.
+The current development version on `main` is `0.3.2`, prepared as a production hotfix for Chrome
+Sync rule verification. The latest immutable public GitHub Release and Chrome Web Store production
+version remain `v0.3.1` / `0.3.1`; `0.3.2` has not been tagged, released, or published.
 The current runtime includes:
 
 - Options UI for device-specific local proxy configuration, synced editable proxy/direct rules, explicit scope previews, and redundant-rule cleanup suggestions.
@@ -153,7 +153,7 @@ Package the current build for local release testing:
 npm run package
 ```
 
-The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.3.1.zip`. Run `npm run build` first.
+The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.3.2.zip`. Run `npm run build` first.
 
 ## Dependency Notes
 

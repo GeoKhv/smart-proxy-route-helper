@@ -28,6 +28,7 @@ type MemoryStorageArea = StorageAreaAdapter & {
 type RemovableMemoryStorageArea = MemoryStorageArea & {
   setByteLimit(limit: number | null): void;
   corruptNextRuleChunkWrite(): void;
+  reorderRulePropertiesOnRead(): void;
 };
 
 const createdAt = "2026-06-24T00:00:00.000Z";
@@ -80,24 +81,43 @@ function createRemovableMemoryStorage(initialState: Record<string, unknown> = {}
   let writes = 0;
   let byteLimit: number | null = null;
   let corruptNextRuleChunks = false;
+  let reorderRuleProperties = false;
+
+  function readValue(key: string): unknown {
+    const value = state[key];
+
+    if (!reorderRuleProperties || !isRuleChunkStorageKey(key) || !Array.isArray(value)) {
+      return value;
+    }
+
+    return (value as DomainRule[]).map((rule) => ({
+      action: rule.action,
+      createdAt: rule.createdAt,
+      domain: rule.domain,
+      includeSubdomains: rule.includeSubdomains,
+      mode: rule.mode,
+      source: rule.source,
+      ...(rule.id === undefined ? {} : { id: rule.id })
+    }));
+  }
 
   return {
     async get(keys?: string | string[] | Record<string, unknown> | null) {
       if (keys === undefined || keys === null) {
-        return { ...state };
+        return Object.fromEntries(Object.keys(state).map((key) => [key, readValue(key)]));
       }
 
       if (typeof keys === "string") {
-        return { [keys]: state[keys] };
+        return { [keys]: readValue(keys) };
       }
 
       if (Array.isArray(keys)) {
-        return Object.fromEntries(keys.map((key) => [key, state[key]]));
+        return Object.fromEntries(keys.map((key) => [key, readValue(key)]));
       }
 
       return {
         ...keys,
-        ...Object.fromEntries(Object.keys(keys).filter((key) => key in state).map((key) => [key, state[key]]))
+        ...Object.fromEntries(Object.keys(keys).filter((key) => key in state).map((key) => [key, readValue(key)]))
       };
     },
     async set(items: Record<string, unknown>) {
@@ -141,6 +161,9 @@ function createRemovableMemoryStorage(initialState: Record<string, unknown> = {}
     },
     corruptNextRuleChunkWrite() {
       corruptNextRuleChunks = true;
+    },
+    reorderRulePropertiesOnRead() {
+      reorderRuleProperties = true;
     }
   };
 }
@@ -698,6 +721,74 @@ describe("chunked Sync rule storage", () => {
     expect(reduced.rules).toEqual([edited.settings.rules[0]]);
     expect(Object.keys(storage.dump()).filter(isRuleChunkStorageKey)).toHaveLength(1);
     await expect(getSyncSettings(storage)).resolves.toEqual(reduced);
+  });
+
+  it("verifies Add, Update, and Delete after Chrome reorders rule object properties", async () => {
+    const initialRule = { ...manualRule("initial.example"), id: "initial-rule" };
+    const storage = createRemovableMemoryStorage();
+    storage.reorderRulePropertiesOnRead();
+
+    await setSyncSettings(
+      {
+        rules: [initialRule],
+        ignoredDomains: [],
+        denylist: [],
+        classificationOverrides: { global: {}, site: {} }
+      },
+      storage
+    );
+
+    const added = await addSyncRules([manualRule("added.example")], storage);
+    expect(added).toMatchObject({ ok: true, addedRules: [{ domain: "added.example" }] });
+
+    const updated = await updateSyncRule(
+      initialRule.id,
+      { domain: "updated.example", includeSubdomains: false, action: "direct" },
+      storage
+    );
+    expect(updated).toMatchObject({
+      ok: true,
+      updatedRule: { id: initialRule.id, domain: "updated.example", action: "direct" }
+    });
+
+    const afterDelete = await updateSyncSettings(
+      (current) => ({
+        rules: current.rules.filter((rule) => rule.domain !== "added.example")
+      }),
+      storage
+    );
+    expect(afterDelete.rules).toEqual([
+      expect.objectContaining({ id: initialRule.id, domain: "updated.example", action: "direct" })
+    ]);
+    await expect(getSyncSettings(storage)).resolves.toEqual(afterDelete);
+  });
+
+  it("keeps the old active generation when a genuine staged verification mismatch occurs", async () => {
+    const activeRules = [{ ...manualRule("active.example"), id: "active-rule" }];
+    const storage = createRemovableMemoryStorage();
+
+    await setSyncSettings(
+      {
+        rules: activeRules,
+        ignoredDomains: [],
+        denylist: [],
+        classificationOverrides: { global: {}, site: {} }
+      },
+      storage
+    );
+
+    const activeMeta = storage.dump()[rulesMetaStorageKey];
+    const activeChunkKeys = Object.keys(storage.dump()).filter(isRuleChunkStorageKey).sort();
+    storage.corruptNextRuleChunkWrite();
+
+    await expect(addSyncRules([manualRule("corrupted.example")], storage)).rejects.toMatchObject({
+      code: "verification-failed",
+      message: "Synced route rules could not be verified. Existing rules were kept unchanged."
+    });
+
+    expect(storage.dump()[rulesMetaStorageKey]).toEqual(activeMeta);
+    expect(Object.keys(storage.dump()).filter(isRuleChunkStorageKey).sort()).toEqual(activeChunkKeys);
+    await expect(getSyncSettings(storage)).resolves.toMatchObject({ rules: activeRules });
   });
 
   it("keeps batch-add, scope-upgrade, duplicate, and conflict semantics with chunked storage", async () => {

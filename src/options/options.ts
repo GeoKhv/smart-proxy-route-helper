@@ -1166,13 +1166,31 @@ async function initOptionsPage(): Promise<void> {
     void handleLocalProxySubmit(event);
   });
   getElement<HTMLFormElement>("#rule-form").addEventListener("submit", (event) => {
-    void handleRuleSubmit(event);
+    void handleRuleSubmit(event).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#rule-status"),
+        error instanceof Error ? error.message : getMessage("optionsCouldNotSaveEdit"),
+        "error"
+      );
+    });
   });
   getElement<HTMLUListElement>("#rule-list").addEventListener("click", (event) => {
-    void handleRuleListClick(event);
+    void handleRuleListClick(event).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#rule-status"),
+        error instanceof Error ? error.message : getMessage("optionsCouldNotSaveEdit"),
+        "error"
+      );
+    });
   });
   getElement<HTMLUListElement>("#route-rule-conflict-list").addEventListener("click", (event) => {
-    void handleRouteTargetConflictClick(event);
+    void handleRouteTargetConflictClick(event).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#route-rule-conflict-status"),
+        error instanceof Error ? error.message : getMessage("optionsCouldNotSaveEdit"),
+        "error"
+      );
+    });
   });
   getElement<HTMLInputElement>("#rule-edit-domain").addEventListener("input", handleRuleEditorInput);
   getElement<HTMLSelectElement>("#rule-edit-action").addEventListener("change", handleRuleEditorInput);
@@ -1203,10 +1221,22 @@ async function initOptionsPage(): Promise<void> {
     void handleFindRedundantRulesClick();
   });
   getElement<HTMLUListElement>("#rule-cleanup-list").addEventListener("click", (event) => {
-    void handleRuleCleanupClick(event);
+    void handleRuleCleanupClick(event).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#rule-cleanup-status"),
+        error instanceof Error ? error.message : getMessage("optionsCouldNotSaveEdit"),
+        "error"
+      );
+    });
   });
   getElement<HTMLUListElement>("#classification-overrides-list").addEventListener("click", (event) => {
-    void handleClassificationOverrideListClick(event);
+    void handleClassificationOverrideListClick(event).catch((error: unknown) => {
+      setStatus(
+        getElement<HTMLElement>("#classification-overrides-status"),
+        error instanceof Error ? error.message : getMessage("optionsCouldNotSaveEdit"),
+        "error"
+      );
+    });
   });
   getElement<HTMLButtonElement>("#export-settings-button").addEventListener("click", () => {
     void handleSettingsExportClick();

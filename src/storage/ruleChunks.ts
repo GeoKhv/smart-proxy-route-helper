@@ -160,5 +160,30 @@ export function reconstructRulesFromChunks(
 }
 
 export function rulesMatchExactly(left: readonly DomainRule[], right: readonly DomainRule[]): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    const rule = left[index];
+    const candidate = right[index];
+
+    if (
+      rule !== undefined &&
+      candidate !== undefined &&
+      rule.id === candidate.id &&
+      rule.domain === candidate.domain &&
+      rule.includeSubdomains === candidate.includeSubdomains &&
+      rule.action === candidate.action &&
+      rule.mode === candidate.mode &&
+      rule.source === candidate.source &&
+      rule.createdAt === candidate.createdAt
+    ) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return true;
 }

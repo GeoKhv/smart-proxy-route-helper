@@ -255,6 +255,15 @@ describe("options classification override UI boundary", () => {
     expect(optionsSource).toContain("planRuleEdit");
     expect(optionsSource).toContain("updateSyncRule(plan.ruleId, plan.proposedRule)");
     expect(optionsSource).toContain("resolveSyncRouteTargetConflict");
+    expect(optionsSource).toContain("void handleRuleSubmit(event).catch");
+    expect(optionsSource).toContain("void handleRuleListClick(event).catch");
+    expect(optionsSource).toContain("void handleRouteTargetConflictClick(event).catch");
+    expect(optionsSource).toContain("void handleRuleCleanupClick(event).catch");
+    expect(optionsSource).toContain("void handleClassificationOverrideListClick(event).catch");
+    expect(optionsSource).toContain('getElement<HTMLElement>("#rule-status")');
+    expect(optionsSource).toContain('getElement<HTMLElement>("#route-rule-conflict-status")');
+    expect(optionsSource).toContain('getElement<HTMLElement>("#rule-cleanup-status")');
+    expect(optionsSource).toContain('getElement<HTMLElement>("#classification-overrides-status")');
     expect(optionsSource).not.toContain("chrome.proxy");
   });
 });

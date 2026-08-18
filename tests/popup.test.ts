@@ -720,6 +720,30 @@ describe("popup runtime boundaries", () => {
     expect(popupSource).not.toContain("chrome.proxy");
   });
 
+  it("surfaces rejected user-initiated Sync mutations in the Popup action status", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+    const individualRelatedAdd = popupSource.slice(
+      popupSource.indexOf('void handleAddRelatedDomains(new Set([candidateDomain]), "individual")'),
+      popupSource.indexOf("if (button.dataset.relatedDomainBatchAdd)")
+    );
+    const batchRelatedAdd = popupSource.slice(
+      popupSource.indexOf('void handleAddRelatedDomains(selectedDomains, "batch")'),
+      popupSource.indexOf("if (!button.dataset.overrideAction)")
+    );
+
+    expect(popupSource).toContain("void handleConfirmScopeChange().catch");
+    expect(popupSource).toContain('void handleAddCurrentSite("proxy").catch');
+    expect(popupSource).toContain('void handleAddCurrentSite("direct").catch');
+    expect(popupSource).toContain("void handleRemoveCurrentSite().catch");
+    expect(individualRelatedAdd).toContain(".catch((error: unknown) =>");
+    expect(individualRelatedAdd).toContain('getElement<HTMLElement>("#action-status")');
+    expect(batchRelatedAdd).toContain(".catch((error: unknown) =>");
+    expect(batchRelatedAdd).toContain('getElement<HTMLElement>("#action-status")');
+    expect(popupSource).toContain("void handleRelatedDomainClassificationOverride(button).catch");
+    expect(popupSource).toContain("void handleSaveDiagnosticRule().catch");
+    expect(popupSource).toContain('getElement<HTMLElement>("#action-status")');
+  });
+
   it("keeps storage writes out of the preview handler and inside the explicit save handler", async () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const previewHandler = popupSource.slice(

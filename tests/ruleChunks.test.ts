@@ -6,7 +6,8 @@ import {
   packRulesIntoChunks,
   reconstructRulesFromChunks,
   ruleChunkStorageKeys,
-  rulesChunkTargetBytes
+  rulesChunkTargetBytes,
+  rulesMatchExactly
 } from "../src/storage/ruleChunks";
 import type { DomainRule } from "../src/rules/ruleTypes";
 
@@ -66,5 +67,53 @@ describe("chunked route-rule packing", () => {
     } catch (error) {
       expect(error).toMatchObject({ code: "rule-too-large" });
     }
+  });
+});
+
+describe("semantic route-rule verification", () => {
+  it("accepts Chrome Storage property reordering without weakening rule equality", () => {
+    const source = rule(1);
+    const chromeRoundTrip: DomainRule = {
+      action: source.action,
+      createdAt: source.createdAt,
+      domain: source.domain,
+      includeSubdomains: source.includeSubdomains,
+      mode: source.mode,
+      source: source.source,
+      id: source.id
+    };
+    const { id: _sourceId, ...ruleWithoutId } = source;
+
+    expect(JSON.stringify([chromeRoundTrip])).not.toBe(JSON.stringify([source]));
+    expect(rulesMatchExactly([source], [chromeRoundTrip])).toBe(true);
+    expect(rulesMatchExactly([ruleWithoutId], [{ ...ruleWithoutId, id: undefined }])).toBe(true);
+  });
+
+  it("detects a real change to every supported DomainRule field", () => {
+    const source = rule(1);
+    const changedRules: DomainRule[] = [
+      { ...source, id: "changed-id" },
+      { ...source, domain: "changed.example.test" },
+      { ...source, includeSubdomains: !source.includeSubdomains },
+      { ...source, action: source.action === "proxy" ? "direct" : "proxy" },
+      { ...source, mode: "unexpected" as DomainRule["mode"] },
+      { ...source, source: source.source === "manual" ? "import" : "manual" },
+      { ...source, createdAt: "2026-08-18T00:00:00.000Z" }
+    ];
+
+    for (const changed of changedRules) {
+      expect(rulesMatchExactly([source], [changed])).toBe(false);
+    }
+    expect(rulesMatchExactly([{ ...source, id: undefined }], [source])).toBe(false);
+  });
+
+  it("keeps array order and rule count significant", () => {
+    const first = rule(1);
+    const second = rule(2);
+
+    expect(rulesMatchExactly([first, second], [second, first])).toBe(false);
+    expect(rulesMatchExactly([first, second], [first])).toBe(false);
+    expect(rulesMatchExactly([first], [first, second])).toBe(false);
+    expect(rulesMatchExactly(new Array<DomainRule>(1), [first])).toBe(false);
   });
 });
