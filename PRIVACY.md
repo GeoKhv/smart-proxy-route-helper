@@ -1,6 +1,6 @@
 # Privacy Policy
 
-This document describes the privacy posture of development version `0.3.2` on `main`. The latest
+This document describes the privacy posture of release candidate `0.3.2` on `main`. The latest
 immutable public GitHub Release is `v0.3.1`, and Chrome Web Store production remains published at
 `0.3.1`; the `0.3.2` hotfix has not been tagged, released, or published.
 

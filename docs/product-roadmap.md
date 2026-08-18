@@ -8,7 +8,7 @@ This is the living product plan for Smart Proxy Route Helper. It records the pro
 
 - The latest public release is `v0.3.1`, published in GitHub and Chrome Web Store.
 - The `0.3.1` production release includes the Chrome Sync chunking/migration and Popup width bugfixes.
-- Current `main` is the `0.3.2` production hotfix for Chrome Sync rule verification; it has not been tagged, released, or published.
+- Current `main` is the `0.3.2` release candidate for the Chrome Sync rule verification production hotfix; it has not been tagged, released, or published.
 - Feature work remains planned for `v0.4.0` after the `0.3.2` hotfix, and is not part of this patch release.
 - Documentation-only planning changes do not change this release boundary.
 

@@ -2,7 +2,7 @@
 
 This repository has moved beyond the documentation-only bootstrap phase. Versions `v0.1.0`,
 `v0.2.0`, `v0.3.0`, and `v0.3.1` are public GitHub releases. Version `v0.3.1` is the latest
-immutable release and is published in Chrome Web Store. Current `main` is development version
+immutable release and is published in Chrome Web Store. Current `main` is release candidate
 `0.3.2`, prepared as a production hotfix without a tag, GitHub Release, or Chrome Web Store
 publication. The version sections below preserve the staged product plan and its guardrails.
 

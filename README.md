@@ -6,7 +6,7 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 ## Current Release Status
 
-The current development version on `main` is `0.3.2`, prepared as a production hotfix for Chrome
+The current release candidate on `main` is `0.3.2`, prepared as a production hotfix for Chrome
 Sync rule verification. The latest immutable public GitHub Release and Chrome Web Store production
 version remain `v0.3.1` / `0.3.1`; `0.3.2` has not been tagged, released, or published.
 The current runtime includes:
