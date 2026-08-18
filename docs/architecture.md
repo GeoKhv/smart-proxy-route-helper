@@ -24,7 +24,9 @@ Popup:
 - Detect the active tab URL after the user opens the popup.
 - Show the normalized current domain for supported `http` and `https` pages.
 - Show a prominent text-and-icon state for exact Proxy, parent Proxy, exact Direct, parent Direct, blocked, or unconfigured default Direct.
-- Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy is disabled or invalid.
+- Show a dedicated paused state when a saved valid local proxy config is disabled, without claiming that the current hostname is actively routed through Proxy.
+- Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy config is missing or invalid.
+- Let the user explicitly pause or resume all extension-managed proxy routing on the current device. This changes only `deviceProxy.enabled`; the saved local proxy config and synced rules remain available.
 - Show `Conflicting rules` when legacy synced data contains both actions for the effective hostname/scope target, state which deterministic action is temporarily effective, and direct the user to Options for repair.
 - Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
 - Default every Popup quick action to hostname-and-subdomains scope. A standard `www.` directly before the registrable domain is canonicalized to that registrable domain; `www1`, `www2`, nested `www`, and arbitrary subdomains remain distinct hostnames.
@@ -77,6 +79,7 @@ The service worker currently coordinates:
 - Generating PAC data locally.
 - Applying proxy settings through `chrome.proxy`.
 - Reacting to relevant storage changes.
+- Acknowledging explicit Popup Pause/Resume changes after the existing proxy controller has processed the current local-storage state.
 - Handling current-site diagnostic messages from the popup.
 - Handling current-page related-domain preview messages from the popup.
 - Handling user-invoked diagnostic recording session messages from the popup.

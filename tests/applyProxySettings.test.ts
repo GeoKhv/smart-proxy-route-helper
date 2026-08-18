@@ -363,12 +363,17 @@ describe("proxy settings storage change handling", () => {
     await localStorage.set({
       deviceProxy: {
         enabled: false,
-        config: null
+        config: localProxyConfig
       }
     });
 
     const localResult = await controller.handleStorageChange(
-      { deviceProxy: { oldValue: enabledLocalProxyState().deviceProxy, newValue: null } },
+      {
+        deviceProxy: {
+          oldValue: enabledLocalProxyState().deviceProxy,
+          newValue: { enabled: false, config: localProxyConfig }
+        }
+      },
       "local"
     );
 
@@ -379,6 +384,32 @@ describe("proxy settings storage change handling", () => {
     expect(proxySettings.calls).toHaveLength(3);
     expect(proxySettings.calls[2]).toEqual({
       type: "clear"
+    });
+
+    await localStorage.set({
+      deviceProxy: {
+        enabled: true,
+        config: localProxyConfig
+      }
+    });
+
+    const resumedResult = await controller.handleStorageChange(
+      {
+        deviceProxy: {
+          oldValue: { enabled: false, config: localProxyConfig },
+          newValue: enabledLocalProxyState().deviceProxy
+        }
+      },
+      "local"
+    );
+
+    expect(resumedResult).toMatchObject({
+      ok: true,
+      status: "applied-pac"
+    });
+    expect(proxySettings.calls).toHaveLength(4);
+    expect(proxySettings.calls[3]).toMatchObject({
+      type: "apply-pac"
     });
   });
 

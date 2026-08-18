@@ -170,6 +170,20 @@ await chrome.proxy.settings.get({ incognito: false });
 12. Stop the local proxy or change the local proxy port to a known-wrong value, reload the matching test domain, and confirm it fails closed instead of silently using the direct route.
 13. Visit a non-matching domain and confirm it uses the direct route.
 
+## Popup Pause and Resume — Must Pass
+
+Use only a disposable profile with a valid saved local proxy config and at least one safe Proxy rule.
+
+1. Open the Popup on a hostname covered by the Proxy rule and confirm the active state says the site is routed through Proxy.
+2. Record `chrome.storage.local.deviceProxy` and the effective synced rules, then click `Pause proxy routing` / `Приостановить прокси`.
+3. Confirm the Popup immediately says `Proxy routing paused` / `Маршрутизация через прокси приостановлена` and does not claim that the current hostname is actively routed through Proxy.
+4. Confirm `deviceProxy.enabled` is `false`, while `deviceProxy.config` is byte-for-byte unchanged and the synced rules are unchanged.
+5. Confirm the extension cleared its `chrome.proxy.settings` control instead of installing a forced DIRECT PAC. Chrome should return to the applicable system/network routing configuration.
+6. Confirm site-rule controls, Related domains, manual diagnostics, and diagnostic recording remain visible and no rule is added, removed, or changed automatically.
+7. Click `Resume proxy routing` / `Возобновить прокси` and confirm `deviceProxy.enabled` returns to `true`, the saved config remains unchanged, the controller reapplies the PAC plan, and the Popup returns to the normal active route state without being reopened.
+8. In an isolated fixture, set `deviceProxy.config` to `null` or an invalid value while routing is disabled. Confirm Resume performs no write, shows localized configuration guidance, and leaves routing disabled until a valid config is saved through Options.
+9. Simulate or inspect a rejected local-storage or `chrome.proxy.settings` operation. Confirm the Popup shows a localized error, does not report a successful Pause/Resume, and produces no uncaught promise rejection.
+
 ## Options Configuration Checks
 
 1. Open Options.

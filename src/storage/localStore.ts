@@ -1,5 +1,6 @@
 import { sanitizeLocalSettings } from "./sanitize";
-import type { LocalSettings, SettingsUpdate, StorageAreaAdapter } from "./storageTypes";
+import { validateLocalProxyConfig } from "../proxy/proxyConfig";
+import type { DeviceProxySettings, LocalSettings, SettingsUpdate, StorageAreaAdapter } from "./storageTypes";
 
 const localStorageKeys = ["deviceProxy", "diagnostics", "language"] as const;
 
@@ -13,6 +14,44 @@ function resolveUpdate<TSettings extends object>(current: TSettings, update: Set
   return {
     ...current,
     ...patch
+  };
+}
+
+export type DeviceProxyEnabledUpdateResult =
+  | {
+      ok: true;
+      previous: DeviceProxySettings;
+      deviceProxy: DeviceProxySettings;
+    }
+  | {
+      ok: false;
+      reason: "invalid-config";
+      deviceProxy: DeviceProxySettings;
+    };
+
+export function planDeviceProxyEnabledUpdate(
+  current: DeviceProxySettings,
+  enabled: boolean
+): DeviceProxyEnabledUpdateResult {
+  if (enabled) {
+    const validation = validateLocalProxyConfig(current.config);
+
+    if (!validation.ok || current.config === null || current.config.host.includes("@")) {
+      return {
+        ok: false,
+        reason: "invalid-config",
+        deviceProxy: current
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    previous: current,
+    deviceProxy: {
+      ...current,
+      enabled
+    }
   };
 }
 
@@ -40,4 +79,22 @@ export async function updateLocalSettings(
   const currentSettings = await getLocalSettings(storageArea);
 
   return setLocalSettings(resolveUpdate(currentSettings, update), storageArea);
+}
+
+export async function setDeviceProxyEnabled(
+  enabled: boolean,
+  storageArea: StorageAreaAdapter = getChromeLocalStorage()
+): Promise<DeviceProxyEnabledUpdateResult> {
+  const currentSettings = await getLocalSettings(storageArea);
+  const update = planDeviceProxyEnabledUpdate(currentSettings.deviceProxy, enabled);
+
+  if (!update.ok) {
+    return update;
+  }
+
+  await storageArea.set({
+    deviceProxy: update.deviceProxy
+  });
+
+  return update;
 }

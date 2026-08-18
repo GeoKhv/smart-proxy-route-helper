@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { getLocalSettings, setLocalSettings, updateLocalSettings } from "../src/storage/localStore";
+import {
+  getLocalSettings,
+  planDeviceProxyEnabledUpdate,
+  setDeviceProxyEnabled,
+  setLocalSettings,
+  updateLocalSettings
+} from "../src/storage/localStore";
 import {
   addSyncRules,
   applySyncRuleChanges,
@@ -856,6 +862,108 @@ describe("chunked Sync rule storage", () => {
 });
 
 describe("local storage settings", () => {
+  it("pauses proxy routing by changing only enabled and preserving the existing config", async () => {
+    const config = {
+      scheme: "socks5" as const,
+      host: "127.0.0.1",
+      port: 10808
+    };
+    const storage = createMemoryStorage({
+      deviceProxy: { enabled: true, config },
+      diagnostics: { enabled: true },
+      language: "ru"
+    });
+
+    await expect(setDeviceProxyEnabled(false, storage)).resolves.toMatchObject({
+      ok: true,
+      previous: { enabled: true, config },
+      deviceProxy: { enabled: false, config }
+    });
+    expect(storage.dump()).toEqual({
+      deviceProxy: { enabled: false, config },
+      diagnostics: { enabled: true },
+      language: "ru"
+    });
+  });
+
+  it("resumes proxy routing by changing only enabled and preserving the existing config", async () => {
+    const config = {
+      scheme: "http" as const,
+      host: "127.0.0.1",
+      port: 8080
+    };
+    const storage = createMemoryStorage({
+      deviceProxy: { enabled: false, config },
+      diagnostics: { enabled: false }
+    });
+
+    await expect(setDeviceProxyEnabled(true, storage)).resolves.toMatchObject({
+      ok: true,
+      previous: { enabled: false, config },
+      deviceProxy: { enabled: true, config }
+    });
+    expect(storage.dump()).toEqual({
+      deviceProxy: { enabled: true, config },
+      diagnostics: { enabled: false }
+    });
+  });
+
+  it("rejects resume without a saved local proxy config and performs no write", async () => {
+    const storage = createMemoryStorage({
+      deviceProxy: { enabled: false, config: null },
+      diagnostics: { enabled: false }
+    });
+
+    await expect(setDeviceProxyEnabled(true, storage)).resolves.toEqual({
+      ok: false,
+      reason: "invalid-config",
+      deviceProxy: { enabled: false, config: null }
+    });
+    expect(storage.setCount()).toBe(0);
+  });
+
+  it("rejects resume for an invalid fixture config", () => {
+    expect(
+      planDeviceProxyEnabledUpdate(
+        {
+          enabled: false,
+          config: {
+            scheme: "http",
+            host: "127.0.0.1",
+            port: 70000
+          }
+        },
+        true
+      )
+    ).toMatchObject({
+      ok: false,
+      reason: "invalid-config"
+    });
+  });
+
+  it("propagates a local storage mutation failure without changing the stored state", async () => {
+    const config = {
+      scheme: "socks5" as const,
+      host: "127.0.0.1",
+      port: 10808
+    };
+    const memory = createMemoryStorage({
+      deviceProxy: { enabled: true, config },
+      diagnostics: { enabled: false }
+    });
+    const failingStorage: StorageAreaAdapter = {
+      get: memory.get,
+      async set() {
+        throw new Error("Local storage write failed.");
+      }
+    };
+
+    await expect(setDeviceProxyEnabled(false, failingStorage)).rejects.toThrow("Local storage write failed.");
+    expect(memory.dump()).toMatchObject({
+      deviceProxy: { enabled: true, config }
+    });
+  });
+
   it("stores the interface language locally and leaves sync storage untouched", async () => {
     const localStorage = createMemoryStorage();
     const syncStorage = createMemoryStorage();

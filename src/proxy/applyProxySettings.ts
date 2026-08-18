@@ -64,6 +64,38 @@ export type ApplyProxySettingsResult =
       errorMessage: string;
     };
 
+export const proxyRoutingRefreshMessageType = "smart-proxy-route-helper:refresh-proxy-routing" as const;
+
+export type ProxyRoutingRefreshRequest = {
+  type: typeof proxyRoutingRefreshMessageType;
+};
+
+export function isProxyRoutingRefreshRequest(input: unknown): input is ProxyRoutingRefreshRequest {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    "type" in input &&
+    input.type === proxyRoutingRefreshMessageType
+  );
+}
+
+export function isApplyProxySettingsResult(input: unknown): input is ApplyProxySettingsResult {
+  if (
+    typeof input !== "object" ||
+    input === null ||
+    !("ok" in input) ||
+    typeof input.ok !== "boolean" ||
+    !("status" in input) ||
+    typeof input.status !== "string"
+  ) {
+    return false;
+  }
+
+  return input.ok
+    ? input.status === "applied-pac" || input.status === "cleared" || input.status === "unchanged"
+    : input.status === "failed";
+}
+
 export type ApplyProxySettingsOptions = {
   proxySettings: ProxySettingsAdapter;
   syncStorage?: StorageAreaAdapter;

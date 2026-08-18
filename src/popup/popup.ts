@@ -32,6 +32,11 @@ import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainCandidateUserOverrideAction } from "../domainClassification/domainClassificationTypes";
 import { isDomainCandidateUserOverrideAction } from "../domainClassification/userClassificationOverrides";
 import {
+  isApplyProxySettingsResult,
+  proxyRoutingRefreshMessageType,
+  type ApplyProxySettingsResult
+} from "../proxy/applyProxySettings";
+import {
   currentSiteDiagnosticMessageType,
   isCurrentSiteDiagnosticResponse,
   type CurrentSiteDiagnosticResponse
@@ -67,7 +72,7 @@ import {
   type RelatedDomainPopupResultState,
   type RelatedDomainPopupSummary
 } from "./relatedDomains/model";
-import { getLocalSettings } from "../storage/localStore";
+import { getLocalSettings, setDeviceProxyEnabled } from "../storage/localStore";
 import {
   addSyncRules,
   applySyncRuleChanges,
@@ -125,14 +130,21 @@ export type PopupRouteState =
   | "direct_exact"
   | "direct_parent"
   | "default_direct"
+  | "paused"
   | "conflict"
   | "blocked";
 
 export type PopupRouteStatusView = {
   routeState: PopupRouteState;
-  appearance: "proxy" | "direct" | "not-configured" | "warning" | "blocked";
+  appearance: "proxy" | "direct" | "not-configured" | "paused" | "warning" | "blocked";
   label: string;
   explanation: string;
+  ariaLabel: string;
+};
+
+export type PopupProxyRoutingControlView = {
+  action: "pause" | "resume";
+  label: string;
   ariaLabel: string;
 };
 
@@ -244,6 +256,7 @@ let currentDeviceProxySettings: DeviceProxySettings = {
 };
 let pendingPopupScopePlan: Extract<RuleEditPlan, { ok: true }> | null = null;
 let popupScopeRuleId: string | null = null;
+let proxyRoutingControlPending = false;
 
 const relatedDomainReasonMessageKeys: Record<RelatedDomainCandidateReason, MessageKey> = {
   "same-site-subdomain": "popupRelatedReasonSameSite",
@@ -503,11 +516,51 @@ function localProxyIsAvailable(deviceProxy: DeviceProxySettings): boolean {
   return deviceProxy.enabled && deviceProxy.config !== null && validateLocalProxyConfig(deviceProxy.config).ok;
 }
 
+export function deviceProxyRoutingIsPaused(deviceProxy: DeviceProxySettings): boolean {
+  return (
+    !deviceProxy.enabled &&
+    deviceProxy.config !== null &&
+    !deviceProxy.config.host.includes("@") &&
+    validateLocalProxyConfig(deviceProxy.config).ok
+  );
+}
+
+export function getPopupProxyRoutingControlView(
+  deviceProxy: DeviceProxySettings
+): PopupProxyRoutingControlView {
+  if (deviceProxy.enabled) {
+    return {
+      action: "pause",
+      label: getMessage("popupPauseProxyRouting"),
+      ariaLabel: getMessage("popupPauseProxyRoutingAria")
+    };
+  }
+
+  return {
+    action: "resume",
+    label: getMessage("popupResumeProxyRouting"),
+    ariaLabel: getMessage("popupResumeProxyRoutingAria")
+  };
+}
+
 export function getPopupRouteStatusView(
   domain: string,
   settings: Pick<SyncSettings, "rules" | "denylist">,
   deviceProxy: DeviceProxySettings
 ): PopupRouteStatusView {
+  if (deviceProxyRoutingIsPaused(deviceProxy)) {
+    const label = getMessage("popupStatusProxyRoutingPaused");
+    const explanation = getMessage("popupProxyRoutingPausedExplanation");
+
+    return {
+      routeState: "paused",
+      appearance: "paused",
+      label,
+      explanation,
+      ariaLabel: getMessage("popupAriaRouteStatus", [label, explanation])
+    };
+  }
+
   const status = getPopupRuleStatus(domain, settings);
 
   if (status.state === "blocked") {
@@ -1114,6 +1167,16 @@ function renderRouteStatus(view: PopupRouteStatusView): void {
   container.setAttribute("aria-label", view.ariaLabel);
 }
 
+function renderProxyRoutingControl(): void {
+  const button = getElement<HTMLButtonElement>("#toggle-proxy-routing");
+  const view = getPopupProxyRoutingControlView(currentDeviceProxySettings);
+
+  button.textContent = view.label;
+  button.dataset.action = view.action;
+  button.setAttribute("aria-label", view.ariaLabel);
+  button.disabled = proxyRoutingControlPending;
+}
+
 function scopeLabel(rule: Pick<DomainRule, "includeSubdomains">): string {
   return rule.includeSubdomains ? getMessage("commonDomainAndSubdomains") : getMessage("commonExactHostname");
 }
@@ -1610,6 +1673,77 @@ async function getActiveTabUrl(): Promise<string | undefined> {
   return (await getActiveTab()).url;
 }
 
+async function requestProxyRoutingRefresh(): Promise<ApplyProxySettingsResult> {
+  const response = (await chrome.runtime.sendMessage({
+    type: proxyRoutingRefreshMessageType
+  })) as unknown;
+
+  if (!isApplyProxySettingsResult(response)) {
+    throw new Error(getMessage("popupCouldNotUpdateProxyRouting"));
+  }
+
+  return response;
+}
+
+async function rollbackProxyRoutingControl(previousEnabled: boolean): Promise<void> {
+  const rollback = await setDeviceProxyEnabled(previousEnabled);
+
+  if (rollback.ok) {
+    await requestProxyRoutingRefresh();
+  }
+}
+
+async function handleProxyRoutingControl(): Promise<void> {
+  if (proxyRoutingControlPending) {
+    return;
+  }
+
+  const actionStatus = getElement<HTMLElement>("#action-status");
+  const previousDeviceProxy = currentDeviceProxySettings;
+  const nextEnabled = !previousDeviceProxy.enabled;
+
+  proxyRoutingControlPending = true;
+  renderProxyRoutingControl();
+  setStatus(
+    actionStatus,
+    getMessage(nextEnabled ? "popupResumingProxyRouting" : "popupPausingProxyRouting"),
+    "neutral"
+  );
+
+  try {
+    const update = await setDeviceProxyEnabled(nextEnabled);
+
+    if (!update.ok) {
+      setStatus(actionStatus, getMessage("popupResumeRequiresProxyConfig"), "error");
+      return;
+    }
+
+    const refresh = await requestProxyRoutingRefresh();
+
+    if (!refresh.ok) {
+      await rollbackProxyRoutingControl(previousDeviceProxy.enabled).catch(() => undefined);
+      throw new Error(getMessage("popupCouldNotUpdateProxyRouting"));
+    }
+
+    currentDeviceProxySettings = update.deviceProxy;
+    await refreshPopup().catch(() => {
+      currentDeviceProxySettings = update.deviceProxy;
+      renderProxyRoutingControl();
+    });
+    setStatus(
+      actionStatus,
+      getMessage(nextEnabled ? "popupProxyRoutingResumed" : "popupProxyRoutingPaused"),
+      "success"
+    );
+  } catch {
+    currentDeviceProxySettings = previousDeviceProxy;
+    setStatus(actionStatus, getMessage("popupCouldNotUpdateProxyRouting"), "error");
+  } finally {
+    proxyRoutingControlPending = false;
+    renderProxyRoutingControl();
+  }
+}
+
 function renderUnsupported(result: Extract<CurrentTabDomainResult, { ok: false }>): void {
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
@@ -1678,7 +1812,10 @@ function renderSupported(
 }
 
 async function refreshPopup(): Promise<CurrentTabDomainResult> {
-  const activeTab = await getActiveTab();
+  const [activeTab, localSettings] = await Promise.all([getActiveTab(), getLocalSettings()]);
+
+  currentDeviceProxySettings = localSettings.deviceProxy;
+  renderProxyRoutingControl();
   const result = getCurrentTabDomain(activeTab.url);
 
   if (!result.ok) {
@@ -1686,8 +1823,7 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
     return result;
   }
 
-  const [settings, localSettings] = await Promise.all([getSyncSettings(), getLocalSettings()]);
-  currentDeviceProxySettings = localSettings.deviceProxy;
+  const settings = await getSyncSettings();
   renderSupported(result.domain, settings);
   await refreshRelatedDomainRecordingControls(activeTab);
   return result;
@@ -2461,6 +2597,11 @@ async function initPopupPage(): Promise<void> {
   const localSettings = await getLocalSettings();
   setLanguagePreference(localSettings.language ?? "auto");
   localizeDocument();
+  currentDeviceProxySettings = localSettings.deviceProxy;
+  renderProxyRoutingControl();
+  getElement<HTMLButtonElement>("#toggle-proxy-routing").addEventListener("click", () => {
+    void handleProxyRoutingControl();
+  });
   getElement<HTMLButtonElement>("#change-current-site-scope").addEventListener("click", () => {
     openPopupScopeEditor();
   });

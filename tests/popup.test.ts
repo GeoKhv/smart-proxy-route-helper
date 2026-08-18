@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   addCurrentSiteRule,
   buildRelatedDomainRecordingControlView,
+  deviceProxyRoutingIsPaused,
   getCurrentTabDomain,
   getDiagnosticActionStatus,
+  getPopupProxyRoutingControlView,
   getPopupRouteStatusView,
   getPopupRuleStatus,
   getRelatedDomainPreviewActionStatus,
@@ -212,6 +214,55 @@ describe("popup rule status helpers", () => {
       explanation: "Covered by parent rule example.com. Local proxy is disabled or invalid on this device.",
       ariaLabel:
         "Warning: Proxy unavailable. Covered by parent rule example.com. Local proxy is disabled or invalid on this device."
+    });
+  });
+
+  it("shows an explicit paused state without claiming that a matching hostname is routed through proxy", () => {
+    const rules = [manualRule("example.com", true)];
+    const pausedDeviceProxy = {
+      ...availableLocalProxy,
+      enabled: false
+    };
+    const view = getPopupRouteStatusView(
+      "child.example.com",
+      { rules, denylist: [] },
+      pausedDeviceProxy
+    );
+
+    expect(deviceProxyRoutingIsPaused(pausedDeviceProxy)).toBe(true);
+    expect(view).toEqual({
+      routeState: "paused",
+      appearance: "paused",
+      label: "Proxy routing paused",
+      explanation:
+        "Rules are saved. Smart Proxy Route Helper is not currently controlling Chrome routing on this device.",
+      ariaLabel:
+        "Proxy routing paused. Rules are saved. Smart Proxy Route Helper is not currently controlling Chrome routing on this device."
+    });
+    expect(view.label).not.toBe("Through proxy");
+    expect(view.explanation).not.toContain("Covered by parent rule");
+    expect(rules).toEqual([manualRule("example.com", true)]);
+    expect(getPopupRuleStatus("child.example.com", { rules, denylist: [] })).toMatchObject({
+      state: "inherited",
+      action: "proxy"
+    });
+  });
+
+  it("derives accessible global Pause and Resume controls from device-local enabled state", () => {
+    expect(getPopupProxyRoutingControlView(availableLocalProxy)).toEqual({
+      action: "pause",
+      label: "Pause proxy routing",
+      ariaLabel: "Pause proxy routing on this device"
+    });
+    expect(
+      getPopupProxyRoutingControlView({
+        ...availableLocalProxy,
+        enabled: false
+      })
+    ).toEqual({
+      action: "resume",
+      label: "Resume proxy routing",
+      ariaLabel: "Resume proxy routing on this device"
     });
   });
 
@@ -720,6 +771,22 @@ describe("popup runtime boundaries", () => {
     expect(popupSource).not.toContain("chrome.proxy");
   });
 
+  it("uses the local-store and background-controller paths and surfaces routing mutation failures", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+    const handler = popupSource.slice(
+      popupSource.indexOf("async function handleProxyRoutingControl"),
+      popupSource.indexOf("function renderUnsupported")
+    );
+
+    expect(handler).toContain("await setDeviceProxyEnabled(nextEnabled)");
+    expect(handler).toContain("await requestProxyRoutingRefresh()");
+    expect(handler).toContain("await rollbackProxyRoutingControl(previousDeviceProxy.enabled)");
+    expect(handler).toContain('getMessage("popupResumeRequiresProxyConfig")');
+    expect(handler).toContain('getMessage("popupCouldNotUpdateProxyRouting")');
+    expect(handler).toContain('setStatus(actionStatus, getMessage("popupCouldNotUpdateProxyRouting"), "error")');
+    expect(handler).not.toContain("chrome.proxy");
+  });
+
   it("surfaces rejected user-initiated Sync mutations in the Popup action status", async () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const individualRelatedAdd = popupSource.slice(
@@ -820,6 +887,9 @@ describe("popup runtime boundaries", () => {
     expect(popupHtml).toContain('data-i18n="popupProxyThisHostname"');
     expect(popupHtml).toContain('data-i18n="popupDirectThisHostname"');
     expect(popupHtml).toContain('data-i18n="popupNewRuleScopeCopy"');
+    expect(popupHtml).toContain('id="toggle-proxy-routing"');
+    expect(popupHtml).toContain('data-i18n-aria-label="popupPauseProxyRoutingAria"');
+    expect(popupHtml).toContain('.route-status[data-appearance="paused"]');
     expect(popupHtml).toContain('id="change-current-site-scope"');
     expect(popupHtml).toContain('id="confirm-scope-change"');
     expect(popupHtml).toContain('role="status"');

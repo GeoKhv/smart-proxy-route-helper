@@ -89,6 +89,8 @@ describe("Chrome i18n infrastructure", () => {
 
     expect(Object.keys(english).sort()).toEqual(Object.keys(russian).sort());
     expect(english).toHaveProperty("extensionName");
+    expect(english).toHaveProperty("popupStatusProxyRoutingPaused");
+    expect(english).toHaveProperty("popupResumeProxyRoutingAria");
     expect(english).toHaveProperty("popupRelatedAddExact");
     expect(english).toHaveProperty("popupRelatedBatchAddFew");
     expect(english).toHaveProperty("optionsProxyHostLabel");
@@ -134,6 +136,20 @@ describe("Chrome i18n infrastructure", () => {
 
     expect(getMessage("commonAdded")).toBe("Added");
     expect(warn).toHaveBeenCalledWith("[i18n] Missing locale message: commonAdded");
+  });
+
+  it("localizes proxy routing Pause, paused state, Resume, and invalid-config guidance", () => {
+    setLanguagePreference("en");
+    expect(getMessage("popupPauseProxyRouting")).toBe("Pause proxy routing");
+    expect(getMessage("popupStatusProxyRoutingPaused")).toBe("Proxy routing paused");
+    expect(getMessage("popupResumeProxyRouting")).toBe("Resume proxy routing");
+    expect(getMessage("popupResumeRequiresProxyConfig")).toContain("Open Options");
+
+    setLanguagePreference("ru");
+    expect(getMessage("popupPauseProxyRouting")).toBe("Приостановить прокси");
+    expect(getMessage("popupStatusProxyRoutingPaused")).toBe("Маршрутизация через прокси приостановлена");
+    expect(getMessage("popupResumeProxyRouting")).toBe("Возобновить прокси");
+    expect(getMessage("popupResumeRequiresProxyConfig")).toContain("Откройте настройки");
   });
 });
 

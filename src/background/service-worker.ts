@@ -34,7 +34,12 @@ import {
   type StoredRelatedDomainRecordingSessionMetadata
 } from "../diagnostics/relatedDomainRecording";
 import { domainCandidateUserOverridesFromStorage } from "../domainClassification/userClassificationOverrides";
-import { createChromeProxySettingsAdapter, createProxySettingsController } from "../proxy/applyProxySettings";
+import {
+  createChromeProxySettingsAdapter,
+  createProxySettingsController,
+  isProxyRoutingRefreshRequest,
+  type ApplyProxySettingsResult
+} from "../proxy/applyProxySettings";
 import { getSyncSettings } from "../storage/syncStore";
 
 const extensionName = getMessage("extensionName");
@@ -617,6 +622,30 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  if (isProxyRoutingRefreshRequest(message)) {
+    void proxySettingsController
+      .apply("manual")
+      .then((result) => {
+        sendResponse(result);
+      })
+      .catch((error: unknown) => {
+        console.warn(
+          `${extensionName} could not refresh proxy routing: ${error instanceof Error ? error.message : "unknown error"}`
+        );
+        const response: ApplyProxySettingsResult = {
+          ok: false,
+          status: "failed",
+          reason: "manual",
+          attemptedAction: "read-settings",
+          errorMessage: getMessage("proxyOperationFailed")
+        };
+
+        sendResponse(response);
+      });
+
+    return true;
+  }
+
   if (isCurrentSiteDiagnosticRequest(message)) {
     void runCurrentSiteDiagnostic(message.url, {
       proxySettings: proxySettingsAdapter,
