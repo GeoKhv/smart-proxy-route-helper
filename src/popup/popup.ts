@@ -83,7 +83,7 @@ import {
 } from "../storage/syncStore";
 import type { DeviceProxySettings, SyncSettings } from "../storage/storageTypes";
 
-type MessageKind = "success" | "error" | "neutral";
+type MessageKind = "success" | "error" | "warning" | "neutral";
 
 export type CurrentTabDomainResult =
   | {
@@ -144,7 +144,8 @@ export type PopupRouteStatusView = {
 
 export type PopupProxyRoutingControlView = {
   action: "pause" | "resume";
-  label: string;
+  checked: boolean;
+  stateLabel: string;
   ariaLabel: string;
 };
 
@@ -528,18 +529,13 @@ export function deviceProxyRoutingIsPaused(deviceProxy: DeviceProxySettings): bo
 export function getPopupProxyRoutingControlView(
   deviceProxy: DeviceProxySettings
 ): PopupProxyRoutingControlView {
-  if (deviceProxy.enabled) {
-    return {
-      action: "pause",
-      label: getMessage("popupPauseProxyRouting"),
-      ariaLabel: getMessage("popupPauseProxyRoutingAria")
-    };
-  }
+  const checked = deviceProxy.enabled;
 
   return {
-    action: "resume",
-    label: getMessage("popupResumeProxyRouting"),
-    ariaLabel: getMessage("popupResumeProxyRoutingAria")
+    action: checked ? "pause" : "resume",
+    checked,
+    stateLabel: getMessage(checked ? "popupProxyRoutingActive" : "popupProxyRoutingPausedShort"),
+    ariaLabel: getMessage(checked ? "popupPauseProxyRoutingAria" : "popupResumeProxyRoutingAria")
   };
 }
 
@@ -1160,7 +1156,12 @@ function renderRouteStatus(view: PopupRouteStatusView): void {
   explanation.textContent = view.explanation;
   summary.append(indicator, label);
   container.replaceChildren(summary, explanation);
-  container.dataset.kind = view.appearance === "warning" || view.appearance === "blocked" ? "error" : "neutral";
+  container.dataset.kind =
+    view.appearance === "paused"
+      ? "warning"
+      : view.appearance === "warning" || view.appearance === "blocked"
+        ? "error"
+        : "neutral";
   container.dataset.appearance = view.appearance;
   container.dataset.routeState = view.routeState;
   container.setAttribute("role", "status");
@@ -1169,12 +1170,16 @@ function renderRouteStatus(view: PopupRouteStatusView): void {
 
 function renderProxyRoutingControl(): void {
   const button = getElement<HTMLButtonElement>("#toggle-proxy-routing");
+  const state = getElement<HTMLElement>("#routing-control-state");
   const view = getPopupProxyRoutingControlView(currentDeviceProxySettings);
 
-  button.textContent = view.label;
   button.dataset.action = view.action;
+  button.dataset.state = view.checked ? "active" : "paused";
+  button.setAttribute("aria-checked", String(view.checked));
   button.setAttribute("aria-label", view.ariaLabel);
   button.disabled = proxyRoutingControlPending;
+  state.textContent = view.stateLabel;
+  state.dataset.state = view.checked ? "active" : "paused";
 }
 
 function scopeLabel(rule: Pick<DomainRule, "includeSubdomains">): string {
@@ -1733,7 +1738,7 @@ async function handleProxyRoutingControl(): Promise<void> {
     setStatus(
       actionStatus,
       getMessage(nextEnabled ? "popupProxyRoutingResumed" : "popupProxyRoutingPaused"),
-      "success"
+      nextEnabled ? "success" : "warning"
     );
   } catch {
     currentDeviceProxySettings = previousDeviceProxy;

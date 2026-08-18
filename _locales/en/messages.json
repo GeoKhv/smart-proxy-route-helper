@@ -186,6 +186,8 @@
   "popupPauseProxyRoutingAria": { "message": "Pause proxy routing on this device" },
   "popupResumeProxyRouting": { "message": "Resume proxy routing" },
   "popupResumeProxyRoutingAria": { "message": "Resume proxy routing on this device" },
+  "popupProxyRoutingActive": { "message": "Active" },
+  "popupProxyRoutingPausedShort": { "message": "Paused" },
   "popupActionsTitle": { "message": "Actions" },
   "popupProxyThisHostname": { "message": "Proxy this hostname" },
   "popupDirectThisHostname": { "message": "Route this hostname directly" },

@@ -251,7 +251,8 @@ describe("popup rule status helpers", () => {
   it("derives accessible global Pause and Resume controls from device-local enabled state", () => {
     expect(getPopupProxyRoutingControlView(availableLocalProxy)).toEqual({
       action: "pause",
-      label: "Pause proxy routing",
+      checked: true,
+      stateLabel: "Active",
       ariaLabel: "Pause proxy routing on this device"
     });
     expect(
@@ -261,7 +262,8 @@ describe("popup rule status helpers", () => {
       })
     ).toEqual({
       action: "resume",
-      label: "Resume proxy routing",
+      checked: false,
+      stateLabel: "Paused",
       ariaLabel: "Resume proxy routing on this device"
     });
   });
@@ -787,6 +789,42 @@ describe("popup runtime boundaries", () => {
     expect(handler).not.toContain("chrome.proxy");
   });
 
+  it("keeps the switch on actual state and uses warning feedback only for Pause", async () => {
+    const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
+    const popupHtml = await readFile(resolve(__dirname, "../src/popup/popup.html"), "utf8");
+    const handler = popupSource.slice(
+      popupSource.indexOf("async function handleProxyRoutingControl"),
+      popupSource.indexOf("function renderUnsupported")
+    );
+    const renderer = popupSource.slice(
+      popupSource.indexOf("function renderProxyRoutingControl"),
+      popupSource.indexOf("function scopeLabel")
+    );
+
+    expect(getPopupProxyRoutingControlView(availableLocalProxy)).toMatchObject({
+      checked: true,
+      stateLabel: "Active"
+    });
+    expect(getPopupProxyRoutingControlView({ ...availableLocalProxy, enabled: false })).toMatchObject({
+      checked: false,
+      stateLabel: "Paused"
+    });
+    expect(renderer).toContain('button.setAttribute("aria-checked", String(view.checked))');
+    expect(renderer).toContain('button.dataset.state = view.checked ? "active" : "paused"');
+    expect(renderer).toContain("state.textContent = view.stateLabel");
+    expect(handler).toContain('currentDeviceProxySettings = previousDeviceProxy');
+    expect(handler).toContain('nextEnabled ? "success" : "warning"');
+    expect(handler).toContain('getMessage(nextEnabled ? "popupProxyRoutingResumed" : "popupProxyRoutingPaused")');
+    expect(popupHtml).toContain('role="switch"');
+    expect(popupHtml).toContain('aria-checked="false"');
+    expect(popupHtml).toContain('id="routing-control-state"');
+    expect(popupHtml).toContain('.routing-toggle[data-state="active"]');
+    expect(popupHtml).toContain('.routing-toggle[data-state="paused"]');
+    expect(popupHtml).toContain('.routing-control-state[data-state="active"]');
+    expect(popupHtml).toContain('.routing-control-state[data-state="paused"]');
+    expect(popupHtml).toContain('.status[data-kind="warning"]');
+  });
+
   it("surfaces rejected user-initiated Sync mutations in the Popup action status", async () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
     const individualRelatedAdd = popupSource.slice(
@@ -888,7 +926,7 @@ describe("popup runtime boundaries", () => {
     expect(popupHtml).toContain('data-i18n="popupDirectThisHostname"');
     expect(popupHtml).toContain('data-i18n="popupNewRuleScopeCopy"');
     expect(popupHtml).toContain('id="toggle-proxy-routing"');
-    expect(popupHtml).toContain('data-i18n-aria-label="popupPauseProxyRoutingAria"');
+    expect(popupHtml).toContain('data-i18n-aria-label="popupResumeProxyRoutingAria"');
     expect(popupHtml).toContain('.route-status[data-appearance="paused"]');
     expect(popupHtml).toContain('id="change-current-site-scope"');
     expect(popupHtml).toContain('id="confirm-scope-change"');

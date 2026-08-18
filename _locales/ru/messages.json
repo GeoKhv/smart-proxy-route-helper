@@ -186,6 +186,8 @@
   "popupPauseProxyRoutingAria": { "message": "Приостановить маршрутизацию через прокси на этом устройстве" },
   "popupResumeProxyRouting": { "message": "Возобновить прокси" },
   "popupResumeProxyRoutingAria": { "message": "Возобновить маршрутизацию через прокси на этом устройстве" },
+  "popupProxyRoutingActive": { "message": "Активна" },
+  "popupProxyRoutingPausedShort": { "message": "Приостановлена" },
   "popupActionsTitle": { "message": "Действия" },
   "popupProxyThisHostname": { "message": "Направить домен через прокси" },
   "popupDirectThisHostname": { "message": "Направить домен напрямую" },

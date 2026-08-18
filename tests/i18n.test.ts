@@ -91,6 +91,8 @@ describe("Chrome i18n infrastructure", () => {
     expect(english).toHaveProperty("extensionName");
     expect(english).toHaveProperty("popupStatusProxyRoutingPaused");
     expect(english).toHaveProperty("popupResumeProxyRoutingAria");
+    expect(english).toHaveProperty("popupProxyRoutingActive");
+    expect(english).toHaveProperty("popupProxyRoutingPausedShort");
     expect(english).toHaveProperty("popupRelatedAddExact");
     expect(english).toHaveProperty("popupRelatedBatchAddFew");
     expect(english).toHaveProperty("optionsProxyHostLabel");
@@ -141,12 +143,16 @@ describe("Chrome i18n infrastructure", () => {
   it("localizes proxy routing Pause, paused state, Resume, and invalid-config guidance", () => {
     setLanguagePreference("en");
     expect(getMessage("popupPauseProxyRouting")).toBe("Pause proxy routing");
+    expect(getMessage("popupProxyRoutingActive")).toBe("Active");
+    expect(getMessage("popupProxyRoutingPausedShort")).toBe("Paused");
     expect(getMessage("popupStatusProxyRoutingPaused")).toBe("Proxy routing paused");
     expect(getMessage("popupResumeProxyRouting")).toBe("Resume proxy routing");
     expect(getMessage("popupResumeRequiresProxyConfig")).toContain("Open Options");
 
     setLanguagePreference("ru");
     expect(getMessage("popupPauseProxyRouting")).toBe("Приостановить прокси");
+    expect(getMessage("popupProxyRoutingActive")).toBe("Активна");
+    expect(getMessage("popupProxyRoutingPausedShort")).toBe("Приостановлена");
     expect(getMessage("popupStatusProxyRoutingPaused")).toBe("Маршрутизация через прокси приостановлена");
     expect(getMessage("popupResumeProxyRouting")).toBe("Возобновить прокси");
     expect(getMessage("popupResumeRequiresProxyConfig")).toContain("Откройте настройки");

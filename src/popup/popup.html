@@ -134,6 +134,12 @@
         color: #8d2e2e;
       }
 
+      .status[data-kind="warning"] {
+        border-color: #b7791f;
+        color: color-mix(in srgb, #b7791f 76%, CanvasText);
+        background: color-mix(in srgb, #d6a72b 10%, Canvas);
+      }
+
       .route-status-summary {
         display: flex;
         align-items: center;
@@ -183,15 +189,79 @@
         margin-top: 12px;
       }
 
-      .routing-control h2 {
-        margin-top: 0;
+      .routing-control-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
       }
 
-      .routing-control button[data-action="resume"] {
-        border-color: Highlight;
-        background: Highlight;
-        color: HighlightText;
-        font-weight: 700;
+      .routing-control h2 {
+        margin-top: 0;
+        margin-bottom: 0;
+        min-width: 0;
+      }
+
+      .routing-control-state {
+        margin-top: 4px;
+        color: color-mix(in srgb, CanvasText 68%, Canvas);
+        font-size: 12px;
+      }
+
+      .routing-control-state[data-state="active"] {
+        color: color-mix(in srgb, #16803d 78%, CanvasText);
+        font-weight: 600;
+      }
+
+      .routing-control-state[data-state="paused"] {
+        color: color-mix(in srgb, #b7791f 78%, CanvasText);
+        font-weight: 600;
+      }
+
+      .routing-toggle {
+        position: relative;
+        flex: 0 0 auto;
+        width: 36px;
+        min-height: 20px;
+        height: 20px;
+        padding: 0;
+        border-color: color-mix(in srgb, CanvasText 30%, Canvas);
+        border-radius: 999px;
+        background: color-mix(in srgb, CanvasText 10%, Canvas);
+      }
+
+      .routing-toggle::after {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: color-mix(in srgb, CanvasText 62%, Canvas);
+        content: "";
+        transition: transform 120ms ease;
+      }
+
+      .routing-toggle[data-state="active"] {
+        border-color: #16803d;
+        background: color-mix(in srgb, #16803d 82%, Canvas);
+      }
+
+      .routing-toggle[data-state="active"]::after {
+        background: #f7fff8;
+      }
+
+      .routing-toggle[data-state="paused"] {
+        border-color: color-mix(in srgb, CanvasText 30%, Canvas);
+        background: color-mix(in srgb, CanvasText 10%, Canvas);
+      }
+
+      .routing-toggle[aria-checked="true"]::after {
+        transform: translateX(16px);
+      }
+
+      .routing-toggle:disabled {
+        cursor: progress;
       }
 
       .microcopy {
@@ -406,13 +476,24 @@
       <p data-i18n="popupIntro"></p>
 
       <section class="routing-control" aria-labelledby="device-routing-title">
-        <h2 id="device-routing-title" data-i18n="popupDeviceRoutingTitle"></h2>
-        <button
-          type="button"
-          id="toggle-proxy-routing"
-          data-i18n="popupPauseProxyRouting"
-          data-i18n-aria-label="popupPauseProxyRoutingAria"
-        ></button>
+        <div class="routing-control-header">
+          <h2 id="device-routing-title" data-i18n="popupDeviceRoutingTitle"></h2>
+          <button
+            type="button"
+            id="toggle-proxy-routing"
+            class="routing-toggle"
+            role="switch"
+            aria-checked="false"
+            aria-describedby="routing-control-state"
+            data-i18n-aria-label="popupResumeProxyRoutingAria"
+          ></button>
+        </div>
+        <p
+          class="routing-control-state"
+          id="routing-control-state"
+          aria-live="polite"
+          data-i18n="popupProxyRoutingPausedShort"
+        ></p>
       </section>
 
       <section aria-labelledby="current-site-title">
