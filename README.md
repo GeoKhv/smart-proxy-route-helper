@@ -6,13 +6,15 @@ The extension lets a user maintain a synced list of domains that should use a pr
 
 ## Current Release Status
 
-The current release candidate on `main` is `0.3.2`, prepared as a production hotfix for Chrome
-Sync rule verification. The latest immutable public GitHub Release and Chrome Web Store production
-version remain `v0.3.1` / `0.3.1`; `0.3.2` has not been tagged, released, or published.
+The latest public release is `v0.3.2`, published on GitHub and in Chrome Web Store. Current `main`
+matches the `0.3.2` production runtime. The `0.3.2` patch fixes Chrome Sync rule verification on
+affected Chrome profiles, adds a device-local Pause/Resume control for proxy routing, and surfaces
+controlled storage errors in the UI. The next planned meaningful release is `v0.4.0`.
+
 The current runtime includes:
 
 - Options UI for device-specific local proxy configuration, synced editable proxy/direct rules, explicit scope previews, and redundant-rule cleanup suggestions.
-- Popup UI with a prominent effective-route status and explicit proxy/direct actions that cover a hostname and its subdomains by default.
+- Popup UI with a prominent effective-route status, explicit proxy/direct actions, and a compact device-local Pause/Resume proxy-routing switch.
 - Background PAC runtime application through `chrome.proxy`.
 - Fail-closed matched proxy routing.
 - Manual "Check via proxy" diagnostics.
@@ -32,11 +34,11 @@ The Smart Proxy Route Helper item is available in Chrome Web Store:
 
 - https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
-Production version `0.3.1` is published in Chrome Web Store.
+Production version `0.3.2` is published in Chrome Web Store.
 
-The latest public GitHub Release is `v0.3.1`:
+The latest public GitHub Release is `v0.3.2`:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.3.1
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.3.2
 
 The shared Store screenshot set is the five English PNGs documented in
 [store-assets/screenshots/README.md](store-assets/screenshots/README.md), used for every Store locale.
@@ -166,6 +168,7 @@ The MVP runtime provides a small manual PAC manager:
 - Add, edit, disable, and remove proxy rules and direct exceptions manually.
 - Show Proxy exact/parent, Direct exact/parent, and unconfigured default-Direct states without relying on color alone.
 - Default Popup quick actions to hostname-and-subdomains rules, including for canonicalized `www.*` hostnames.
+- Pause or resume extension-controlled proxy routing on the current device without deleting rules or disabling the extension.
 - Preview safe PSL-aware scope expansion, conflicts, preserved child exceptions, and potential redundancy before saving.
 - Replace an edited rule atomically in one synced-settings write while preserving its stable identity, source, and creation time.
 - Sync domain rules with `chrome.storage.sync`.
@@ -304,8 +307,10 @@ See [docs/release-checklist.md](docs/release-checklist.md), [docs/release-plan.m
 - [docs/release-readiness-v0.2.0.md](docs/release-readiness-v0.2.0.md): historical v0.1.0-to-v0.2.0 inventory, compatibility/privacy audit, passed gates, and release-package verification.
 - [docs/release-notes-v0.2.0.md](docs/release-notes-v0.2.0.md): final GitHub release notes for v0.2.0.
 - [store-assets/listing/release-notes-v0.3.0.md](store-assets/listing/release-notes-v0.3.0.md): English and Russian v0.3.0 release notes.
+- [store-assets/listing/release-notes-v0.3.2.md](store-assets/listing/release-notes-v0.3.2.md): English and Russian v0.3.2 release notes.
 - [docs/releases/v0.3.0-release-record.md](docs/releases/v0.3.0-release-record.md): verified GitHub release, package, checks, smoke status, and Chrome Web Store submission record.
 - [docs/releases/v0.3.1-release-record.md](docs/releases/v0.3.1-release-record.md): final production release, package, checks, smoke status, and publication record.
+- [docs/releases/v0.3.2-release-record.md](docs/releases/v0.3.2-release-record.md): final production release, package, checks, CI, GitHub Release, and Chrome Web Store publication record.
 - [docs/chrome-web-store-update-v0.2.0-draft.md](docs/chrome-web-store-update-v0.2.0-draft.md): historical unpublished v0.2.0 Store update draft, disclosure changes, and screenshot plan.
 - [docs/release-plan.md](docs/release-plan.md): staged v0.1, v0.2, and v0.3 plan.
 - [docs/manual-smoke-test.md](docs/manual-smoke-test.md): manual checks for future runtime releases.
