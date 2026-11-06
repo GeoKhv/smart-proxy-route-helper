@@ -1,6 +1,6 @@
 {
   "name": "smart-proxy-route-helper",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "description": "Manifest V3 local proxy routing manager for Chrome.",
   "type": "module",
@@ -16,8 +16,8 @@
     "@types/chrome": "^0.0.321",
     "@types/node": "^24.0.3",
     "typescript": "^5.8.3",
-    "vite": "^7.0.0",
-    "vitest": "^3.2.4"
+    "vite": "^7.3.7",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "tldts": "^7.4.4"

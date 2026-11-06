@@ -1,10 +1,22 @@
 # Privacy Policy
 
-This document describes the privacy posture of production version `0.3.2` on `main`. The latest
-immutable public GitHub Release is `v0.3.2`, and Chrome Web Store production is published at
-`0.3.2`.
+This document describes version `0.4.0`. The Store update is prepared separately; the last
+repository-recorded Chrome Web Store production version is `0.3.2`.
 
-The repository contains a Manifest V3 extension runtime. The statements below must be kept aligned with the actual extension behavior before any public release.
+Route IDs/names sync with domain rules. Device connections, pause state, language and a single
+pre-upgrade recovery copy stay in local extension storage. The recovery copy preserves the
+extension's original Sync/local settings until extension data is removed; its optional download
+contains local endpoint addresses and should be kept private. Normal v2 backup exports exclude
+all device connections unless the user explicitly includes them. Imports accept v1/v2.
+
+A manual selected-route check injects one short isolated-world origin fetch through the existing
+activeTab/scripting grant. It reads no page content or response body, omits cookies/credentials,
+avoids cache reuse and does not follow redirects. It temporarily changes the current hostname's
+PAC route and restores normal settings afterwards. Only during the test are bounded Chrome
+certificate/TLS error codes observed in memory. Raw proxy error details are discarded and no
+history is stored or uploaded. Chrome may hide causes and does not expose the affected tab in
+proxy-error events; the UI discloses those limits. The extension never installs certificates,
+disables HTTPS validation or contacts Corporate VPN Router automatically.
 
 ## Summary
 
@@ -74,7 +86,7 @@ User-invoked related-domain preview and diagnostic recording may collect sanitiz
 
 ## Chrome Sync
 
-If the user has Chrome Sync enabled, Chrome may sync the domain rule list and personal classification overrides through the user's Chrome profile because the MVP uses `chrome.storage.sync` for those domain-level settings.
+If the user has Chrome Sync enabled, Chrome may sync the route names, domain rule list and personal classification overrides through the user's Chrome profile because the MVP uses `chrome.storage.sync` for those domain-level settings.
 
 The local proxy configuration is intentionally device-specific and should remain in `chrome.storage.local`.
 
@@ -103,7 +115,7 @@ The extension must not contact a project backend because no backend exists.
 
 Settings export/import does not contact a project backend, upload backup files, fetch remote backup data, or synchronize backups through any developer-operated service.
 
-Manual current-site diagnostics may make a user-initiated best-effort request from the extension context to the current tab origin after the user clicks "Check via proxy". The check temporarily routes the current normalized domain through the configured local proxy, then restores normal proxy routing.
+Manual current-site diagnostics may make a user-initiated best-effort request from the active tab in an isolated script context to the current tab origin after the user clicks "Test selected route". The check temporarily routes the current normalized domain through the configured local proxy, then restores normal proxy routing.
 
 Diagnostics do not upload results to the developer, do not store diagnostic history, do not sync temporary probe state, and do not add a rule without explicit confirmation. The current site and the user's configured local proxy provider may observe the diagnostic request in the same way they can observe ordinary network requests routed to that site.
 

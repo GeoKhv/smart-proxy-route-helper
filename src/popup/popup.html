@@ -468,12 +468,18 @@
         color: HighlightText;
         font-weight: 700;
       }
+      .popup-intro { display: none; }
+      .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      section { margin-top: 12px; }
+      #popup-route-select { width: 100%; min-height: 38px; font: inherit; padding: 6px 10px; }
+      #proxy-health[data-kind="error"] { color: light-dark(#9b241d, #ffb4ab); }
+      :focus-visible { outline: 2px solid light-dark(#245bc4, #9dbdff); outline-offset: 3px; }
     </style>
   </head>
   <body>
     <main>
       <h1 data-i18n="extensionName"></h1>
-      <p data-i18n="popupIntro"></p>
+      <p class="popup-intro" data-i18n="popupIntro"></p>
 
       <section class="routing-control" aria-labelledby="device-routing-title">
         <div class="routing-control-header">
@@ -513,6 +519,13 @@
         ></div>
       </section>
 
+      <section aria-labelledby="routes-title">
+        <h2 id="routes-title" class="visually-hidden" data-i18n="routesTitle"></h2>
+        <label><span data-i18n="routesSelect"></span><select id="popup-route-select"></select></label>
+        <p class="microcopy" data-i18n="routesPopupHint"></p>
+        <p id="selected-connection" class="microcopy"></p>
+        <p id="proxy-health" class="status" role="status"></p>
+      </section>
       <section class="actions" aria-labelledby="actions-title">
         <h2 id="actions-title" data-i18n="popupActionsTitle"></h2>
         <button type="button" id="add-current-site" hidden data-i18n="popupProxyThisHostname"></button>

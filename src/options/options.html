@@ -283,6 +283,14 @@
           grid-template-columns: 1fr;
         }
       }
+      .route-editor-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-top: 16px; }
+      .route-editor-row label { flex: 1 1 190px; }
+      .route-workspace > label { max-width: 400px; }
+      #proxy-health[data-kind="error"] { color: light-dark(#9b241d, #ffb4ab); }
+      #proxy-health { max-width: 72ch; }
+      :focus-visible { outline: 2px solid light-dark(#245bc4, #9dbdff); outline-offset: 3px; }
+      button:disabled { opacity: .55; cursor: default; }
+      #proxy-endpoint-fields[hidden] { display: none; }
     </style>
   </head>
   <body>
@@ -290,6 +298,23 @@
       <h1 data-i18n="extensionName"></h1>
       <p data-i18n="optionsIntro"></p>
 
+      <section aria-labelledby="routes-title" class="route-workspace">
+        <h2 id="routes-title" data-i18n="routesTitle"></h2>
+        <p data-i18n="routesIntro"></p>
+        <label><span data-i18n="routesSelect"></span><select id="route-select"></select></label>
+        <div class="route-editor-row">
+          <label><span data-i18n="routesName"></span><input id="route-name" maxlength="48" /></label>
+          <button id="rename-route" type="button" data-i18n="routesRename"></button>
+          <label><span data-i18n="routesNewName"></span><input id="new-route-name" maxlength="48" /></label>
+          <button id="create-route" type="button" data-i18n="routesAdd"></button>
+        </div>
+        <p class="hint" data-i18n="routesNamesSynced"></p>
+        <p id="routes-status" class="status" role="status"></p>
+        <h3 data-i18n="routesHealth"></h3>
+        <p id="proxy-health" class="status" role="status"></p>
+        <button id="reapply-routing" type="button" data-i18n="routesReapply"></button>
+        <p class="hint" data-i18n="routesCheckHint"></p>
+      </section>
       <section aria-labelledby="interface-title">
         <h2 id="interface-title" data-i18n="optionsInterfaceTitle"></h2>
         <p data-i18n="optionsInterfaceDescription"></p>
@@ -305,7 +330,7 @@
 
       <section aria-labelledby="local-proxy-title">
         <h2 id="local-proxy-title" data-i18n="optionsLocalProxyTitle"></h2>
-        <p data-i18n="optionsLocalProxyDescription"></p>
+        <p id="work-connection-hint" data-i18n="optionsLocalProxyDescription"></p>
 
         <form id="local-proxy-form" novalidate>
           <label class="checkbox-row">
@@ -313,7 +338,12 @@
             <span data-i18n="optionsEnableProxy"></span>
           </label>
 
-          <div class="grid">
+          <label><span data-i18n="routesType"></span><select id="connection-type">
+            <option value="proxy" data-i18n="routesProxy"></option>
+            <option value="direct" data-i18n="routesDirect"></option>
+          </select></label>
+          <p class="hint" data-i18n="routesDirectHint"></p>
+          <div class="grid" id="proxy-endpoint-fields">
             <label>
               <span data-i18n="optionsProxySchemeLabel"></span>
               <select id="proxy-scheme" name="scheme">
@@ -338,7 +368,7 @@
             </label>
           </div>
 
-          <p class="hint" data-i18n="optionsSuggestedProxy"></p>
+          <p class="hint" id="proxy-suggestion" data-i18n="optionsSuggestedProxy"></p>
           <div>
             <button type="submit" data-i18n="optionsSaveLocal"></button>
           </div>
@@ -349,6 +379,7 @@
       <section aria-labelledby="rules-title">
         <h2 id="rules-title" data-i18n="optionsRulesTitle"></h2>
         <p data-i18n="optionsRulesDescription"></p>
+        <p id="selected-list-summary" class="hint"></p>
 
         <form id="rule-form" novalidate>
           <label>
@@ -403,6 +434,7 @@
               <option value="direct" data-i18n="commonDirect"></option>
             </select>
           </label>
+          <label><span data-i18n="routesRuleRoute"></span><select id="rule-edit-route"></select></label>
           <label>
             <span data-i18n="popupRuleScopeLabel"></span>
             <select id="rule-edit-scope"></select>
@@ -441,6 +473,8 @@
       </section>
 
       <section aria-labelledby="backup-restore-title">
+        <p data-i18n="routesMigrationHint"></p>
+        <button id="download-migration-backup" type="button" data-i18n="routesMigrationDownload"></button>
         <h2 id="backup-restore-title" data-i18n="optionsBackupTitle"></h2>
         <p data-i18n="optionsBackupDescription"></p>
 

@@ -1,3 +1,7 @@
+> 2026-11-06: the owner changed the 0.4.0 shipping scope to simultaneous named Work/Life routes,
+> safe migration and explicit route/TLS diagnostics. See [named-routes.md](named-routes.md).
+> The earlier troubleshooting priorities below remain future proposals, not release claims.
+
 # Smart Proxy Route Helper — Product Roadmap
 
 Last updated: 2026-08-21

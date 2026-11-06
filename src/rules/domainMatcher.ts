@@ -1,3 +1,4 @@
+import { ruleDestination } from "./routes";
 import type { DomainRule, RuleAction } from "./ruleTypes";
 import { sameRouteTarget } from "./routeTarget";
 import { getMessage } from "../i18n/i18n";
@@ -149,7 +150,7 @@ function ruleAction(rule: Pick<DomainRule, "action"> & Partial<Pick<DomainRule, 
 }
 
 function ruleCoversRuleTarget(coveringRule: DomainRule, targetRule: DomainRule): boolean {
-  if (ruleAction(coveringRule) !== ruleAction(targetRule)) {
+  if (ruleDestination(coveringRule) !== ruleDestination(targetRule)) {
     return false;
   }
 
@@ -211,6 +212,9 @@ export function findRedundantDomainRules(rules: readonly DomainRule[]): Redundan
     if (!coveringRule) {
       return;
     }
+    if (rules.some(candidate => candidate !== rule && candidate !== coveringRule &&
+      ruleDestination(candidate) !== ruleDestination(rule) && domainMatchesRule(rule.domain, candidate) &&
+      domainMatchesRule(candidate.domain, coveringRule!) && candidate.domain !== coveringRule!.domain)) return;
 
     suggestions.push({
       redundantRule: rule,

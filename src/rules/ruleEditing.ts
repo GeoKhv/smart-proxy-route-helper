@@ -1,3 +1,4 @@
+import { ruleDestination, ruleRouteId } from "./routes";
 import {
   canBroadenToRegistrableDomain,
   getRegistrableDomain
@@ -21,6 +22,7 @@ export type RuleScopeOption = {
 };
 
 export type RuleEditInput = {
+  routeId?: string;
   domain: string;
   action: RuleAction;
   scope: RuleScope;
@@ -113,7 +115,8 @@ function legacyRuleId(rule: DomainRule): string {
     encodeURIComponent(rule.createdAt),
     encodeURIComponent(normalizedRuleDomain(rule)),
     rule.includeSubdomains ? "subdomains" : "exact",
-    rule.action
+    rule.action,
+    ...(rule.routeId ? [ruleRouteId(rule)] : [])
   ].join(":");
 }
 
@@ -257,7 +260,7 @@ function buildConflictWarnings(
 
     if (ruleCoversTarget(rule, proposedRule)) {
       warnings.push(
-        rule.action === proposedRule.action
+        ruleDestination(rule) === ruleDestination(proposedRule)
           ? {
               kind: "covered-by-parent",
               message: getMessage("ruleExistingParentSameRoute", [rule.domain]),
@@ -280,7 +283,7 @@ function buildConflictWarnings(
     }
 
     warnings.push(
-      rule.action === proposedRule.action
+      ruleDestination(rule) === ruleDestination(proposedRule)
         ? {
             kind: "child-rule-redundant",
             message: getMessage("ruleChildRedundantWarning", [actionLabel(proposedRule.action), rule.domain]),
@@ -312,7 +315,7 @@ function targetConflict(
     return null;
   }
 
-  if (matchingRule.action === proposedRule.action) {
+  if (ruleDestination(matchingRule) === ruleDestination(proposedRule)) {
     return {
       ok: false,
       reason: "duplicate",
@@ -372,12 +375,13 @@ export function planRuleEdit(
     id: currentRule.id ?? ruleId,
     domain: scopeOption.targetDomain,
     includeSubdomains: scopeOption.includeSubdomains,
-    action: input.action
+    action: input.action,
+    ...(input.routeId !== undefined ? { routeId: input.routeId } : {})
   };
   const hasSemanticChange =
     normalizedRuleDomain(currentRule) !== normalizedRuleDomain(proposedRule) ||
     currentRule.includeSubdomains !== proposedRule.includeSubdomains ||
-    currentRule.action !== proposedRule.action;
+    currentRule.action !== proposedRule.action || ruleRouteId(currentRule) !== ruleRouteId(proposedRule);
 
   if (!hasSemanticChange) {
     return {
@@ -409,7 +413,7 @@ export function planRuleEdit(
 export function replaceRuleAtomically(
   rules: readonly DomainRule[],
   ruleId: string,
-  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action">
+  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action" | "routeId">
 ): AtomicRuleReplacementResult {
   const indexes = findRuleIndexes(rules, ruleId);
 
@@ -446,7 +450,8 @@ export function replaceRuleAtomically(
     id: currentRule.id ?? ruleId,
     domain: normalized.domain,
     includeSubdomains: proposed.includeSubdomains,
-    action: proposed.action
+    action: proposed.action,
+    ...(proposed.routeId !== undefined ? { routeId: proposed.routeId } : {})
   };
   const conflict = targetConflict(rules, replacedIndex, updatedRule);
 

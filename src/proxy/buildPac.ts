@@ -1,3 +1,4 @@
+import { ruleRouteId } from "../rules/routes";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { getRegistrableDomain } from "../domainClassification/registrableDomain";
 import { getRouteTargetKey } from "../rules/routeTarget";
@@ -5,7 +6,7 @@ import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import { buildPacProxyString, type LocalProxyConfigValidationError } from "./proxyConfig";
 
 export type PacDomainRule = Pick<DomainRule, "domain" | "includeSubdomains"> &
-  Partial<Pick<DomainRule, "action" | "mode" | "createdAt">>;
+  Partial<Pick<DomainRule, "action" | "mode" | "createdAt" | "routeId">>;
 
 export type SerializedPacRule = {
   domain: string;
@@ -13,6 +14,8 @@ export type SerializedPacRule = {
   action: RuleAction;
   createdAt: string;
   matchesStandardWww: boolean;
+  routeId?: string;
+  proxyString?: string;
 };
 
 export type BuildPacScriptResult =
@@ -30,6 +33,7 @@ export type BuildPacScriptResult =
 export type BuildPacScriptInput = {
   rules: readonly PacDomainRule[];
   localProxyConfig: unknown;
+  routeProxyStrings?: Record<string, string>;
 };
 
 function serializePacRules(rules: readonly PacDomainRule[]): SerializedPacRule[] {
@@ -54,7 +58,7 @@ function serializePacRules(rules: readonly PacDomainRule[]): SerializedPacRule[]
     const key = `${getRouteTargetKey({
       domain: normalizedRule.domain,
       includeSubdomains: rule.includeSubdomains
-    })}:${action}`;
+    })}:${action}:${ruleRouteId(rule)}`;
 
     if (seenDomains.has(key)) {
       continue;
@@ -65,6 +69,7 @@ function serializePacRules(rules: readonly PacDomainRule[]): SerializedPacRule[]
       domain: normalizedRule.domain,
       includeSubdomains: rule.includeSubdomains,
       action,
+      ...(rule.routeId ? { routeId: rule.routeId } : {}),
       createdAt: rule.createdAt ?? "",
       matchesStandardWww: getRegistrableDomain(normalizedRule.domain) === normalizedRule.domain
     });
@@ -164,7 +169,7 @@ function FindProxyForURL(url, host) {
   var rule = findEffectivePacRule(normalizedHost);
 
   if (rule && rule.action === "proxy") {
-    return proxyRoute;
+    return rule.proxyString || proxyRoute;
   }
 
   return "DIRECT";
@@ -173,7 +178,7 @@ function FindProxyForURL(url, host) {
 }
 
 export function buildPacScript(input: BuildPacScriptInput): BuildPacScriptResult {
-  const proxyStringResult = buildPacProxyString(input.localProxyConfig);
+  const proxyStringResult = buildPacProxyString(input.routeProxyStrings ? { scheme: "http", host: "127.0.0.1", port: 9 } : input.localProxyConfig);
 
   if (!proxyStringResult.ok) {
     return {
@@ -182,7 +187,9 @@ export function buildPacScript(input: BuildPacScriptInput): BuildPacScriptResult
     };
   }
 
-  const rules = serializePacRules(input.rules);
+  const rules = serializePacRules(input.rules).map(rule => input.routeProxyStrings
+    ? { ...rule, proxyString: rule.action === "direct" ? "DIRECT" : input.routeProxyStrings[ruleRouteId(rule)] ?? "PROXY 127.0.0.1:9" }
+    : rule);
 
   return {
     ok: true,

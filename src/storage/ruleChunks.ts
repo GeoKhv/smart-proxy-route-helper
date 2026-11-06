@@ -172,6 +172,7 @@ export function rulesMatchExactly(left: readonly DomainRule[], right: readonly D
       rule !== undefined &&
       candidate !== undefined &&
       rule.id === candidate.id &&
+      rule.routeId === candidate.routeId &&
       rule.domain === candidate.domain &&
       rule.includeSubdomains === candidate.includeSubdomains &&
       rule.action === candidate.action &&

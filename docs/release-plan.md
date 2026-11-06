@@ -1,3 +1,7 @@
+Current 0.4.0 implementation and Store preparation: [named-routes.md](named-routes.md),
+[release notes](release-notes-v0.4.0.md), [Store update](chrome-web-store-update-v0.4.0.md).
+The version plans below preserve historical scope; the earlier 0.4.0 proposal is superseded.
+
 # Release Plan
 
 This repository has moved beyond the documentation-only bootstrap phase. Versions `v0.1.0`,

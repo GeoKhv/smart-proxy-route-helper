@@ -1,5 +1,7 @@
+import { classifyProxyProbeError, type ProxyProbeError } from "./proxyProbeErrors";
+import { routeList, routeProxyString, routingEnabled } from "../rules/routes";
 import type { ApplyProxySettingsResult, ProxySettingsAdapter } from "../proxy/applyProxySettings";
-import { getMessage } from "../i18n/i18n";
+import { getMessage, setLanguagePreference } from "../i18n/i18n";
 import { buildPacScript } from "../proxy/buildPac";
 import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { checkDenylistedHost } from "../rules/denylist";
@@ -12,6 +14,8 @@ import type { LocalSettings, StorageAreaAdapter, SyncSettings } from "../storage
 export const currentSiteDiagnosticMessageType = "smart-proxy-route-helper:run-current-site-diagnostic" as const;
 
 export type CurrentSiteDiagnosticStatus =
+  | "certificate_error"
+  | "tls_error"
   | "proxy_reachable"
   | "proxy_unreachable"
   | "missing_proxy_config"
@@ -21,12 +25,16 @@ export type CurrentSiteDiagnosticStatus =
 export type CurrentSiteDiagnosticRequest = {
   type: typeof currentSiteDiagnosticMessageType;
   url?: string;
+  routeId?: string;
+  tabId?: number;
 };
 
 export type CurrentSiteDiagnosticResponse = {
   status: CurrentSiteDiagnosticStatus;
   message: string;
   domain?: string;
+  httpsVerified?: boolean;
+  errorCode?: string;
 };
 
 export type CurrentSiteDiagnosticTarget =
@@ -65,6 +73,9 @@ export type RunCurrentSiteDiagnosticOptions = {
   fetcher?: DiagnosticFetch;
   timeoutMs?: number;
   createdAt?: string;
+  routeId?: string;
+  verifyPac?: (pacScript: string) => Promise<boolean>;
+  observeProxyErrors?: (listener: (error: unknown) => void) => (() => void);
 };
 
 const defaultDiagnosticTimeoutMs = 7000;
@@ -153,7 +164,7 @@ export function isCurrentSiteDiagnosticResponse(input: unknown): input is Curren
   return (
     typeof input.message === "string" &&
     (!("domain" in input) || typeof input.domain === "string") &&
-    (status === "proxy_reachable" ||
+    (status === "certificate_error" || status === "tls_error" || status === "proxy_reachable" ||
       status === "proxy_unreachable" ||
       status === "missing_proxy_config" ||
       status === "unsupported_url" ||
@@ -243,6 +254,7 @@ export function buildCurrentSiteDiagnosticPlan(input: {
   syncSettings: SyncSettings;
   localSettings: LocalSettings;
   createdAt?: string;
+  routeId?: string;
 }): CurrentSiteDiagnosticPlan {
   const target = getCurrentSiteDiagnosticTarget(input.url);
 
@@ -259,6 +271,20 @@ export function buildCurrentSiteDiagnosticPlan(input: {
         target.domain
       )
     };
+  }
+
+  if (input.routeId !== undefined) {
+    if (!routeList(input.syncSettings).some(route => route.id === input.routeId) || !routingEnabled(input.localSettings)) return { ok: false, response: response("missing_proxy_config", getMessage("routesPaused"), target.domain) };
+    const selectedProxy = routeProxyString(input.localSettings, input.routeId);
+    if (!selectedProxy) return { ok: false, response: response("missing_proxy_config", getMessage("routesMissing"), target.domain) };
+    const probeRules = [
+      ...input.syncSettings.rules.filter(rule => { const canonical = canonicalizeHostname(rule.domain); return !canonical.ok || canonical.domain !== target.domain; }),
+      { ...createDiagnosticProbeRule(target.domain, input.createdAt), includeSubdomains: false, routeId: input.routeId }
+    ];
+    const routeProxyStrings = Object.fromEntries(routeList(input.syncSettings).map(route => [route.id, routeProxyString(input.localSettings, route.id) ?? "PROXY 127.0.0.1:9"]));
+    const pac = buildPacScript({ rules: probeRules, localProxyConfig: null, routeProxyStrings });
+    if (!pac.ok) return { ok: false, response: response("error", getMessage("diagnosticCheckFailed"), target.domain) };
+    return { ok: true, domain: target.domain, probeUrl: target.probeUrl, pacScript: "// Smart Proxy diagnostic override\n" + pac.pacScript, proxyString: selectedProxy, probeRules };
   }
 
   if (!hasUsableLocalProxyConfig(input.localSettings)) {
@@ -291,27 +317,25 @@ export function buildCurrentSiteDiagnosticPlan(input: {
   };
 }
 
-async function fetchWithTimeout(fetcher: DiagnosticFetch, url: string, timeoutMs: number): Promise<boolean> {
+async function fetchWithTimeout(fetcher: DiagnosticFetch, url: string, timeoutMs: number, scoped = false): Promise<"reachable" | "timeout" | "network"> {
   const controller = new AbortController();
-  const timeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
-    controller.abort();
-  }, timeoutMs);
-
-  try {
-    await fetcher(url, {
-      cache: "no-store",
-      credentials: "omit",
-      mode: "no-cors",
-      redirect: "follow",
-      signal: controller.signal
-    });
-
-    return true;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<"timeout">(resolve => {
+    timeoutId = setTimeout(() => { controller.abort(); resolve("timeout"); }, timeoutMs);
+  });
+  const request = (async (): Promise<"reachable" | "timeout" | "network"> => {
+    try {
+      await fetcher(url, {
+        cache: "no-store", credentials: "omit", mode: "no-cors",
+        redirect: scoped ? "manual" : "follow", signal: controller.signal
+      });
+      return "reachable";
+    } catch (error) {
+      return controller.signal.aborted || (error instanceof DOMException && error.name === "TimeoutError") ? "timeout" : "network";
+    }
+  })();
+  try { return await Promise.race([request, deadline]); }
+  finally { clearTimeout(timeoutId!); }
 }
 
 async function restoreAfterProbe(options: RunCurrentSiteDiagnosticOptions): Promise<CurrentSiteDiagnosticResponse | null> {
@@ -347,11 +371,13 @@ export async function runCurrentSiteDiagnostic(
     return response("error", errorMessage(error));
   }
 
+  setLanguagePreference(localSettings.language ?? "auto");
   const plan = buildCurrentSiteDiagnosticPlan({
     url,
     syncSettings,
     localSettings,
-    createdAt: options.createdAt
+    createdAt: options.createdAt,
+    routeId: options.routeId
   });
 
   if (!plan.ok) {
@@ -364,20 +390,41 @@ export async function runCurrentSiteDiagnostic(
     plan.domain
   );
   let appliedProbe = false;
+  const observed: ProxyProbeError[] = [];
+  const stopObserving = options.observeProxyErrors?.(error => {
+    const classified = classifyProxyProbeError(error);
+    if (classified && observed.length < 8) observed.push(classified);
+  });
 
   try {
-    await options.proxySettings.applyPacScript(plan.pacScript);
     appliedProbe = true;
+    await options.proxySettings.applyPacScript(plan.pacScript);
 
     const fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis);
-    const reachable = await fetchWithTimeout(fetcher, plan.probeUrl, options.timeoutMs ?? defaultDiagnosticTimeoutMs);
+    const outcome = await fetchWithTimeout(fetcher, plan.probeUrl, options.timeoutMs ?? defaultDiagnosticTimeoutMs, options.routeId !== undefined);
 
-    diagnosticResponse = reachable
-      ? response("proxy_reachable", reachableMessage(), plan.domain)
-      : response("proxy_unreachable", unreachableMessage(), plan.domain);
+    diagnosticResponse = outcome === "reachable"
+      ? response("proxy_reachable", options.routeId ? getMessage("routesTestOk") : reachableMessage(), plan.domain)
+      : response("proxy_unreachable", options.routeId ? getMessage("routesTestFail") : unreachableMessage(), plan.domain);
+    if (options.routeId) {
+      const isHttps = plan.probeUrl.startsWith("https:");
+      diagnosticResponse.httpsVerified = isHttps && outcome === "reachable";
+      if (outcome === "timeout") diagnosticResponse.message = getMessage("routesTestTimeout");
+      if (!isHttps && outcome === "reachable") diagnosticResponse.message = getMessage("routesHttpOnly");
+      const chromeError = observed.find(error => error.kind === "certificate") ?? observed[0];
+      if (chromeError) {
+        diagnosticResponse = {
+          status: chromeError.kind === "certificate" ? "certificate_error" : "tls_error",
+          message: getMessage(chromeError.kind === "certificate" ? options.routeId === "work" ? "routesCertificateWork" : "routesCertificate" : "routesTlsFailure", [chromeError.code]),
+          domain: plan.domain, errorCode: chromeError.code, httpsVerified: false
+        };
+      } else if (outcome !== "reachable") diagnosticResponse.message += " " + getMessage("routesTlsUnknown");
+    }
+    if (options.verifyPac && !(await options.verifyPac(plan.pacScript))) diagnosticResponse = response("error", getMessage("routesControlLost"), plan.domain);
   } catch (error) {
     diagnosticResponse = response("error", errorMessage(error), plan.domain);
   } finally {
+    stopObserving?.();
     if (appliedProbe) {
       diagnosticResponse = (await restoreAfterProbe(options)) ?? diagnosticResponse;
     }

@@ -1,3 +1,4 @@
+import { ruleDestination, ruleRouteId } from "./routes";
 import { normalizeDomain } from "./normalizeDomain";
 import type { DomainRule, RuleAction } from "./ruleTypes";
 import { getMessage } from "../i18n/i18n";
@@ -66,11 +67,11 @@ export function describeRouteTarget(target: RouteTarget): string {
 
 export function checkRouteTargetAddition(
   rules: readonly DomainRule[],
-  proposedRule: Pick<DomainRule, "domain" | "includeSubdomains" | "action">
+  proposedRule: Pick<DomainRule, "domain" | "includeSubdomains" | "action" | "routeId">
 ): RouteTargetAdditionCheck {
   const key = getRouteTargetKey(proposedRule);
   const matchingRules = rules.filter((rule) => getRouteTargetKey(rule) === key);
-  const oppositeRule = matchingRules.find((rule) => rule.action !== proposedRule.action);
+  const oppositeRule = matchingRules.find((rule) => ruleDestination(rule) !== ruleDestination(proposedRule));
 
   if (oppositeRule) {
     return {
@@ -80,7 +81,7 @@ export function checkRouteTargetAddition(
     };
   }
 
-  const duplicate = matchingRules.find((rule) => rule.action === proposedRule.action);
+  const duplicate = matchingRules.find((rule) => ruleDestination(rule) === ruleDestination(proposedRule) && ruleRouteId(rule) === ruleRouteId(proposedRule));
 
   if (duplicate) {
     return {
@@ -114,7 +115,7 @@ export function findRouteTargetConflicts(rules: readonly DomainRule[]): RouteTar
     const proxyRules = group.filter((rule) => rule.action === "proxy");
     const directRules = group.filter((rule) => rule.action === "direct");
 
-    if (proxyRules.length === 0 || directRules.length === 0) {
+    if (new Set(group.map(ruleDestination)).size < 2) {
       continue;
     }
 
@@ -169,7 +170,7 @@ function selectedRuleForAction(conflict: RouteTargetConflict, action: RuleAction
 export function resolveRouteTargetConflict(
   rules: readonly DomainRule[],
   routeTargetKey: string,
-  keepAction: RuleAction
+  keepAction: RuleAction | `route:${string}`
 ): ResolveRouteTargetConflictResult {
   const conflict = findRouteTargetConflicts(rules).find((candidate) => candidate.key === routeTargetKey);
 
@@ -180,7 +181,9 @@ export function resolveRouteTargetConflict(
     };
   }
 
-  const keptRule = selectedRuleForAction(conflict, keepAction);
+  const keptRule = keepAction.startsWith("route:")
+    ? conflict.rules.find(rule => `${ruleRouteId(rule)}:${rule.action}` === keepAction.slice(6))
+    : selectedRuleForAction(conflict, keepAction as RuleAction);
 
   if (!keptRule) {
     return {

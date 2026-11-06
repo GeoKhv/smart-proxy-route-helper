@@ -767,10 +767,10 @@ describe("popup related-domain recording controls", () => {
 });
 
 describe("popup runtime boundaries", () => {
-  it("does not call chrome.proxy.settings directly", async () => {
+  it("keeps proxy mutations in the background", async () => {
     const popupSource = await readFile(resolve(__dirname, "../src/popup/popup.ts"), "utf8");
 
-    expect(popupSource).not.toContain("chrome.proxy");
+    expect(popupSource).not.toMatch(/chrome\.proxy\.settings\.(set|clear)\(/);
   });
 
   it("uses the local-store and background-controller paths and surfaces routing mutation failures", async () => {
@@ -780,10 +780,9 @@ describe("popup runtime boundaries", () => {
       popupSource.indexOf("function renderUnsupported")
     );
 
-    expect(handler).toContain("await setDeviceProxyEnabled(nextEnabled)");
+    expect(handler).toContain("await updateLocalSettings({ routingEnabled: nextEnabled })");
     expect(handler).toContain("await requestProxyRoutingRefresh()");
     expect(handler).toContain("await rollbackProxyRoutingControl(previousDeviceProxy.enabled)");
-    expect(handler).toContain('getMessage("popupResumeRequiresProxyConfig")');
     expect(handler).toContain('getMessage("popupCouldNotUpdateProxyRouting")');
     expect(handler).toContain('setStatus(actionStatus, getMessage("popupCouldNotUpdateProxyRouting"), "error")');
     expect(handler).not.toContain("chrome.proxy");

@@ -18,7 +18,7 @@ Required extension permissions:
 | `storage` | Store synced domain rules and classification overrides, plus local proxy configuration. | Required |
 | `proxy` | Apply the locally generated PAC configuration in Chrome. | Required |
 | `activeTab` | Read the current tab URL after the user invokes the popup and allow manual current-origin diagnostics, related-domain preview, and diagnostic recording for the active tab. | Required |
-| `scripting` | Run one-time, user-invoked current-page resource host collection for related-domain preview and temporary diagnostic recording using the temporary `activeTab` grant. | Required |
+| `scripting` | Run a one-time credentials-free current-origin route test, user-invoked current-page resource host collection for related-domain preview and temporary diagnostic recording using the temporary `activeTab` grant. | Required |
 
 Required host permissions:
 
@@ -154,3 +154,13 @@ Mitigations:
 - Review disclosures before every release.
 - Update documentation in the same change as permission or data behavior changes.
 - Keep diagnostics clearly separated from MVP functionality.
+
+## 0.4.0 named-route and TLS review
+
+No permission was added. See [named-routes.md](named-routes.md) for the exact one-time origin
+probe and transient `proxy.onProxyError` code observation. The probe uses activeTab plus scripting
+only after **Test selected route**, never on Popup open. No certificate-management API, debugger,
+native messaging, broad host access, security bypass or remote diagnostic endpoint is used. Chrome
+may hide certificate/network causes; proxy error events cannot identify a tab. Store review must
+assess the updated scripting explanation, proxy control and privacy disclosures against actual
+behavior; existing permission approval is not a guarantee of approval for the update.

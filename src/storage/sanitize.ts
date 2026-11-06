@@ -1,3 +1,4 @@
+import { sanitizeRoutes, sanitizeConnections, ruleRouteId } from "../rules/routes";
 import { sanitizeUserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainRule, RuleAction, RuleSource } from "../rules/ruleTypes";
@@ -75,10 +76,14 @@ function sanitizeDomainRule(input: unknown): DomainRule | null {
     return null;
   }
 
+  if (input.routeId !== undefined && (typeof input.routeId !== "string" || !/^[a-z][a-z0-9-]{0,47}$/.test(input.routeId))) {
+    throw new Error("Invalid route ID; stored rules have been left untouched.");
+  }
   const id = typeof input.id === "string" && input.id.trim().length > 0 ? input.id.trim() : undefined;
 
   return {
     ...(id ? { id } : {}),
+    ...(input.routeId !== undefined ? { routeId: input.routeId as string } : {}),
     domain: normalized.domain,
     includeSubdomains: input.includeSubdomains,
     action: input.action === "direct" ? "direct" : "proxy",
@@ -103,7 +108,7 @@ function sanitizeRules(input: unknown): DomainRule[] {
       continue;
     }
 
-    const key = `${getRouteTargetKey(rule)}:${rule.action}`;
+    const key = `${getRouteTargetKey(rule)}:${rule.action}:${ruleRouteId(rule)}`;
 
     if (seenRules.has(key)) {
       continue;
@@ -150,6 +155,7 @@ export function sanitizeSyncSettings(input: unknown): SyncSettings {
   }
 
   return {
+    ...(input.routes !== undefined ? { routes: sanitizeRoutes(input.routes) } : {}),
     rules: sanitizeRules(input.rules),
     ignoredDomains: sanitizeDomainList(input.ignoredDomains),
     denylist: sanitizeDomainList(input.denylist),
@@ -163,6 +169,8 @@ export function sanitizeLocalSettings(input: unknown): LocalSettings {
   }
 
   return {
+    ...(input.routeConnections !== undefined ? { routeConnections: sanitizeConnections(input.routeConnections) } : {}),
+    ...(typeof input.routingEnabled === "boolean" ? { routingEnabled: input.routingEnabled } : {}),
     deviceProxy: sanitizeDeviceProxy(input.deviceProxy),
     diagnostics: sanitizeDiagnostics(input.diagnostics),
     ...(input.language !== undefined ? { language: sanitizeLanguage(input.language) } : {})

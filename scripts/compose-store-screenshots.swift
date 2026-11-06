@@ -11,7 +11,11 @@ struct ScreenshotSpec {
 }
 
 let canvasSize = NSSize(width: 1280, height: 800)
-let specs = [
+let namedRoutes = CommandLine.arguments.contains("--named-routes")
+let specs = namedRoutes ? [
+    ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/options-routes.png", output: "store-assets/screenshots/v0.4.0/01-options-routes.png", title: "Work and Life route sites together", maxWidth: 1118, maxHeight: 699, topOffset: 88),
+    ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/popup-life-direct.png", output: "store-assets/screenshots/v0.4.0/02-popup-life-direct.png", title: "See the site's route and Chrome Proxy control", maxWidth: 430, maxHeight: 650, topOffset: 104)
+] : [
     ScreenshotSpec(
         source: "store-assets/screenshots/01-options-local-proxy.png",
         output: "store-assets/screenshots/final/01-options-local-proxy.png",
@@ -64,7 +68,7 @@ let specs = [
 
 let fileManager = FileManager.default
 try fileManager.createDirectory(
-    atPath: "store-assets/screenshots/final",
+    atPath: namedRoutes ? "store-assets/screenshots/v0.4.0" : "store-assets/screenshots/final",
     withIntermediateDirectories: true
 )
 

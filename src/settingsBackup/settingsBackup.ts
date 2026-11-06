@@ -1,3 +1,5 @@
+import { withSettingsLock } from "../storage/settingsLock";
+import { routeList, ruleRouteId, ruleDestination, sanitizeRoutes, sanitizeConnections } from "../rules/routes";
 import {
   canonicalizeUserClassificationOverrides,
   sanitizeUserClassificationOverrides
@@ -10,9 +12,9 @@ import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { findRouteTargetConflicts, getRouteTargetKey } from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
-import { updateLocalSettings } from "../storage/localStore";
+import { getLocalSettings, updateLocalSettingsUnlocked as updateLocalSettings } from "../storage/localStore";
 import { sanitizeLocalSettings, sanitizeSyncSettings } from "../storage/sanitize";
-import { getSyncSettings, setSyncSettings } from "../storage/syncStore";
+import { getSyncSettingsUnlocked as getSyncSettings, setSyncSettingsUnlocked as setSyncSettings } from "../storage/syncStore";
 import type {
   DeviceProxySettings,
   LocalSettings,
@@ -21,7 +23,7 @@ import type {
 } from "../storage/storageTypes";
 
 export const settingsExportFormat = "smart-proxy-route-helper-settings";
-export const settingsExportVersion = 1;
+export const settingsExportVersion = 2;
 
 export type SettingsExportDocument = {
   format: typeof settingsExportFormat;
@@ -31,6 +33,8 @@ export type SettingsExportDocument = {
     syncSettings: SyncSettings;
     localSettings?: {
       deviceProxy: DeviceProxySettings;
+      routeConnections?: LocalSettings["routeConnections"];
+      routingEnabled?: boolean;
     };
   };
 };
@@ -77,6 +81,7 @@ export type SettingsImportPreview =
       importedSyncSettings: SyncSettings;
       nextSyncSettings: SyncSettings;
       nextLocalSettings: LocalSettings | null;
+      localSettingsBase?: LocalSettings;
     }
   | {
       ok: false;
@@ -222,6 +227,7 @@ function sanitizeImportRule(input: unknown, importedAt: string): DomainRule | nu
     return null;
   }
 
+  if (input.routeId !== undefined && (typeof input.routeId !== "string" || !/^[a-z][a-z0-9-]{0,47}$/.test(input.routeId))) return null;
   const action = sanitizeRuleAction(input.action);
 
   if (!action) {
@@ -237,6 +243,8 @@ function sanitizeImportRule(input: unknown, importedAt: string): DomainRule | nu
   }
 
   return {
+    ...(typeof input.id === "string" && input.id.trim() ? { id: input.id.trim() } : {}),
+    ...(typeof input.routeId === "string" ? { routeId: input.routeId } : {}),
     domain,
     includeSubdomains: input.includeSubdomains,
     action,
@@ -257,6 +265,7 @@ function sanitizeImportRules(input: unknown, importedAt: string): SanitizedRuleL
 
   const rules: DomainRule[] = [];
   const seenRules = new Set<string>();
+  const seenIds = new Set<string>();
   let skipped = 0;
   let duplicates = 0;
 
@@ -268,6 +277,8 @@ function sanitizeImportRules(input: unknown, importedAt: string): SanitizedRuleL
       continue;
     }
 
+    if (rule.id && seenIds.has(rule.id)) { skipped += 1; continue; }
+    if (rule.id) seenIds.add(rule.id);
     const key = ruleKey(rule);
 
     if (seenRules.has(key)) {
@@ -412,6 +423,7 @@ function sanitizeImportedSyncSettings(
 
   return {
     settings: {
+      ...(rawSyncSettings.routes !== undefined ? { routes: sanitizeRoutes(rawSyncSettings.routes) } : {}),
       rules: rules.rules,
       ignoredDomains: ignoredDomains.domains,
       denylist: denylist.domains,
@@ -447,8 +459,8 @@ function sanitizeImportedSyncSettings(
   };
 }
 
-function ruleKey(rule: Pick<DomainRule, "domain" | "includeSubdomains" | "action">): string {
-  return `${getRouteTargetKey(rule)}:${rule.action}`;
+function ruleKey(rule: Pick<DomainRule, "domain" | "includeSubdomains" | "action" | "routeId">): string {
+  return `${getRouteTargetKey(rule)}:${rule.action}:${ruleRouteId(rule)}`;
 }
 
 function mergeRules(
@@ -468,9 +480,13 @@ function mergeRules(
 
   for (const rule of importedRules) {
     const key = ruleKey(rule);
+    if (rule.id && nextRules.some(candidate => candidate.id === rule.id && ruleKey(candidate) !== key)) {
+      conflicts.push("Imported rule ID conflicts with an existing rule. Export again or remove the duplicate ID.");
+      continue;
+    }
     const targetKey = getRouteTargetKey(rule);
     const existingTargetRules = nextRules.filter((candidate) => getRouteTargetKey(candidate) === targetKey);
-    const oppositeRule = existingTargetRules.find((candidate) => candidate.action !== rule.action);
+    const oppositeRule = existingTargetRules.find((candidate) => ruleDestination(candidate) !== ruleDestination(rule));
 
     if (oppositeRule) {
       conflicts.push(
@@ -602,7 +618,9 @@ export function buildSettingsExportDocument(
 
   if (options.includeLocalProxyConfig === true) {
     document.data.localSettings = {
-      deviceProxy: sanitizeLocalSettings(localSettings).deviceProxy
+      deviceProxy: sanitizeLocalSettings(localSettings).deviceProxy,
+      ...(localSettings.routeConnections ? { routeConnections: sanitizeConnections(localSettings.routeConnections) } : {}),
+      ...(localSettings.routingEnabled !== undefined ? { routingEnabled: localSettings.routingEnabled } : {})
     };
   }
 
@@ -655,7 +673,7 @@ export function previewSettingsImport(
       errors.push(getMessage("backupWrongFormat"));
     }
 
-    if (parsed.version !== settingsExportVersion) {
+    if (parsed.version !== 1 && parsed.version !== settingsExportVersion) {
       errors.push(getMessage("backupUnsupportedVersion"));
     }
   }
@@ -678,6 +696,12 @@ export function previewSettingsImport(
     };
   }
 
+  try {
+    if (parsed.data.syncSettings.routes !== undefined) sanitizeRoutes(parsed.data.syncSettings.routes);
+    if (isRecord(parsed.data.localSettings) && parsed.data.localSettings.routeConnections !== undefined) sanitizeConnections(parsed.data.localSettings.routeConnections);
+  } catch (error) {
+    return { ok: false, summary, warnings: [], errors: [error instanceof Error ? error.message : "Invalid route settings."] };
+  }
   const importedSync = sanitizeImportedSyncSettings(parsed.data.syncSettings, importedAt);
   const currentSync = sanitizeSyncSettings(currentSyncSettings);
   const currentLocal = sanitizeLocalSettings(currentLocalSettings);
@@ -689,6 +713,11 @@ export function previewSettingsImport(
     importedSync.settings.classificationOverrides
   );
   const warnings = [...importedSync.warnings];
+  let routes: SyncSettings["routes"];
+  try { routes = mergeRouteCatalogs(currentSync, importedSync.settings); }
+  catch (error) { return { ok: false, summary, warnings, errors: [error instanceof Error ? error.message : "Invalid route catalog."] }; }
+  const knownIds = new Set((routes ?? routeList(currentSync)).map(route => route.id));
+  if (importedSync.settings.rules.some(rule => !knownIds.has(ruleRouteId(rule)))) return { ok: false, summary, warnings, errors: [getMessage("routesUnknown")] };
   const importErrors = [...importedSync.errors];
   const currentConflicts = findRouteTargetConflicts(currentSync.rules);
 
@@ -708,7 +737,15 @@ export function previewSettingsImport(
       if (deviceProxy.ok) {
         nextLocalSettings = {
           ...currentLocal,
-          deviceProxy: deviceProxy.deviceProxy
+          deviceProxy: deviceProxy.deviceProxy,
+          ...((parsed.data.localSettings.routeConnections !== undefined || currentLocal.routeConnections) ? {
+            routeConnections: {
+              ...currentLocal.routeConnections,
+              work: { type: "proxy", config: deviceProxy.deviceProxy.config },
+              ...(parsed.data.localSettings.routeConnections !== undefined ? sanitizeConnections(parsed.data.localSettings.routeConnections) : {})
+            }
+          } : {}),
+          ...((typeof parsed.data.localSettings.routingEnabled === "boolean" || currentLocal.routingEnabled !== undefined) ? { routingEnabled: typeof parsed.data.localSettings.routingEnabled === "boolean" ? parsed.data.localSettings.routingEnabled : deviceProxy.deviceProxy.enabled } : {})
         };
         summary.localProxyIncluded = true;
         summary.localProxyWillBeApplied = true;
@@ -754,16 +791,18 @@ export function previewSettingsImport(
     errors: [],
     importedSyncSettings: importedSync.settings,
     nextSyncSettings: sanitizeSyncSettings({
+      ...(routes ? { routes } : {}),
       rules: mergedRules.rules,
       ignoredDomains: mergedIgnoredDomains.domains,
       denylist: mergedDenylist.domains,
       classificationOverrides: mergedClassificationOverrides.classificationOverrides
     }),
-    nextLocalSettings
+    nextLocalSettings,
+    ...(nextLocalSettings ? { localSettingsBase: currentLocal } : {})
   };
 }
 
-export async function applySettingsImportPreview(
+async function applySettingsImportPreviewUnlocked(
   preview: SettingsImportPreview,
   adapters: SettingsImportStorageAdapters = {}
 ): Promise<{
@@ -797,6 +836,7 @@ export async function applySettingsImportPreview(
     preview.importedSyncSettings.classificationOverrides
   );
   const finalSyncSettings = sanitizeSyncSettings({
+    ...(mergeRouteCatalogs(currentSyncSettings, preview.importedSyncSettings) ? { routes: mergeRouteCatalogs(currentSyncSettings, preview.importedSyncSettings) } : {}),
     rules: mergedRules.rules,
     ignoredDomains: mergedIgnoredDomains.domains,
     denylist: mergedDenylist.domains,
@@ -807,6 +847,9 @@ export async function applySettingsImportPreview(
     throw new Error(getMessage("backupSettingsChanged"));
   }
 
+  if (preview.nextLocalSettings && preview.localSettingsBase && JSON.stringify(await getLocalSettings(adapters.localStorage)) !== JSON.stringify(preview.localSettingsBase)) {
+    throw new Error("Local settings changed after preview. Preview the import again before applying it.");
+  }
   const syncSettings = await setSyncSettings(finalSyncSettings, adapters.syncStorage);
   let localSettings: LocalSettings | null = null;
 
@@ -814,7 +857,9 @@ export async function applySettingsImportPreview(
     try {
       localSettings = await updateLocalSettings(
         {
-          deviceProxy: preview.nextLocalSettings.deviceProxy
+          deviceProxy: preview.nextLocalSettings.deviceProxy,
+          ...(preview.nextLocalSettings.routeConnections ? { routeConnections: preview.nextLocalSettings.routeConnections } : {}),
+          ...(preview.nextLocalSettings.routingEnabled !== undefined ? { routingEnabled: preview.nextLocalSettings.routingEnabled } : {})
         },
         adapters.localStorage
       );
@@ -833,4 +878,18 @@ export async function applySettingsImportPreview(
     syncSettings,
     localSettings
   };
+}
+
+function mergeRouteCatalogs(current: SyncSettings, imported: SyncSettings): SyncSettings["routes"] {
+  if (!current.routes && !imported.routes) return undefined;
+  const merged = routeList(current);
+  for (const route of imported.routes ?? routeList({})) {
+    const existing = merged.find(item => item.id === route.id);
+    if (!existing) merged.push(route);
+  }
+  return sanitizeRoutes(merged);
+}
+
+export function applySettingsImportPreview(...args: Parameters<typeof applySettingsImportPreviewUnlocked>): ReturnType<typeof applySettingsImportPreviewUnlocked> {
+  return withSettingsLock("sync", () => withSettingsLock("local", () => applySettingsImportPreviewUnlocked(...args)));
 }

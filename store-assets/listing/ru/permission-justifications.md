@@ -38,3 +38,6 @@ scripting
 ```
 
 The manifest has no `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, or persistent content scripts.
+
+
+0.4.0: scripting также выполняет короткий запрос без cookies/учётных данных к origin открытой вкладки только после «Проверить выбранный маршрут». DOM и тело ответа не читаются, переходов по редиректам нет. Коды ошибок прокси наблюдаются только во время проверки в памяти; установки CA или ослабления TLS нет.

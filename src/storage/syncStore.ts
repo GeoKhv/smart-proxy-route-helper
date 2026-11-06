@@ -1,3 +1,6 @@
+import { withSettingsLock } from "./settingsLock";
+import { ruleRouteId } from "../rules/routes";
+import { ensurePreRouteSettingsBackup } from "./routeMigration";
 import { sanitizeSyncSettings } from "./sanitize";
 import { getMessage } from "../i18n/i18n";
 import { canonicalizeHostname } from "../rules/canonicalizeHostname";
@@ -23,7 +26,7 @@ import {
 } from "./ruleChunks";
 import type { SettingsUpdate, StorageAreaAdapter, SyncSettings } from "./storageTypes";
 
-const syncStorageKeys = [legacyRulesStorageKey, "ignoredDomains", "denylist", "classificationOverrides"] as const;
+const syncStorageKeys = [legacyRulesStorageKey, "ignoredDomains", "denylist", "classificationOverrides", "routes"] as const;
 const legacyMigrationByStorage = new WeakMap<object, Promise<void>>();
 
 function getChromeSyncStorage(): StorageAreaAdapter {
@@ -41,6 +44,7 @@ function resolveUpdate<TSettings extends object>(current: TSettings, update: Set
 
 function syncSettingsWithoutRules(settings: SyncSettings): Omit<SyncSettings, "rules"> {
   return {
+    ...(settings.routes ? { routes: settings.routes } : {}),
     ignoredDomains: settings.ignoredDomains,
     denylist: settings.denylist,
     classificationOverrides: settings.classificationOverrides
@@ -122,25 +126,6 @@ async function cleanupObsoleteRuleStorage(
   }
 }
 
-async function restorePreviousRulesMeta(
-  storageArea: StorageAreaAdapter,
-  previousMeta: RulesMeta | null
-): Promise<void> {
-  if (!canRemoveStorageKeys(storageArea)) {
-    return;
-  }
-
-  try {
-    if (previousMeta) {
-      await storageArea.set({ [rulesMetaStorageKey]: previousMeta });
-    } else {
-      await storageArea.remove(rulesMetaStorageKey);
-    }
-  } catch (error) {
-    console.warn("Smart Proxy Route Helper could not restore the previous Sync rule metadata:", error);
-  }
-}
-
 async function removeStagedRuleChunks(storageArea: StorageAreaAdapter, meta: RulesMeta): Promise<void> {
   if (!canRemoveStorageKeys(storageArea)) {
     return;
@@ -166,10 +151,12 @@ async function commitRuleChunks(
   let packed;
   let previousMeta: RulesMeta | null = null;
   let activated = false;
+  let previousActivation: Record<string, unknown> = {};
 
   try {
     const previous = await storageArea.get(rulesMetaStorageKey);
     previousMeta = isRulesMeta(previous[rulesMetaStorageKey]) ? previous[rulesMetaStorageKey] : null;
+    previousActivation = await storageArea.get([...Object.keys(activationSettings), "routes"]);
     packed = packRulesIntoChunks(rules);
   } catch (error) {
     throw asControlledRuleStorageError(error);
@@ -186,11 +173,12 @@ async function commitRuleChunks(
       throw new RuleChunkStorageError("verification-failed", "The staged Sync rule chunks did not match their source.");
     }
 
+    activated = true;
     await storageArea.set({
       ...activationSettings,
       [rulesMetaStorageKey]: packed.meta
     });
-    activated = true;
+    if (Object.keys(activationSettings).length > 0 && !("routes" in activationSettings) && previousActivation.routes !== undefined && storageArea.remove) await storageArea.remove("routes");
 
     const verifiedAfterActivation = await readPackedRules(storageArea, packed.meta);
 
@@ -199,7 +187,22 @@ async function commitRuleChunks(
     }
   } catch (error) {
     if (activated) {
-      await restorePreviousRulesMeta(storageArea, previousMeta);
+      try {
+        const present = Object.fromEntries(Object.entries(previousActivation).filter(([, value]) => value !== undefined));
+        await storageArea.set({ ...present, ...(previousMeta ? { [rulesMetaStorageKey]: previousMeta } : {}) });
+        const absent = [...Object.keys(activationSettings), "routes"].filter(key => previousActivation[key] === undefined);
+        if (!previousMeta) absent.push(rulesMetaStorageKey);
+        if (absent.length) {
+          if (!storageArea.remove) throw new Error("Rollback requires storage key removal.");
+          await storageArea.remove(absent);
+        }
+        const restored = await storageArea.get(rulesMetaStorageKey);
+        if (previousMeta ? !isRulesMeta(restored[rulesMetaStorageKey]) || (restored[rulesMetaStorageKey] as RulesMeta).generation !== previousMeta.generation : restored[rulesMetaStorageKey] !== undefined) throw new Error("Rollback verification failed.");
+      } catch (rollbackError) {
+        // The active generation is uncertain. Keep both generations and the
+        // recovery copy; never delete chunks that metadata may still reference.
+        throw controlledRuleStorageError("write-failed", rollbackError);
+      }
     }
 
     await removeStagedRuleChunks(storageArea, packed.meta);
@@ -264,7 +267,7 @@ async function effectiveRulesFromStorage(
 
 export function hasSyncRulesStorageChange(changes: Record<string, unknown>): boolean {
   return Object.keys(changes).some(
-    (key) => key === legacyRulesStorageKey || key === rulesMetaStorageKey || isRuleChunkStorageKey(key)
+    (key) => key === "routes" || key === legacyRulesStorageKey || key === rulesMetaStorageKey || isRuleChunkStorageKey(key)
   );
 }
 
@@ -272,6 +275,7 @@ function conflictRuleSnapshot(rules: readonly DomainRule[]): string {
   return JSON.stringify(
     rules.map((rule) => ({
       id: rule.id ?? null,
+      routeId: rule.routeId ?? null,
       domain: rule.domain,
       includeSubdomains: rule.includeSubdomains,
       action: rule.action,
@@ -282,7 +286,8 @@ function conflictRuleSnapshot(rules: readonly DomainRule[]): string {
   );
 }
 
-export async function getSyncSettings(storageArea: StorageAreaAdapter = getChromeSyncStorage()): Promise<SyncSettings> {
+export async function getSyncSettingsUnlocked(storageArea: StorageAreaAdapter = getChromeSyncStorage()): Promise<SyncSettings> {
+  if (storageArea === globalThis.chrome?.storage?.sync) await ensurePreRouteSettingsBackup();
   const storedSettings = await storageArea.get([...syncStorageKeys, rulesMetaStorageKey]);
   const rules = await effectiveRulesFromStorage(storedSettings, storageArea);
 
@@ -292,7 +297,7 @@ export async function getSyncSettings(storageArea: StorageAreaAdapter = getChrom
   });
 }
 
-export async function setSyncSettings(
+export async function setSyncSettingsUnlocked(
   settings: SyncSettings,
   storageArea: StorageAreaAdapter = getChromeSyncStorage()
 ): Promise<SyncSettings> {
@@ -311,6 +316,7 @@ async function writeSyncSettings(
   storageArea: StorageAreaAdapter
 ): Promise<SyncSettings> {
   const sanitizedSettings = sanitizeSyncSettings(settings);
+  if (storageArea === globalThis.chrome?.storage?.sync) await ensurePreRouteSettingsBackup();
 
   await commitRuleChunks(
     sanitizedSettings.rules,
@@ -322,11 +328,11 @@ async function writeSyncSettings(
   return sanitizedSettings;
 }
 
-export async function updateSyncSettings(
+async function updateSyncSettingsUnlocked(
   update: SettingsUpdate<SyncSettings>,
   storageArea: StorageAreaAdapter = getChromeSyncStorage()
 ): Promise<SyncSettings> {
-  const currentSettings = await getSyncSettings(storageArea);
+  const currentSettings = await getSyncSettingsUnlocked(storageArea);
   const nextSettings = sanitizeSyncSettings(resolveUpdate(currentSettings, update));
   const currentConflicts = findRouteTargetConflicts(currentSettings.rules);
   const nextConflicts = findRouteTargetConflicts(nextSettings.rules);
@@ -364,11 +370,11 @@ export type AddSyncRulesResult =
       proposedRule: DomainRule;
     };
 
-export async function addSyncRules(
+async function addSyncRulesUnlocked(
   proposedRules: readonly DomainRule[],
   storageArea: StorageAreaAdapter = getChromeSyncStorage()
 ): Promise<AddSyncRulesResult> {
-  const currentSettings = await getSyncSettings(storageArea);
+  const currentSettings = await getSyncSettingsUnlocked(storageArea);
   const nextRules = [...currentSettings.rules];
   const addedRules: DomainRule[] = [];
   const duplicateRules: DomainRule[] = [];
@@ -390,7 +396,7 @@ export async function addSyncRules(
         reason: "conflict",
         existingRule: check.existingRule,
         proposedRule: rule,
-        error: getMessage("ruleActionExistsForScope", [
+        error: ruleRouteId(check.existingRule) !== ruleRouteId(rule) ? getMessage("routesConflict") : getMessage("ruleActionExistsForScope", [
           check.existingRule.action === "proxy" ? getMessage("commonProxy") : getMessage("commonDirect")
         ])
       };
@@ -444,7 +450,7 @@ export type UpdateSyncRuleResult =
 
 export type SyncRuleChange = {
   ruleId: string;
-  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action">;
+  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action" | "routeId">;
 };
 
 export type ApplySyncRuleChangesResult =
@@ -461,12 +467,12 @@ export type ApplySyncRuleChangesResult =
       error: string;
     };
 
-export async function applySyncRuleChanges(
+async function applySyncRuleChangesUnlocked(
   changes: readonly SyncRuleChange[],
   proposedRules: readonly DomainRule[],
   storageArea: StorageAreaAdapter = getChromeSyncStorage()
 ): Promise<ApplySyncRuleChangesResult> {
-  const currentSettings = await getSyncSettings(storageArea);
+  const currentSettings = await getSyncSettingsUnlocked(storageArea);
   let rules = [...currentSettings.rules];
   const expandedRules: DomainRule[] = [];
 
@@ -544,12 +550,12 @@ export async function applySyncRuleChanges(
   };
 }
 
-export async function updateSyncRule(
+async function updateSyncRuleUnlocked(
   ruleId: string,
-  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action">,
+  proposed: Pick<DomainRule, "domain" | "includeSubdomains" | "action" | "routeId">,
   storageArea: StorageAreaAdapter = getChromeSyncStorage()
 ): Promise<UpdateSyncRuleResult> {
-  const currentSettings = await getSyncSettings(storageArea);
+  const currentSettings = await getSyncSettingsUnlocked(storageArea);
   const currentRule = currentSettings.rules.find((rule) => getRuleStableId(rule) === ruleId);
 
   if (currentRule && findRouteTargetConflictForRule(currentSettings.rules, currentRule)) {
@@ -598,12 +604,12 @@ export type ResolveSyncRouteTargetConflictResult =
       error: string;
     };
 
-export async function resolveSyncRouteTargetConflict(
+async function resolveSyncRouteTargetConflictUnlocked(
   routeTargetKey: string,
-  keepAction: RuleAction,
+  keepAction: RuleAction | `route:${string}`,
   storageArea: StorageAreaAdapter = getChromeSyncStorage()
 ): Promise<ResolveSyncRouteTargetConflictResult> {
-  const currentSettings = await getSyncSettings(storageArea);
+  const currentSettings = await getSyncSettingsUnlocked(storageArea);
   const resolution = resolveRouteTargetConflict(currentSettings.rules, routeTargetKey, keepAction);
 
   if (!resolution.ok) {
@@ -628,4 +634,32 @@ export async function resolveSyncRouteTargetConflict(
     keptRule: resolution.keptRule,
     removedRules: resolution.removedRules
   };
+}
+
+export function setSyncSettings(...args: Parameters<typeof setSyncSettingsUnlocked>): ReturnType<typeof setSyncSettingsUnlocked> {
+  return withSettingsLock("sync", () => setSyncSettingsUnlocked(...args));
+}
+
+export function updateSyncSettings(...args: Parameters<typeof updateSyncSettingsUnlocked>): ReturnType<typeof updateSyncSettingsUnlocked> {
+  return withSettingsLock("sync", () => updateSyncSettingsUnlocked(...args));
+}
+
+export function addSyncRules(...args: Parameters<typeof addSyncRulesUnlocked>): ReturnType<typeof addSyncRulesUnlocked> {
+  return withSettingsLock("sync", () => addSyncRulesUnlocked(...args));
+}
+
+export function applySyncRuleChanges(...args: Parameters<typeof applySyncRuleChangesUnlocked>): ReturnType<typeof applySyncRuleChangesUnlocked> {
+  return withSettingsLock("sync", () => applySyncRuleChangesUnlocked(...args));
+}
+
+export function updateSyncRule(...args: Parameters<typeof updateSyncRuleUnlocked>): ReturnType<typeof updateSyncRuleUnlocked> {
+  return withSettingsLock("sync", () => updateSyncRuleUnlocked(...args));
+}
+
+export function resolveSyncRouteTargetConflict(...args: Parameters<typeof resolveSyncRouteTargetConflictUnlocked>): ReturnType<typeof resolveSyncRouteTargetConflictUnlocked> {
+  return withSettingsLock("sync", () => resolveSyncRouteTargetConflictUnlocked(...args));
+}
+
+export function getSyncSettings(...args: Parameters<typeof getSyncSettingsUnlocked>): ReturnType<typeof getSyncSettingsUnlocked> {
+  return withSettingsLock("sync", () => getSyncSettingsUnlocked(...args));
 }

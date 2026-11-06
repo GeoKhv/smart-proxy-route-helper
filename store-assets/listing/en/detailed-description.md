@@ -38,3 +38,6 @@ What you provide
 
 You must provide and control a compatible local proxy client that is already running, including its local host and port. Smart Proxy Route Helper does not provide its own VPN, proxy server, or proxy infrastructure.
 ```
+
+
+Recent updates: Work and Life run simultaneously with independent synced domain lists and local SOCKS5/HTTP or DIRECT connections. Popup shows configured routes and Chrome Proxy control. Manual tests disclose HTTPS/certificate limits; Work points to the Corporate VPN Router setup wizard for corporate CA checks. Existing rules migrate to Work without rewriting. No certificate installation, HTTPS bypass or new permission is included.

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-06T10:12:36.360079+00:00",
+  "title": "Design System: Smart Proxy Route Helper",
+  "extensions": {
+    "shadows": [],
+    "motion": [
+      {
+        "name": "routing-switch-thumb",
+        "value": "transform 120ms ease",
+        "purpose": "Moves the existing device routing switch thumb."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "options-single-column",
+        "value": "720px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Options button",
+      "kind": "button",
+      "refersTo": "options-button",
+      "description": "Native action control with explicit label.",
+      "html": "<button class=\"ds-button\">Save connection</button>",
+      "css": ".ds-button{font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;min-height:38px;border:1px solid color-mix(in srgb,CanvasText 28%,Canvas);border-radius:6px;padding:8px 12px;background:ButtonFace;color:ButtonText;cursor:pointer}.ds-button:hover{border-color:color-mix(in srgb,CanvasText 48%,Canvas)}.ds-button:focus-visible{outline:2px solid light-dark(#245bc4,#9dbdff);outline-offset:3px}"
+    },
+    {
+      "name": "Connection input",
+      "kind": "input",
+      "refersTo": "options-input",
+      "description": "Labeled device-specific endpoint field.",
+      "html": "<label class=\"ds-field\">Host<input value=\"127.0.0.1\" /></label>",
+      "css": ".ds-field{display:grid;gap:6px;font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;font-size:14px;font-weight:600}.ds-field input{font:inherit;min-height:38px;border:1px solid color-mix(in srgb,CanvasText 28%,Canvas);border-radius:6px;padding:8px 10px;background:Canvas;color:CanvasText}.ds-field input:focus-visible{outline:2px solid light-dark(#245bc4,#9dbdff);outline-offset:3px}"
+    },
+    {
+      "name": "Route selector",
+      "kind": "nav",
+      "description": "Selects the list for editing/testing; it does not activate a mode.",
+      "html": "<label class=\"ds-route\">Route list<select><option>Work</option><option>Life</option></select></label>",
+      "css": ".ds-route{display:grid;gap:6px;font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;font-size:13px}.ds-route select{font:inherit;width:100%;min-height:38px;padding:6px 10px;border:1px solid color-mix(in srgb,CanvasText 24%,Canvas);border-radius:6px;background:Canvas;color:CanvasText}.ds-route select:focus-visible{outline:2px solid light-dark(#245bc4,#9dbdff);outline-offset:3px}"
+    },
+    {
+      "name": "Configured route status",
+      "kind": "custom",
+      "description": "Text and indicator communicate configured intent without claiming availability.",
+      "html": "<div class=\"ds-status\" role=\"status\"><strong><span aria-hidden=\"true\"></span>Configured route: Life · DIRECT</strong><div>example.org · DIRECT · OS VPN can still apply</div></div>",
+      "css": ".ds-status{font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;font-size:13px;line-height:1.45;border:1px solid color-mix(in srgb,CanvasText 18%,Canvas);border-radius:6px;padding:10px;color:color-mix(in srgb,CanvasText 80%,Canvas)}.ds-status strong{display:flex;align-items:center;gap:8px;font-size:15px;color:CanvasText}.ds-status span{width:12px;height:12px;flex:0 0 12px;border:2px solid #2563b8;border-radius:50%;background:#2563b8}.ds-status div{margin-top:5px}"
+    },
+    {
+      "name": "Rule row",
+      "kind": "custom",
+      "description": "Domain and scope metadata with explicit edit/remove controls.",
+      "html": "<div class=\"ds-rule\"><div><strong>example.org</strong><div class=\"ds-meta\">Life · includes subdomains</div></div><button>Edit</button></div>",
+      "css": ".ds-rule{font-family:ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px;border:1px solid color-mix(in srgb,CanvasText 16%,Canvas);border-radius:6px}.ds-meta{margin-top:4px;font-size:13px;color:color-mix(in srgb,CanvasText 64%,Canvas)}.ds-rule button{font:inherit;min-height:38px;padding:8px 12px;border:1px solid color-mix(in srgb,CanvasText 28%,Canvas);border-radius:6px;background:ButtonFace;color:ButtonText}.ds-rule button:hover{border-color:color-mix(in srgb,CanvasText 48%,Canvas)}.ds-rule button:focus-visible{outline:2px solid light-dark(#245bc4,#9dbdff);outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "overview": "The incumbent system uses browser-native surfaces, system typography and compact, labeled controls.\nColor explains routing state; text carries the decision. The extension is an operational tool with\nEnglish and Russian interfaces, rather than a promotional surface.\n\nThe current implementation is evidenced by `src/popup/popup.html`, `src/options/options.html`,\n`src/popup/popup.ts` and `src/proxy/routeHealth.ts`. Parent-reported visual inspection covered the\nEnglish Popup and Options in isolated Chrome. This record does not establish dark-mode contrast\ncompliance, Russian layout verification or screen-reader verification.\n",
+    "rules": [
+      {
+        "name": "The Evidence Rule",
+        "body": "A configured route, the actual Chrome Proxy/PAC state and a user-invoked availability result are separate facts. A route color must not imply successful network/TLS testing.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do preserve native controls, visible labels, keyboard outlines and text-based state explanations.",
+      "Do distinguish the selected editing/testing list from the current site's effective rule.",
+      "Do keep all route lists simultaneously active and make global Pause the explicit global control.",
+      "Do preserve compact summaries while allowing diagnostics, previews and rule lists to scroll."
+    ],
+    "donts": [
+      "Don't use color alone to communicate routing, control loss, certificate errors or test outcomes.",
+      "Don't show saved proxy settings or an HTTP-only response as proof that HTTPS is healthy.",
+      "Don't introduce remote fonts/assets or executable resources into these extension surfaces."
+    ]
+  }
+}

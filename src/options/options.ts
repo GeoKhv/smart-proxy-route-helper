@@ -1,3 +1,7 @@
+import { routeList, routeConnection, routeName, ruleRouteId, routingEnabled } from "../rules/routes";
+import { renderProxyHealth } from "../proxy/routeHealth";
+import { proxyRoutingRefreshMessageType } from "../proxy/applyProxySettings";
+import { routeMigrationBackupKey } from "../storage/routeMigration";
 import { supportedLocalProxySchemes, validateLocalProxyConfig } from "../proxy/proxyConfig";
 import { getMessage, localizeDocument, setLanguagePreference } from "../i18n/i18n";
 import type { LocalProxyConfig, LocalProxyScheme } from "../proxy/proxyConfig";
@@ -60,6 +64,7 @@ const suggestedLocalProxyConfig: LocalProxyConfig = {
 type ReadySettingsImportPreview = Extract<SettingsImportPreview, { ok: true }>;
 type FieldErrors = Partial<Record<"scheme" | "host" | "port" | "domain", string>>;
 
+let selectedRouteId = "work";
 let pendingImportPreview: ReadySettingsImportPreview | null = null;
 let currentSyncSettingsSnapshot: SyncSettings | null = null;
 let editingRuleId: string | null = null;
@@ -171,7 +176,8 @@ export function addDomainRule(
   input: string,
   includeSubdomains: boolean = DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS,
   createdAt: string = new Date().toISOString(),
-  action: RuleAction = "proxy"
+  action: RuleAction = "proxy",
+  routeId?: string
 ): AddRuleResult {
   const normalized = canonicalizeHostname(input);
 
@@ -192,6 +198,7 @@ export function addDomainRule(
   }
 
   const proposedRule: DomainRule = {
+    ...(routeId ? { routeId } : {}),
     domain: normalized.domain,
     includeSubdomains,
     action,
@@ -206,7 +213,7 @@ export function addDomainRule(
       ok: false,
       reason: "conflict",
       existingRule: targetCheck.existingRule,
-      error: getMessage("ruleActionExistsForScope", [displayAction(targetCheck.existingRule.action)])
+      error: ruleRouteId(targetCheck.existingRule) !== ruleRouteId(proposedRule) ? getMessage("routesConflict") : getMessage("ruleActionExistsForScope", [displayAction(targetCheck.existingRule.action)])
     };
   }
 
@@ -262,9 +269,13 @@ function clearProxyErrors(): void {
 }
 
 function renderLocalSettings(settings: LocalSettings): void {
-  const config = settings.deviceProxy.config ?? suggestedLocalProxyConfig;
+  const connection = routeConnection(settings, selectedRouteId);
+  const config = (connection.type === "proxy" ? connection.config : null) ?? suggestedLocalProxyConfig;
+  getElement<HTMLSelectElement>("#connection-type").value = connection.type;
+  updateConnectionFields();
+  getElement("#work-connection-hint").hidden = selectedRouteId !== "work";
 
-  getElement<HTMLInputElement>("#proxy-enabled").checked = settings.deviceProxy.enabled;
+  getElement<HTMLInputElement>("#proxy-enabled").checked = routingEnabled(settings);
   getElement<HTMLSelectElement>("#proxy-scheme").value = config.scheme;
   getElement<HTMLInputElement>("#proxy-host").value = config.host;
   getElement<HTMLInputElement>("#proxy-port").value = String(config.port);
@@ -281,6 +292,7 @@ async function refreshOptionsLanguageState(): Promise<void> {
   renderStoredLists(syncSettings);
   renderClassificationOverrides(syncSettings);
   renderRuleCleanupSuggestions(syncSettings);
+  await refreshProxyHealth();
 }
 
 async function handleLanguagePreferenceChange(event: Event): Promise<void> {
@@ -305,7 +317,8 @@ function renderRules(settings: SyncSettings): void {
   const list = getElement<HTMLUListElement>("#rule-list");
   const conflicts = findRouteTargetConflicts(settings.rules);
   const conflictKeys = new Set(conflicts.map((conflict) => conflict.key));
-  const visibleRules = settings.rules.filter((rule) => !conflictKeys.has(getRouteTargetKey(rule)));
+  const visibleRules = settings.rules.filter((rule) => ruleRouteId(rule) === selectedRouteId && !conflictKeys.has(getRouteTargetKey(rule)));
+  renderRouteSelector(settings);
 
   currentSyncSettingsSnapshot = settings;
   renderRouteTargetConflicts(settings);
@@ -332,7 +345,7 @@ function renderRules(settings: SyncSettings): void {
     const metadata = document.createElement("div");
     metadata.className = "metadata";
     metadata.textContent = [
-      rule.action === "direct" ? getMessage("ruleDirectRoute") : getMessage("ruleProxyRoute"),
+      rule.action === "direct" ? getMessage("ruleDirectRoute") : routeName(settings, ruleRouteId(rule)),
       getMessage("ruleSource", [rule.source]),
       rule.includeSubdomains ? getMessage("ruleIncludesSubdomains") : getMessage("ruleExactDomainOnly")
     ].join(" · ");
@@ -371,8 +384,7 @@ function renderRouteTargetConflicts(settings: SyncSettings): void {
     const heading = document.createElement("div");
     const detail = document.createElement("div");
     const actions = document.createElement("div");
-    const keepProxy = document.createElement("button");
-    const keepDirect = document.createElement("button");
+
     const effectiveRule = findEffectiveDomainRule(conflict.domain, conflict.rules)?.rule;
 
     item.className = "rule-item conflict-item";
@@ -386,20 +398,16 @@ function renderRouteTargetConflicts(settings: SyncSettings): void {
     ]);
     actions.className = "rule-item-actions";
 
-    keepProxy.type = "button";
-    keepProxy.textContent = getMessage("optionsKeepProxy");
-    keepProxy.dataset.conflictTargetKey = conflict.key;
-    keepProxy.dataset.keepAction = "proxy";
-    keepProxy.setAttribute("aria-label", getMessage("optionsKeepProxyAria", [describeRouteTarget(conflict)]));
-
-    keepDirect.type = "button";
-    keepDirect.textContent = getMessage("optionsKeepDirect");
-    keepDirect.dataset.conflictTargetKey = conflict.key;
-    keepDirect.dataset.keepAction = "direct";
-    keepDirect.setAttribute("aria-label", getMessage("optionsKeepDirectAria", [describeRouteTarget(conflict)]));
-
+    detail.textContent = getMessage("routesConflictDetail");
+    for (const rule of conflict.rules) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = getMessage("routesKeep", [`${routeName(settings, ruleRouteId(rule))} · ${displayAction(rule.action)}`]);
+      button.dataset.conflictTargetKey = conflict.key;
+      button.dataset.keepAction = `route:${ruleRouteId(rule)}:${rule.action}`;
+      actions.append(button);
+    }
     summary.append(heading, detail);
-    actions.append(keepProxy, keepDirect);
     item.append(summary, actions);
     list.append(item);
   }
@@ -455,6 +463,9 @@ function openRuleEditor(rule: DomainRule, settings: SyncSettings): void {
 
   currentSyncSettingsSnapshot = settings;
   editingRuleId = getRuleStableId(rule);
+  const routeSelect = getElement<HTMLSelectElement>("#rule-edit-route");
+  routeSelect.replaceChildren(...routeList(settings).map(route => { const o = document.createElement("option"); o.value = route.id; o.textContent = route.name; return o; }));
+  routeSelect.value = ruleRouteId(rule);
   getElement<HTMLInputElement>("#rule-edit-domain").value = rule.domain;
   getElement<HTMLSelectElement>("#rule-edit-action").value = rule.action;
   renderRuleEditorScopeOptions(rule.domain, currentScope);
@@ -491,12 +502,12 @@ function renderRuleEditPlan(plan: RuleEditPlan): void {
   appendRuleEditPreviewLine(
     preview,
     getMessage("commonCurrentRule"),
-    `${plan.currentRule.domain} · ${displayScope(plan.currentRule)} · ${displayAction(plan.currentRule.action)}`
+    `${plan.currentRule.domain} · ${displayScope(plan.currentRule)} · ${displayAction(plan.currentRule.action)} · ${currentSyncSettingsSnapshot ? routeName(currentSyncSettingsSnapshot, ruleRouteId(plan.currentRule)) : ruleRouteId(plan.currentRule)}`
   );
   appendRuleEditPreviewLine(
     preview,
     getMessage("commonProposedRule"),
-    `${plan.proposedRule.domain} · ${displayScope(plan.proposedRule)} · ${displayAction(plan.proposedRule.action)}`
+    `${plan.proposedRule.domain} · ${displayScope(plan.proposedRule)} · ${displayAction(plan.proposedRule.action)} · ${currentSyncSettingsSnapshot ? routeName(currentSyncSettingsSnapshot, ruleRouteId(plan.proposedRule)) : ruleRouteId(plan.proposedRule)}`
   );
 
   if (plan.coverage.length > 0) {
@@ -753,8 +764,10 @@ async function handleLocalProxySubmit(event: SubmitEvent): Promise<void> {
   event.preventDefault();
   clearProxyErrors();
 
+  const targetRouteId = selectedRouteId;
   const status = getElement<HTMLElement>("#local-proxy-status");
-  const parsed = parseLocalProxyForm(localProxyFormInput());
+  const direct = getElement<HTMLSelectElement>("#connection-type").value === "direct";
+  const parsed = direct ? { ok: true as const, deviceProxy: { enabled: getElement<HTMLInputElement>("#proxy-enabled").checked, config: null } } : parseLocalProxyForm(localProxyFormInput());
 
   if (!parsed.ok) {
     setError("#proxy-scheme-error", parsed.errors.scheme);
@@ -766,10 +779,14 @@ async function handleLocalProxySubmit(event: SubmitEvent): Promise<void> {
 
   await updateLocalSettings((current) => ({
     ...current,
-    deviceProxy: parsed.deviceProxy
+    ...(targetRouteId === "work" ? { deviceProxy: { ...current.deviceProxy, config: parsed.deviceProxy.config } } : {}),
+    routingEnabled: parsed.deviceProxy.enabled,
+    routeConnections: { ...current.routeConnections, [targetRouteId]: direct ? { type: "direct" } : { type: "proxy", config: parsed.deviceProxy.config } }
   }));
+  await chrome.runtime.sendMessage({ type: proxyRoutingRefreshMessageType });
+  await refreshProxyHealth();
 
-  setStatus(status, getMessage("optionsProxySaved"), "success");
+  setStatus(status, getMessage("routesSaved"), "success");
 }
 
 async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
@@ -780,8 +797,9 @@ async function handleRuleSubmit(event: SubmitEvent): Promise<void> {
   const input = getElement<HTMLInputElement>("#rule-domain");
   const includeSubdomains = getElement<HTMLSelectElement>("#rule-scope").value === "hostname-and-subdomains";
   const action = getElement<HTMLSelectElement>("#rule-action").value === "direct" ? "direct" : "proxy";
+  const targetRouteId = selectedRouteId;
   const current = await getSyncSettings();
-  const addResult = addDomainRule(current.rules, input.value, includeSubdomains, new Date().toISOString(), action);
+  const addResult = addDomainRule(current.rules, input.value, includeSubdomains, new Date().toISOString(), action, targetRouteId);
 
   if (!addResult.ok) {
     const message = addResult.error;
@@ -847,7 +865,7 @@ async function handleRouteTargetConflictClick(event: MouseEvent): Promise<void> 
     return;
   }
 
-  const keepAction = button.dataset.keepAction === "direct" ? "direct" : "proxy";
+  const keepAction = button.dataset.keepAction as `route:${string}`;
   const result = await resolveSyncRouteTargetConflict(button.dataset.conflictTargetKey, keepAction);
   const status = getElement<HTMLElement>("#route-rule-conflict-status");
 
@@ -896,6 +914,7 @@ async function handleRuleEditPreview(): Promise<void> {
     {
       domain: getElement<HTMLInputElement>("#rule-edit-domain").value,
       action: getElement<HTMLSelectElement>("#rule-edit-action").value === "direct" ? "direct" : "proxy",
+      routeId: getElement<HTMLSelectElement>("#rule-edit-route").value,
       scope: getElement<HTMLSelectElement>("#rule-edit-scope").value as RuleScope
     },
     settings.denylist
@@ -1150,11 +1169,14 @@ function clearPendingImportPreview(): void {
 
 async function initOptionsPage(): Promise<void> {
   const localSettings = await getLocalSettings();
+  bindRouteControls();
   setLanguagePreference(localSettings.language ?? "auto");
   localizeDocument();
   resetNewRuleScope();
   await refreshSyncView();
   renderLocalSettings(localSettings);
+  await refreshProxyHealth();
+  chrome.proxy.settings.onChange.addListener(() => { void refreshProxyHealth(); });
   setStatus(getElement<HTMLElement>("#local-proxy-status"), getMessage("optionsLoadedLocal"), "neutral");
   setStatus(getElement<HTMLElement>("#rule-status"), getMessage("optionsLoadedRules"), "neutral");
   setStatus(getElement<HTMLElement>("#rule-cleanup-status"), getMessage("optionsRunCleanup"), "neutral");
@@ -1163,7 +1185,7 @@ async function initOptionsPage(): Promise<void> {
   setStatus(getElement<HTMLElement>("#import-settings-status"), getMessage("optionsPasteImport"), "neutral");
 
   getElement<HTMLFormElement>("#local-proxy-form").addEventListener("submit", (event) => {
-    void handleLocalProxySubmit(event);
+    void handleLocalProxySubmit(event).catch(error => setStatus(getElement("#local-proxy-status"), error instanceof Error ? error.message : String(error), "error"));
   });
   getElement<HTMLFormElement>("#rule-form").addEventListener("submit", (event) => {
     void handleRuleSubmit(event).catch((error: unknown) => {
@@ -1193,6 +1215,7 @@ async function initOptionsPage(): Promise<void> {
     });
   });
   getElement<HTMLInputElement>("#rule-edit-domain").addEventListener("input", handleRuleEditorInput);
+  getElement<HTMLSelectElement>("#rule-edit-route").addEventListener("change", handleRuleEditorInput);
   getElement<HTMLSelectElement>("#rule-edit-action").addEventListener("change", handleRuleEditorInput);
   getElement<HTMLSelectElement>("#rule-edit-scope").addEventListener("change", handleRuleEditorInput);
   getElement<HTMLButtonElement>("#preview-rule-edit").addEventListener("click", () => {
@@ -1262,7 +1285,7 @@ async function initOptionsPage(): Promise<void> {
 
   if (chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === "local" && changes.language) {
+      if (areaName === "local" && (changes.language || changes.routeConnections || changes.routingEnabled || changes.deviceProxy)) {
         void refreshOptionsLanguageState();
         return;
       }
@@ -1285,5 +1308,61 @@ if (typeof document !== "undefined") {
         "error"
       );
     });
+  });
+}
+
+function renderRouteSelector(settings: SyncSettings): void {
+  const select = getElement<HTMLSelectElement>("#route-select");
+  if (!routeList(settings).some(route => route.id === selectedRouteId)) selectedRouteId = "work";
+  select.replaceChildren(...routeList(settings).map(route => {
+    const option = document.createElement("option");
+    option.value = route.id;
+    option.textContent = `${route.name} (${settings.rules.filter(rule => ruleRouteId(rule) === route.id).length})`;
+    return option;
+  }));
+  select.value = selectedRouteId;
+  getElement<HTMLInputElement>("#route-name").value = routeName(settings, selectedRouteId);
+  getElement("#selected-list-summary").textContent = routeName(settings, selectedRouteId);
+}
+function updateConnectionFields(): void {
+  const direct = getElement<HTMLSelectElement>("#connection-type").value === "direct";
+  getElement("#proxy-endpoint-fields").hidden = direct;
+  getElement("#proxy-suggestion").hidden = direct;
+}
+async function refreshProxyHealth(): Promise<void> {
+  const [sync, local] = await Promise.all([getSyncSettings(), getLocalSettings()]);
+  await renderProxyHealth(getElement("#proxy-health"), sync, local);
+}
+function bindRouteControls(): void {
+  const report = (error: unknown) => setStatus(getElement("#routes-status"), error instanceof Error ? error.message : String(error), "error");
+  getElement<HTMLSelectElement>("#route-select").addEventListener("change", event => {
+    selectedRouteId = (event.target as HTMLSelectElement).value;
+    closeRuleEditor();
+    void refreshOptionsLanguageState().catch(report);
+  });
+  getElement<HTMLSelectElement>("#connection-type").addEventListener("change", updateConnectionFields);
+  for (const create of [false, true]) getElement(create ? "#create-route" : "#rename-route").addEventListener("click", () => {
+    const targetRouteId = selectedRouteId;
+    const name = getElement<HTMLInputElement>(create ? "#new-route-name" : "#route-name").value.trim();
+    void updateSyncSettings(current => {
+      const routes = routeList(current);
+      if (!name || name.length > 48 || routes.some(route => route.name.toLowerCase() === name.toLowerCase() && (create || route.id !== targetRouteId)) || (create && routes.length >= 32)) throw new Error(getMessage("routesNameInvalid"));
+      if (create) { selectedRouteId = `route-${crypto.randomUUID()}`; routes.push({ id: selectedRouteId, name }); }
+      else routes.find(route => route.id === targetRouteId)!.name = name;
+      return { routes };
+    }).then(async () => { getElement<HTMLInputElement>("#new-route-name").value = ""; await refreshOptionsLanguageState(); }).catch(report);
+  });
+  getElement("#reapply-routing").addEventListener("click", () => {
+    void chrome.runtime.sendMessage({ type: proxyRoutingRefreshMessageType }).then(async result => {
+      if (!result.ok) throw new Error(result.errorMessage);
+      await refreshProxyHealth();
+    }).catch(report);
+  });
+  getElement("#download-migration-backup").addEventListener("click", () => {
+    void chrome.storage.local.get(routeMigrationBackupKey).then(stored => {
+      if (!stored[routeMigrationBackupKey]) throw new Error("Recovery copy is not available yet.");
+      const url = URL.createObjectURL(new Blob([JSON.stringify(stored[routeMigrationBackupKey], null, 2)], { type: "application/json" }));
+      const a = document.createElement("a"); a.href = url; a.download = "smart-proxy-pre-route-recovery.json"; a.click(); URL.revokeObjectURL(url);
+    }).catch(report);
   });
 }

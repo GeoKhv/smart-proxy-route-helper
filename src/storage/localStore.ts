@@ -1,8 +1,10 @@
+import { withSettingsLock } from "./settingsLock";
+import { ensurePreRouteSettingsBackup } from "./routeMigration";
 import { sanitizeLocalSettings } from "./sanitize";
 import { validateLocalProxyConfig } from "../proxy/proxyConfig";
 import type { DeviceProxySettings, LocalSettings, SettingsUpdate, StorageAreaAdapter } from "./storageTypes";
 
-const localStorageKeys = ["deviceProxy", "diagnostics", "language"] as const;
+const localStorageKeys = ["deviceProxy", "diagnostics", "language", "routeConnections", "routingEnabled"] as const;
 
 function getChromeLocalStorage(): StorageAreaAdapter {
   return chrome.storage.local;
@@ -61,27 +63,28 @@ export async function getLocalSettings(storageArea: StorageAreaAdapter = getChro
   return sanitizeLocalSettings(storedSettings);
 }
 
-export async function setLocalSettings(
+async function setLocalSettingsUnlocked(
   settings: LocalSettings,
   storageArea: StorageAreaAdapter = getChromeLocalStorage()
 ): Promise<LocalSettings> {
   const sanitizedSettings = sanitizeLocalSettings(settings);
 
+  if (storageArea === globalThis.chrome?.storage?.local) await ensurePreRouteSettingsBackup();
   await storageArea.set(sanitizedSettings);
 
   return sanitizedSettings;
 }
 
-export async function updateLocalSettings(
+export async function updateLocalSettingsUnlocked(
   update: SettingsUpdate<LocalSettings>,
   storageArea: StorageAreaAdapter = getChromeLocalStorage()
 ): Promise<LocalSettings> {
   const currentSettings = await getLocalSettings(storageArea);
 
-  return setLocalSettings(resolveUpdate(currentSettings, update), storageArea);
+  return setLocalSettingsUnlocked(resolveUpdate(currentSettings, update), storageArea);
 }
 
-export async function setDeviceProxyEnabled(
+async function setDeviceProxyEnabledUnlocked(
   enabled: boolean,
   storageArea: StorageAreaAdapter = getChromeLocalStorage()
 ): Promise<DeviceProxyEnabledUpdateResult> {
@@ -92,9 +95,23 @@ export async function setDeviceProxyEnabled(
     return update;
   }
 
+  if (storageArea === globalThis.chrome?.storage?.local) await ensurePreRouteSettingsBackup();
   await storageArea.set({
-    deviceProxy: update.deviceProxy
+    deviceProxy: update.deviceProxy,
+    ...(currentSettings.routingEnabled !== undefined ? { routingEnabled: enabled } : {})
   });
 
   return update;
+}
+
+export function setLocalSettings(...args: Parameters<typeof setLocalSettingsUnlocked>): ReturnType<typeof setLocalSettingsUnlocked> {
+  return withSettingsLock("local", () => setLocalSettingsUnlocked(...args));
+}
+
+export function updateLocalSettings(...args: Parameters<typeof updateLocalSettingsUnlocked>): ReturnType<typeof updateLocalSettingsUnlocked> {
+  return withSettingsLock("local", () => updateLocalSettingsUnlocked(...args));
+}
+
+export function setDeviceProxyEnabled(...args: Parameters<typeof setDeviceProxyEnabledUnlocked>): ReturnType<typeof setDeviceProxyEnabledUnlocked> {
+  return withSettingsLock("local", () => setDeviceProxyEnabledUnlocked(...args));
 }

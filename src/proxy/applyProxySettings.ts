@@ -1,3 +1,4 @@
+import { routeList, routeProxyString, routingEnabled } from "../rules/routes";
 import { getLocalSettings } from "../storage/localStore";
 import { getMessage } from "../i18n/i18n";
 import type { LocalSettings, StorageAreaAdapter, SyncSettings } from "../storage/storageTypes";
@@ -118,7 +119,7 @@ export type ProxySettingsControllerOptions = {
 
 const relevantStorageKeysByArea: Record<"sync" | "local", ReadonlySet<string>> = {
   sync: new Set(),
-  local: new Set(["deviceProxy"])
+  local: new Set(["deviceProxy", "routeConnections", "routingEnabled"])
 };
 
 function errorMessage(error: unknown): string {
@@ -142,10 +143,14 @@ export function createChromeProxySettingsAdapter(): ProxySettingsAdapter {
           mode: "pac_script",
           pacScript: {
             data: pacScript,
-            mandatory: false
+            mandatory: true
           }
         }
       });
+      const actual = await chrome.proxy.settings.get({ incognito: false });
+      if (actual.levelOfControl !== "controlled_by_this_extension" || actual.value.mode !== "pac_script" || actual.value.pacScript?.data !== pacScript) {
+        throw new Error(getMessage("routesControlLost"));
+      }
     },
     async clearExtensionSettings() {
       await chrome.proxy.settings.clear({
@@ -158,7 +163,9 @@ export function createChromeProxySettingsAdapter(): ProxySettingsAdapter {
 export function buildProxyApplyPlan(syncSettings: SyncSettings, localSettings: LocalSettings): ProxyApplyPlan {
   const { deviceProxy } = localSettings;
 
-  if (!deviceProxy.enabled) {
+  const namedRoutes = syncSettings.routes !== undefined || localSettings.routeConnections !== undefined || syncSettings.rules.some(rule => rule.routeId !== undefined);
+
+  if (!routingEnabled(localSettings)) {
     return {
       action: "clear",
       reason: "device-proxy-disabled",
@@ -166,7 +173,7 @@ export function buildProxyApplyPlan(syncSettings: SyncSettings, localSettings: L
     };
   }
 
-  if (deviceProxy.config === null) {
+  if (deviceProxy.config === null && !namedRoutes) {
     return {
       action: "clear",
       reason: "missing-local-proxy-config",
@@ -176,7 +183,8 @@ export function buildProxyApplyPlan(syncSettings: SyncSettings, localSettings: L
 
   const pacResult = buildPacScript({
     rules: syncSettings.rules,
-    localProxyConfig: deviceProxy.config
+    localProxyConfig: deviceProxy.config,
+    ...(namedRoutes ? { routeProxyStrings: Object.fromEntries(routeList(syncSettings).map(route => [route.id, routeProxyString(localSettings, route.id) ?? "PROXY 127.0.0.1:9"])) } : {})
   });
 
   if (!pacResult.ok) {

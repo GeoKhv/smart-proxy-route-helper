@@ -1,3 +1,7 @@
+import { routeList, routeName, routeConnection, ruleRouteId, routingEnabled } from "../rules/routes";
+import { renderProxyHealth } from "../proxy/routeHealth";
+import { updateLocalSettings } from "../storage/localStore";
+import type { LocalSettings } from "../storage/storageTypes";
 import { canonicalizeHostname } from "../rules/canonicalizeHostname";
 import { checkDenylistedHost } from "../rules/denylist";
 import {
@@ -72,7 +76,7 @@ import {
   type RelatedDomainPopupResultState,
   type RelatedDomainPopupSummary
 } from "./relatedDomains/model";
-import { getLocalSettings, setDeviceProxyEnabled } from "../storage/localStore";
+import { getLocalSettings } from "../storage/localStore";
 import {
   addSyncRules,
   applySyncRuleChanges,
@@ -246,6 +250,9 @@ export type AddSelectedRelatedDomainRulesResult =
       error: string;
     };
 
+let selectedRouteId = "work";
+let routeSelectionExplicit = false;
+let popupLocalSettings: LocalSettings | null = null;
 let checkedReachableDomain: string | null = null;
 let relatedDomainCandidateViews: RelatedDomainCandidateView[] = [];
 let relatedDomainPopupView: RelatedDomainPopupView | null = null;
@@ -649,7 +656,8 @@ export function addCurrentSiteRule(
   input: string,
   createdAt: string = new Date().toISOString(),
   source: RuleSource = "manual",
-  action: RuleAction = "proxy"
+  action: RuleAction = "proxy",
+  routeId?: string
 ): AddCurrentSiteRuleResult {
   const normalized = canonicalizeHostname(input);
 
@@ -672,6 +680,7 @@ export function addCurrentSiteRule(
   const target = suggestedCurrentSiteRuleTarget(normalized.domain);
 
   const proposedRule: DomainRule = {
+    ...(routeId ? { routeId } : {}),
     domain: target.domain,
     includeSubdomains: target.includeSubdomains,
     action,
@@ -686,7 +695,7 @@ export function addCurrentSiteRule(
       ok: false,
       reason: "conflict",
       existingRule: targetCheck.existingRule,
-      error: getMessage("ruleActionExistsForScope", [ruleActionDisplayLabel(targetCheck.existingRule.action)])
+      error: ruleRouteId(targetCheck.existingRule) !== ruleRouteId(proposedRule) ? getMessage("routesConflict") : getMessage("ruleActionExistsForScope", [ruleActionDisplayLabel(targetCheck.existingRule.action)])
     };
   }
 
@@ -705,7 +714,7 @@ export function addCurrentSiteRule(
     target.domain,
     target.includeSubdomains,
     action,
-    currentRules
+    currentRules.filter(rule => ruleRouteId(rule) === (routeId ?? "work"))
   );
 
   if (parentRule) {
@@ -1691,11 +1700,8 @@ async function requestProxyRoutingRefresh(): Promise<ApplyProxySettingsResult> {
 }
 
 async function rollbackProxyRoutingControl(previousEnabled: boolean): Promise<void> {
-  const rollback = await setDeviceProxyEnabled(previousEnabled);
-
-  if (rollback.ok) {
-    await requestProxyRoutingRefresh();
-  }
+  await updateLocalSettings({ routingEnabled: previousEnabled });
+  await requestProxyRoutingRefresh();
 }
 
 async function handleProxyRoutingControl(): Promise<void> {
@@ -1716,12 +1722,8 @@ async function handleProxyRoutingControl(): Promise<void> {
   );
 
   try {
-    const update = await setDeviceProxyEnabled(nextEnabled);
-
-    if (!update.ok) {
-      setStatus(actionStatus, getMessage("popupResumeRequiresProxyConfig"), "error");
-      return;
-    }
+    await updateLocalSettings({ routingEnabled: nextEnabled });
+    const update = { deviceProxy: { ...currentDeviceProxySettings, enabled: nextEnabled } };
 
     const refresh = await requestProxyRoutingRefresh();
 
@@ -1790,18 +1792,21 @@ function renderSupported(
 
   resetPopupScopeEditor();
   currentSyncSettingsSnapshot = settings;
+  if (!routeSelectionExplicit) selectedRouteId = ruleRouteId(findEffectiveDomainRule(domain, settings.rules)?.rule ?? {});
   const status = getPopupRuleStatus(domain, settings);
-  const routeStatus = getPopupRouteStatusView(domain, settings, currentDeviceProxySettings);
+  const routeStatus = popupLocalSettings ? getNamedPopupRouteStatusView(domain, settings, popupLocalSettings) : getPopupRouteStatusView(domain, settings, currentDeviceProxySettings);
   const showProxyAction =
-    status.state === "none" || (status.state === "inherited" && status.action === "direct");
+    status.state !== "blocked" && status.state !== "conflict";
   const showDirectAction =
     status.state === "none" || (status.state === "inherited" && status.action === "proxy");
 
   getElement<HTMLElement>("#current-domain").textContent = domain;
   renderRouteStatus(routeStatus);
+  renderNamedRouteState(domain, settings);
   setStatus(getElement<HTMLElement>("#action-status"), getMessage("popupUseExplicitControls"), "neutral");
 
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site"), showProxyAction);
+  getElement<HTMLButtonElement>("#add-current-site").textContent = getMessage("routesVia", [routeName(settings, selectedRouteId)]);
   setButtonVisible(getElement<HTMLButtonElement>("#add-current-site-direct"), showDirectAction);
   setButtonVisible(getElement<HTMLButtonElement>("#remove-current-site"), status.state === "exact");
   setButtonVisible(getElement<HTMLButtonElement>("#change-current-site-scope"), status.state === "exact");
@@ -1819,7 +1824,8 @@ function renderSupported(
 async function refreshPopup(): Promise<CurrentTabDomainResult> {
   const [activeTab, localSettings] = await Promise.all([getActiveTab(), getLocalSettings()]);
 
-  currentDeviceProxySettings = localSettings.deviceProxy;
+  popupLocalSettings = localSettings;
+  currentDeviceProxySettings = { ...localSettings.deviceProxy, enabled: routingEnabled(localSettings) };
   renderProxyRoutingControl();
   const result = getCurrentTabDomain(activeTab.url);
 
@@ -1835,6 +1841,7 @@ async function refreshPopup(): Promise<CurrentTabDomainResult> {
 }
 
 async function handleAddCurrentSite(action: RuleAction): Promise<void> {
+  const targetRouteId = selectedRouteId;
   resetDiagnosticOffer();
   resetRelatedDomainPreview();
   const result = getCurrentTabDomain(await getActiveTabUrl());
@@ -1846,7 +1853,7 @@ async function handleAddCurrentSite(action: RuleAction): Promise<void> {
   }
 
   const current = await getSyncSettings();
-  const addResult = addCurrentSiteRule(current.rules, result.domain, new Date().toISOString(), "manual", action);
+  const addResult = addCurrentSiteRule(current.rules, result.domain, new Date().toISOString(), "manual", action, targetRouteId);
 
   if (!addResult.ok) {
     setStatus(actionStatus, addResult.error, "error");
@@ -1963,7 +1970,9 @@ async function handleConfirmScopeChange(): Promise<void> {
 async function requestCurrentSiteDiagnostic(url: string): Promise<CurrentSiteDiagnosticResponse> {
   const response = (await chrome.runtime.sendMessage({
     type: currentSiteDiagnosticMessageType,
-    url
+    url,
+    routeId: selectedRouteId,
+    tabId: (await getActiveTab()).id
   })) as unknown;
 
   if (!isCurrentSiteDiagnosticResponse(response)) {
@@ -2138,11 +2147,15 @@ async function handleCheckViaProxy(): Promise<void> {
     return;
   }
 
+  const testedRouteId = selectedRouteId;
+  const routeSelect = getElement<HTMLSelectElement>("#popup-route-select");
+  routeSelect.disabled = true;
   checkButton.disabled = true;
-  setStatus(actionStatus, getMessage("popupCheckingProxy"), "neutral");
+  setStatus(actionStatus, getMessage("routesTesting"), "neutral");
 
   try {
     const diagnostic = await requestCurrentSiteDiagnostic(activeUrl);
+    if (selectedRouteId !== testedRouteId || (await getActiveTabUrl()) !== activeUrl) return;
     const current = await getSyncSettings();
     renderSupported(result.domain, current);
     const routeStatus = getPopupRuleStatus(result.domain, current);
@@ -2153,9 +2166,11 @@ async function handleCheckViaProxy(): Promise<void> {
       setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), true);
     }
 
-    setStatus(actionStatus, diagnosticActionStatus.message, diagnosticActionStatus.kind);
+    setStatus(actionStatus, diagnostic.message, diagnosticActionStatus.kind);
+    if (popupLocalSettings && routeConnection(popupLocalSettings, selectedRouteId).type === "direct") setButtonVisible(getElement<HTMLButtonElement>("#save-diagnostic-rule"), false);
   } finally {
     checkButton.disabled = false;
+    routeSelect.disabled = false;
   }
 }
 
@@ -2192,7 +2207,7 @@ async function loadRelatedDomainPreview(options: {
   try {
     const preview = await requestRelatedDomainPreview(activeTab.id, activeTab.url);
     const current = await getSyncSettings();
-    const previewView = buildRelatedDomainPopupView(preview, current);
+    const previewView = buildRelatedDomainPopupView(preview, selectedListSettings(current));
 
     renderRelatedDomainPreview(previewView, preview.currentDomain);
     setStatus(actionStatus, options.successMessage ?? previewView.message, options.successKind ?? previewView.kind);
@@ -2280,7 +2295,7 @@ async function handleStopRelatedDomainRecording(): Promise<void> {
 
     if (recording.preview) {
       const current = await getSyncSettings();
-      const previewView = buildRelatedDomainPopupView(recording.preview, current);
+      const previewView = buildRelatedDomainPopupView(recording.preview, selectedListSettings(current));
 
       renderRelatedDomainPreview(previewView, recording.preview.currentDomain);
       setStatus(actionStatus, getMessage("popupRecordedSession", [previewView.message]), previewView.kind);
@@ -2433,10 +2448,12 @@ async function handleAddRelatedDomains(
     return;
   }
 
+  const targetRouteId = selectedRouteId;
   syncRelatedDomainCandidateSelections();
   const current = await getSyncSettings();
+  if (selectedRouteId !== targetRouteId) return;
   const addResult = addSelectedRelatedDomainRules(
-    current,
+    selectedListSettings(current),
     relatedDomainCandidateViews,
     selectedDomains,
     new Date().toISOString(),
@@ -2467,6 +2484,7 @@ async function handleAddRelatedDomains(
     return;
   }
 
+  addResult.addedRules = addResult.addedRules.map(rule => ({ ...rule, routeId: targetRouteId }));
   const expandedRules = addResult.expandedRules ?? [];
   const finalAdd =
     expandedRules.length > 0
@@ -2532,6 +2550,7 @@ async function handleAddRelatedDomains(
 }
 
 async function handleSaveDiagnosticRule(): Promise<void> {
+  const targetRouteId = selectedRouteId;
   const domain = checkedReachableDomain;
   const actionStatus = getElement<HTMLElement>("#action-status");
   resetRelatedDomainPreview();
@@ -2550,7 +2569,7 @@ async function handleSaveDiagnosticRule(): Promise<void> {
   }
 
   const current = await getSyncSettings();
-  const addResult = addCurrentSiteRule(current.rules, domain, new Date().toISOString(), "diagnostic");
+  const addResult = addCurrentSiteRule(current.rules, domain, new Date().toISOString(), "diagnostic", "proxy", targetRouteId);
 
   if (!addResult.ok) {
     setStatus(actionStatus, addResult.error, "error");
@@ -2602,8 +2621,18 @@ async function initPopupPage(): Promise<void> {
   const localSettings = await getLocalSettings();
   setLanguagePreference(localSettings.language ?? "auto");
   localizeDocument();
-  currentDeviceProxySettings = localSettings.deviceProxy;
+  popupLocalSettings = localSettings;
+  currentDeviceProxySettings = { ...localSettings.deviceProxy, enabled: routingEnabled(localSettings) };
   renderProxyRoutingControl();
+  getElement<HTMLSelectElement>("#popup-route-select").addEventListener("change", event => {
+    selectedRouteId = (event.target as HTMLSelectElement).value;
+    routeSelectionExplicit = true;
+    resetDiagnosticOffer(); resetRelatedDomainPreview();
+    void refreshPopup();
+  });
+  chrome.proxy.settings.onChange.addListener(() => {
+    if (currentSyncSettingsSnapshot && popupLocalSettings) void renderProxyHealth(getElement("#proxy-health"), currentSyncSettingsSnapshot, popupLocalSettings, true);
+  });
   getElement<HTMLButtonElement>("#toggle-proxy-routing").addEventListener("click", () => {
     void handleProxyRoutingControl();
   });
@@ -2793,7 +2822,7 @@ async function initPopupPage(): Promise<void> {
 
   if (chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === "sync" && hasSyncRulesStorageChange(changes)) {
+      if ((areaName === "sync" && hasSyncRulesStorageChange(changes)) || (areaName === "local" && (changes.deviceProxy || changes.routeConnections || changes.routingEnabled))) {
         // Ignore a temporarily incomplete generation; the next chunk event will
         // refresh the Popup once the active set is complete.
         void refreshPopup().catch(() => undefined);
@@ -2814,4 +2843,38 @@ if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
     void initPopupPage();
   });
+}
+
+function selectedListSettings(settings: SyncSettings): SyncSettings {
+  return { ...settings, rules: settings.rules.filter(rule => ruleRouteId(rule) === selectedRouteId) };
+}
+function renderNamedRouteState(domain: string, settings: SyncSettings): void {
+  const select = getElement<HTMLSelectElement>("#popup-route-select");
+  select.replaceChildren(...routeList(settings).map(route => {
+    const option = document.createElement("option"); option.value = route.id; option.textContent = route.name; return option;
+  }));
+  select.value = selectedRouteId;
+  if (!popupLocalSettings) return;
+  const connection = routeConnection(popupLocalSettings, selectedRouteId);
+  const detail = connection.type === "direct" ? getMessage("routesDirectShort") : connection.config
+    ? `${connection.config.scheme.toUpperCase()} ${connection.config.host}:${connection.config.port}` : getMessage("routesMissing");
+  getElement("#selected-connection").textContent = `${routeName(settings, selectedRouteId)} · ${detail}`;
+  void renderProxyHealth(getElement("#proxy-health"), settings, popupLocalSettings, true);
+}
+
+export function getNamedPopupRouteStatusView(domain: string, settings: SyncSettings, local: LocalSettings): PopupRouteStatusView {
+  const status = getPopupRuleStatus(domain, settings);
+  const fallback = getPopupRouteStatusView(domain, settings, { ...local.deviceProxy, enabled: routingEnabled(local) });
+  if (status.state === "blocked" || status.state === "conflict") return fallback;
+  if (!routingEnabled(local)) {
+    const label = getMessage("routesPaused");
+    return { routeState: "paused", appearance: "paused", label, explanation: getMessage("routesReleased"), ariaLabel: label };
+  }
+  if (status.state === "none") return fallback;
+  const rule = status.state === "exact" ? status.exactRule : status.parentRule;
+  const connection = rule.action === "direct" ? { type: "direct" as const } : routeConnection(local, ruleRouteId(rule));
+  const label = getMessage("routesIntent", [`${routeName(settings, ruleRouteId(rule))} · ${connection.type === "direct" ? "DIRECT" : "Proxy"}`]);
+  const explanation = `${rule.domain} · ${scopeLabel(rule)} · ` + (connection.type === "direct" ? getMessage("routesDirectShort")
+    : connection.config ? `${connection.config.scheme.toUpperCase()} ${connection.config.host}:${connection.config.port}` : getMessage("routesMissing"));
+  return { ...fallback, routeState: connection.type === "direct" ? status.state === "exact" ? "direct_exact" : "direct_parent" : status.state === "exact" ? "proxy_exact" : "proxy_parent", appearance: connection.type === "direct" ? "direct" : connection.config ? "proxy" : "warning", label, explanation, ariaLabel: `${label}. ${explanation}` };
 }

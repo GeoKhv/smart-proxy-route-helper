@@ -1,3 +1,4 @@
+import { probeCurrentOriginInTab } from "../diagnostics/currentSiteProbe";
 import {
   isCurrentSiteDiagnosticRequest,
   runCurrentSiteDiagnostic,
@@ -47,6 +48,12 @@ const proxySettingsAdapter = createChromeProxySettingsAdapter();
 const proxySettingsController = createProxySettingsController({
   proxySettings: proxySettingsAdapter
 });
+let proxyOperations: Promise<unknown> = Promise.resolve();
+function serializeProxyOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const request = proxyOperations.then(operation);
+  proxyOperations = request.catch(() => undefined);
+  return request;
+}
 const relatedDomainRecordingSessionStorageKey = "relatedDomainRecordingSession";
 
 let fallbackRelatedDomainRecordingSession: StoredRelatedDomainRecordingSessionMetadata | null = null;
@@ -572,10 +579,10 @@ chrome.runtime.onInstalled.addListener(() => {
   console.info(`${extensionName} service worker installed.`);
 });
 
-void proxySettingsController.apply("startup");
+void serializeProxyOperation(() => proxySettingsController.apply("startup"));
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  void proxySettingsController.handleStorageChange(changes, areaName).catch((error: unknown) => {
+  void serializeProxyOperation(() => proxySettingsController.handleStorageChange(changes, areaName)).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : "Unexpected storage change handling failure.";
 
     console.warn(`${extensionName} could not handle storage changes: ${message}`);
@@ -623,8 +630,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   if (isProxyRoutingRefreshRequest(message)) {
-    void proxySettingsController
-      .apply("manual")
+    void serializeProxyOperation(() => proxySettingsController.apply("manual", { force: true }))
       .then((result) => {
         sendResponse(result);
       })
@@ -647,10 +653,32 @@ chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) =
   }
 
   if (isCurrentSiteDiagnosticRequest(message)) {
-    void runCurrentSiteDiagnostic(message.url, {
+    void serializeProxyOperation(() => runCurrentSiteDiagnostic(message.url, {
+      routeId: message.routeId,
+      ...(Number.isInteger(message.tabId) ? {
+        fetcher: async (url: string) => {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: message.tabId! },
+            world: "ISOLATED",
+            func: probeCurrentOriginInTab,
+            args: [new URL(url).origin, 6500]
+          });
+          if (results[0]?.result === "timeout") throw new DOMException("Current-origin request timed out.", "TimeoutError");
+          if (results[0]?.result !== "reachable") throw new Error("Current-origin request failed or navigation changed.");
+          return undefined;
+        }
+      } : {}),
+      observeProxyErrors: listener => {
+        chrome.proxy.onProxyError.addListener(listener);
+        return () => chrome.proxy.onProxyError.removeListener(listener);
+      },
+      verifyPac: async pacScript => {
+        const actual = await chrome.proxy.settings.get({ incognito: false });
+        return actual.levelOfControl === "controlled_by_this_extension" && actual.value.mode === "pac_script" && actual.value.pacScript?.data === pacScript;
+      },
       proxySettings: proxySettingsAdapter,
       restoreProxySettings: () => proxySettingsController.apply("diagnostic-restore", { force: true })
-    })
+    }))
       .then((result) => {
         sendResponse(result);
       })

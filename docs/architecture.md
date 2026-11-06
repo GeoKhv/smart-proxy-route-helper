@@ -1,6 +1,11 @@
 # Architecture
 
-This document describes the current `main` architecture at development version `0.3.2`. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the current `main` architecture at version `0.4.0`. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+
+The named-route layer and current diagnostic contract are specified in [named-routes.md](named-routes.md).
+It extends the modules below with route IDs/catalogs, device connections, origin-scoped probes,
+bounded TLS error-code observation and shared Web Locks. Older references to a single proxy below
+mean legacy Work unless the named-route specification states otherwise.
 
 ## Design Principles
 
@@ -26,7 +31,7 @@ Popup:
 - Show a prominent text-and-icon state for exact Proxy, parent Proxy, exact Direct, parent Direct, blocked, or unconfigured default Direct.
 - Show a dedicated paused state when a saved valid local proxy config is disabled, without claiming that the current hostname is actively routed through Proxy.
 - Show a warning instead of a healthy Proxy state when a matching proxy rule exists but the local proxy config is missing or invalid.
-- Let the user explicitly pause or resume all extension-managed proxy routing on the current device. This changes only `deviceProxy.enabled`; the saved local proxy config and synced rules remain available.
+- Let the user explicitly pause or resume all extension-managed proxy routing on the current device. This changes `routingEnabled` (falling back to legacy `deviceProxy.enabled` when absent); the saved local proxy config and synced rules remain available.
 - Show `Conflicting rules` when legacy synced data contains both actions for the effective hostname/scope target, state which deterministic action is temporarily effective, and direct the user to Options for repair.
 - Add a manual synced proxy rule or direct exception for the current domain only after an explicit user click.
 - Default every Popup quick action to hostname-and-subdomains scope. A standard `www.` directly before the registrable domain is canonicalized to that registrable domain; `www1`, `www2`, nested `www`, and arbitrary subdomains remain distinct hostnames.
@@ -41,7 +46,7 @@ Popup:
 - Let the user explicitly save personal classification overrides for preview candidates without creating proxy routing rules.
 - Provide quick access to Options.
 
-The popup does not inspect page content on open, add rules automatically, request host permissions, or call `chrome.proxy.settings` directly.
+The popup does not inspect page content on open, add rules automatically, request host permissions, or mutate `chrome.proxy.settings` directly; it reads browser control through a shared health helper.
 
 Options page:
 
@@ -145,7 +150,7 @@ The Options page includes a user-controlled Backup and restore section for local
 
 Export behavior:
 
-- Produces versioned JSON with `format: "smart-proxy-route-helper-settings"` and `version: 1`.
+- Produces versioned JSON with `format: "smart-proxy-route-helper-settings"` and `version: 2` (imports accept versions 1 and 2).
 - Exports synced route rules, ignored domains, denylist entries, and personal classification overrides by default.
 - Stores only normalized domain-level data in the export.
 - Excludes local proxy configuration by default because local proxy host and port are device-specific.

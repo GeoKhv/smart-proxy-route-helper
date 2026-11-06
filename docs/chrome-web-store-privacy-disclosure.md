@@ -1,3 +1,8 @@
+> 0.4.0 update preparation: the current disclosure additions are in
+> [chrome-web-store-update-v0.4.0.md](chrome-web-store-update-v0.4.0.md),
+> [named-routes.md](named-routes.md) and the EN/RU listing privacy summaries.
+> This older 0.3.0 text is historical and does not describe current publication state.
+
 # Chrome Web Store Privacy Disclosure Reference for v0.3.0
 
 This document records privacy-field language reviewed against the `v0.3.0` package submitted to

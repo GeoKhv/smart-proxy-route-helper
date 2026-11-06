@@ -10,6 +10,7 @@ export const DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS = DEFAULT_NEW_RULE_SCOPE === "i
 
 export type DomainRule = {
   id?: string;
+  routeId?: string;
   domain: string;
   includeSubdomains: boolean;
   action: RuleAction;

@@ -38,3 +38,6 @@ scripting
 ```
 
 There are no `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, or persistent content scripts.
+
+
+0.4.0: scripting also runs a short credentials-free current-origin request in the active tab only after Test selected route. It reads no DOM or response body and follows no redirects. Proxy error codes are observed only during this test in memory; the extension does not install CAs or weaken TLS.

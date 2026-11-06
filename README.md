@@ -2,14 +2,14 @@
 
 Smart Proxy Route Helper is an open-source Manifest V3 Chrome extension for managing per-domain proxy routing through a user-configured local proxy.
 
-The extension lets a user maintain a synced list of domains that should use a proxy route, while keeping local proxy settings device-specific. It is local-first, permission-minimal, and published in Chrome Web Store.
+The extension manages simultaneous named routes (Work, Life and user-created lists), while keeping proxy connections device-specific. It is local-first, permission-minimal, and published in Chrome Web Store.
 
 ## Current Release Status
 
-The latest public release is `v0.3.2`, published on GitHub and in Chrome Web Store. Current `main`
-matches the `0.3.2` production runtime. The `0.3.2` patch fixes Chrome Sync rule verification on
-affected Chrome profiles, adds a device-local Pause/Resume control for proxy routing, and surfaces
-controlled storage errors in the UI. The next planned meaningful release is `v0.4.0`.
+Version `v0.4.0` adds simultaneous named routes with safe legacy migration and manual route/TLS
+checks. The Chrome Web Store update is prepared separately; the last recorded Store production
+version is `0.3.2`. See [named routes](docs/named-routes.md), [release notes](docs/release-notes-v0.4.0.md)
+and [verification record](docs/releases/v0.4.0-release-record.md).
 
 The current runtime includes:
 
@@ -17,7 +17,7 @@ The current runtime includes:
 - Popup UI with a prominent effective-route status, explicit proxy/direct actions, and a compact device-local Pause/Resume proxy-routing switch.
 - Background PAC runtime application through `chrome.proxy`.
 - Fail-closed matched proxy routing.
-- Manual "Check via proxy" diagnostics.
+- Manual selected-route checks, explicit HTTPS/certificate limitations and Chrome Proxy control warnings.
 - User-invoked related-domain preview through `activeTab` plus `scripting`.
 - User-invoked automatic diagnostic recording for action-specific request hosts, including page-level requests that later fail.
 - Selectable related-domain suggestions.
@@ -36,9 +36,9 @@ The Smart Proxy Route Helper item is available in Chrome Web Store:
 
 Production version `0.3.2` is published in Chrome Web Store.
 
-The latest public GitHub Release is `v0.3.2`:
+GitHub Release for this update:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.3.2
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.0
 
 The shared Store screenshot set is the five English PNGs documented in
 [store-assets/screenshots/README.md](store-assets/screenshots/README.md), used for every Store locale.
@@ -47,7 +47,7 @@ Current `main` includes a local Backup and restore Options section for versioned
 export/import and an interface-language preference with `Auto (Chrome)`, `English`, and `Русский`
 choices. The language preference stays in `chrome.storage.local` on the current device.
 
-Current `main` also distinguishes healthy Proxy, explicit Direct, and unconfigured default-Direct states in the Popup.
+Current `main` distinguishes configured Proxy, explicit Direct, default Direct, paused and conflicting states in the Popup; connection health requires an explicit check.
 Popup quick actions create hostname-and-subdomains rules by default. Existing rules can be edited in Options, where an
 exact rule can be retained or expanded to a safe PSL-aware registrable parent only after a visible coverage and conflict
 preview plus explicit confirmation. The existing rule is replaced atomically; it is not deleted and recreated.
@@ -61,6 +61,19 @@ Chrome Web Store listing, submission, and publication-reference materials are av
 - [docs/chrome-web-store-screenshots.md](docs/chrome-web-store-screenshots.md)
 - [docs/chrome-web-store-screenshot-workflow.md](docs/chrome-web-store-screenshot-workflow.md)
 - [docs/chrome-web-store-submission-checklist.md](docs/chrome-web-store-submission-checklist.md)
+
+## Work and Life
+
+Configure Work with the SOCKS5 host/port from Corporate VPN Router. Configure Life with its own
+SOCKS5/HTTP endpoint or DIRECT. DIRECT bypasses Chrome proxies while an OS-level VPN can still
+apply; it does not select the OS HTTP proxy. Both lists remain active when you switch the editor.
+Connections stay local; names/rules sync. Upgrade all synced devices to 0.4.0 before editing named
+routes. Existing rules keep their actions and resolve to Work without being rewritten.
+
+Open the toolbar popup on a site to see its intended route and Chrome Proxy control. Choose a list
+for new rules/tests; use **Test selected route** only when you want a temporary origin check.
+HTTP success leaves HTTPS unverified. When Chrome hides the cause, the extension cannot prove a
+proxy or CA failure. Corporate CA checks belong in the Corporate VPN Router setup wizard.
 
 ## FAQ
 
@@ -84,7 +97,7 @@ The extension has no telemetry and no backend. Before installing, review the sou
 
 ## Quick Start
 
-Install dependencies:
+Use Node.js 24 (or a supported Node version >=22.12). Install dependencies:
 
 ```sh
 npm install

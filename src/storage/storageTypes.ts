@@ -1,3 +1,4 @@
+import type { NamedRoute, RouteConnection } from "../rules/routes";
 import type { LocalProxyConfig } from "../proxy/proxyConfig";
 import type { DomainRule } from "../rules/ruleTypes";
 import type { UserClassificationOverrides } from "../domainClassification/userClassificationOverrides";
@@ -5,6 +6,7 @@ import type { UserClassificationOverrides } from "../domainClassification/userCl
 export type LanguagePreference = "auto" | "en" | "ru";
 
 export type SyncSettings = {
+  routes?: NamedRoute[];
   rules: DomainRule[];
   ignoredDomains: string[];
   denylist: string[];
@@ -21,6 +23,8 @@ export type DiagnosticsSettings = {
 };
 
 export type LocalSettings = {
+  routeConnections?: Record<string, RouteConnection>;
+  routingEnabled?: boolean;
   deviceProxy: DeviceProxySettings;
   diagnostics: DiagnosticsSettings;
   language?: LanguagePreference;

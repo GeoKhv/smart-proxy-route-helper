@@ -208,7 +208,7 @@ describe("settings export", () => {
     expect(exportText).toContain("10808");
   });
 
-  it("exports direct route action values without changing format version", () => {
+  it("exports direct route action values in the current backward-compatible format", () => {
     const document = buildSettingsExportDocument(
       syncSettings({
         rules: [directRule("www.example.com", false)]
@@ -219,7 +219,7 @@ describe("settings export", () => {
       }
     );
 
-    expect(document.version).toBe(1);
+    expect(document.version).toBe(settingsExportVersion);
     expect(document.data.syncSettings.rules).toEqual([directRule("www.example.com", false)]);
   });
 
@@ -973,7 +973,7 @@ describe("settings import apply", () => {
     );
     const localStorage: StorageAreaAdapter = {
       async get() {
-        return {};
+        return localSettings();
       },
       async set() {
         throw new Error("local write failed");
@@ -1027,7 +1027,7 @@ describe("settings import apply", () => {
     );
     const localStorage: StorageAreaAdapter = {
       async get() {
-        return {};
+        return localSettings();
       },
       async set() {
         throw new Error("local write failed");

@@ -243,8 +243,8 @@ describe("options classification override UI boundary", () => {
     expect(optionsHtml).toContain('data-i18n="optionsSafeParentHint"');
     expect(optionsHtml).toContain('data-i18n="optionsFindRedundant"');
     expect(optionsHtml).toContain('data-i18n="optionsConflictsTitle"');
-    expect(optionsSource).toContain('keepProxy.textContent = getMessage("optionsKeepProxy")');
-    expect(optionsSource).toContain('keepDirect.textContent = getMessage("optionsKeepDirect")');
+    expect(optionsSource).toContain('button.dataset.keepAction = `route:${ruleRouteId(rule)}:${rule.action}`');
+    expect(optionsSource).toContain('getMessage("routesKeep"');
     expect(optionsHtml).toContain("backup-include-local-proxy");
     expect(optionsHtml).toContain("preview-import-button");
     expect(optionsHtml).toContain("apply-import-button");
@@ -264,6 +264,6 @@ describe("options classification override UI boundary", () => {
     expect(optionsSource).toContain('getElement<HTMLElement>("#route-rule-conflict-status")');
     expect(optionsSource).toContain('getElement<HTMLElement>("#rule-cleanup-status")');
     expect(optionsSource).toContain('getElement<HTMLElement>("#classification-overrides-status")');
-    expect(optionsSource).not.toContain("chrome.proxy");
+    expect(optionsSource).not.toMatch(/chrome\.proxy\.settings\.(set|clear)\(/);
   });
 });
