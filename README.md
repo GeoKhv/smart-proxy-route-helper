@@ -6,7 +6,7 @@ The extension manages simultaneous named routes (Work, Life and user-created lis
 
 ## Current Release Status
 
-Version `v0.4.0` adds simultaneous named routes with safe legacy migration and manual route/TLS
+The latest GitHub Release, `v0.4.0`, adds simultaneous named routes with safe legacy migration and manual route/TLS
 checks. The Chrome Web Store update is prepared separately; the last recorded Store production
 version is `0.3.2`. See [named routes](docs/named-routes.md), [release notes](docs/release-notes-v0.4.0.md)
 and [verification record](docs/releases/v0.4.0-release-record.md).
