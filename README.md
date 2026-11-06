@@ -40,8 +40,8 @@ GitHub Release for this update:
 
 - https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.0
 
-The shared Store screenshot set is the five English PNGs documented in
-[store-assets/screenshots/README.md](store-assets/screenshots/README.md), used for every Store locale.
+The prepared 0.4.0 Store screenshot set is the four English PNGs documented in
+[store-assets/screenshots/v0.4.0/README.md](store-assets/screenshots/v0.4.0/README.md), shared across Store locales.
 
 Current `main` includes a local Backup and restore Options section for versioned settings
 export/import and an interface-language preference with `Auto (Chrome)`, `English`, and `Русский`

@@ -1,0 +1,75 @@
+{
+  "format": "smart-proxy-route-helper-settings",
+  "version": 2,
+  "exportedAt": "2026-11-06T10:00:00.000Z",
+  "data": {
+    "syncSettings": {
+      "routes": [
+        {
+          "id": "work",
+          "name": "Work"
+        },
+        {
+          "id": "life",
+          "name": "Life"
+        }
+      ],
+      "rules": [
+        {
+          "domain": "example.com",
+          "includeSubdomains": true,
+          "action": "proxy",
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-11-06T10:00:00.000Z",
+          "routeId": "work"
+        },
+        {
+          "domain": "status.example.com",
+          "includeSubdomains": false,
+          "action": "direct",
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-11-06T10:01:00.000Z",
+          "routeId": "work"
+        },
+        {
+          "domain": "example.org",
+          "includeSubdomains": true,
+          "action": "proxy",
+          "mode": "proxy",
+          "source": "manual",
+          "createdAt": "2026-11-06T10:02:00.000Z",
+          "routeId": "life"
+        }
+      ],
+      "ignoredDomains": [],
+      "denylist": [],
+      "classificationOverrides": {}
+    },
+    "localSettings": {
+      "deviceProxy": {
+        "enabled": true,
+        "config": {
+          "scheme": "socks5",
+          "host": "127.0.0.1",
+          "port": 10808
+        }
+      },
+      "routingEnabled": true,
+      "routeConnections": {
+        "work": {
+          "type": "proxy",
+          "config": {
+            "scheme": "socks5",
+            "host": "127.0.0.1",
+            "port": 10808
+          }
+        },
+        "life": {
+          "type": "direct"
+        }
+      }
+    }
+  }
+}

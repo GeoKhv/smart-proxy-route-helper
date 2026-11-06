@@ -1,3 +1,7 @@
+Current 0.4.0 Store upload set: [four verified English 1280×800 images](v0.4.0/README.md),
+shared across Store locales. The captures below describe earlier release assets; use the 0.4.0
+set for the updated route/connection/Popup interfaces.
+
 # Chrome Web Store Screenshots
 
 The current v0.3.0 candidate Store package is under `v0.3.0/en/`.

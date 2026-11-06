@@ -1,6 +1,6 @@
 # Chrome Web Store update preparation — 0.4.0
 
-Status: package and metadata prepared for the existing Store item; refreshed screenshots still require an unlocked-Mac capture session. No Dashboard upload, submission,
+Status: package, EN/RU metadata and four verified 1280×800 screenshots prepared for the existing Store item. No Dashboard upload, submission,
 publication, account or permission change is performed by this preparation. The last repository-recorded
 Store production version is 0.3.2; live Dashboard state must be checked by the release owner.
 
@@ -48,17 +48,18 @@ Review risks remain proxy control, script injection and consistency of disclosur
 permissions do not guarantee Store approval. GitHub Actions are not a publication prerequisite for
 this explicitly local-verified release and must not be started for this task.
 
-## Capture handoff
+## Completed capture preparation
 
-The isolated Chrome 156.0.8078.80 session loaded the real dist/0.4.0 extension and passed the
-browser smoke described in the release record. Initial native captures did not pass final image
-quality checks, then Computer Use reported a locked Mac with automatic unlock paused after physical
-input. They are drafts, not Store assets, and are excluded from the release/source commit. No screenshot
-claim is used as evidence for untested corporate connectivity.
+On 2026-11-06 the owner unlocked the Mac and the screenshot preparation resumed. The previous
+failed/locked-session drafts were excluded. The final [four-image set](../store-assets/screenshots/v0.4.0/README.md)
+contains route management, Work SOCKS5, Life DIRECT and the genuine toolbar Popup. It was captured
+from dist/0.4.0 in isolated Chrome 156.0.8078.80 with Sync signed out and sanitized demo data.
 
-After the owner unlocks the Mac, use the project isolated launcher and the existing named-route
-composition option: `swift scripts/compose-store-screenshots.swift --named-routes`. Capture clean
-English Options and toolbar Popup sources in `store-assets/screenshots/v0.4.0/source/` using the
-filenames in that script. Verify sharp, unobscured UI and 1280×800 final canvases. Keep Sync signed
-out and use only sanitized demo domains/endpoints. Screenshot completion and the remaining
-Dashboard steps are required before Store submission; the ZIP and metadata are ready for that handoff.
+Every final image is a sharp RGB PNG without alpha at 1280×800. Native JPEGs, simple crops,
+fixture data and reproduction instructions are included beside the assets. No page account,
+production proxy, credential, private domain or real corporate test result is shown. The capture
+script now supports the four-image set with `--named-routes`.
+
+Only Dashboard upload, final owner review, submission and Store approval/publication remain.
+Use the exact ZIP recorded above; runtime, release tag and GitHub ZIP were not changed by
+screenshot preparation. No GitHub Actions were started.

@@ -14,7 +14,9 @@ let canvasSize = NSSize(width: 1280, height: 800)
 let namedRoutes = CommandLine.arguments.contains("--named-routes")
 let specs = namedRoutes ? [
     ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/options-routes.png", output: "store-assets/screenshots/v0.4.0/01-options-routes.png", title: "Work and Life route sites together", maxWidth: 1118, maxHeight: 699, topOffset: 88),
-    ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/popup-life-direct.png", output: "store-assets/screenshots/v0.4.0/02-popup-life-direct.png", title: "See the site's route and Chrome Proxy control", maxWidth: 430, maxHeight: 650, topOffset: 104)
+    ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/options-work.png", output: "store-assets/screenshots/v0.4.0/02-options-work-socks5.png", title: "Connect Work to your local SOCKS5 proxy", maxWidth: 1118, maxHeight: 699, topOffset: 88),
+    ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/options-life.png", output: "store-assets/screenshots/v0.4.0/03-options-life-direct.png", title: "Use Life with DIRECT and an external OS VPN", maxWidth: 1118, maxHeight: 699, topOffset: 88),
+    ScreenshotSpec(source: "store-assets/screenshots/v0.4.0/source/popup-life-direct.png", output: "store-assets/screenshots/v0.4.0/04-popup-life-direct.png", title: "See the site's route and Chrome Proxy control", maxWidth: 430, maxHeight: 650, topOffset: 104)
 ] : [
     ScreenshotSpec(
         source: "store-assets/screenshots/01-options-local-proxy.png",
@@ -166,7 +168,25 @@ for spec in specs {
 
     NSGraphicsContext.restoreGraphicsState()
 
-    guard let png = bitmap.representation(using: .png, properties: [:]) else {
+    // AppKit draws into RGBA. Encode the Store set as RGB by copying the already
+    // opaque rendered pixels; a 24-bit bitmap cannot be an AppKit drawing context.
+    let encodedBitmap: NSBitmapImageRep
+    if namedRoutes {
+        let rgb = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(canvasSize.width), pixelsHigh: Int(canvasSize.height), bitsPerSample: 8, samplesPerPixel: 3, hasAlpha: false, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 24)!
+        for y in 0..<bitmap.pixelsHigh {
+            for x in 0..<bitmap.pixelsWide {
+                let source = bitmap.bitmapData! + y * bitmap.bytesPerRow + x * 4
+                let target = rgb.bitmapData! + y * rgb.bytesPerRow + x * 3
+                target[0] = source[0]
+                target[1] = source[1]
+                target[2] = source[2]
+            }
+        }
+        encodedBitmap = rgb
+    } else {
+        encodedBitmap = bitmap
+    }
+    guard let png = encodedBitmap.representation(using: .png, properties: [:]) else {
         throw NSError(domain: "ComposeScreenshots", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot encode \(spec.output)"])
     }
 
