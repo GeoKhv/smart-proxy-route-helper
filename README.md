@@ -6,10 +6,12 @@ The extension manages simultaneous named routes (Work, Life and user-created lis
 
 ## Current Release Status
 
-The latest GitHub Release, `v0.4.0`, adds simultaneous named routes with safe legacy migration and manual route/TLS
-checks. The Chrome Web Store update is prepared separately; the last recorded Store production
-version is `0.3.2`. See [named routes](docs/named-routes.md), [release notes](docs/release-notes-v0.4.0.md)
-and [verification record](docs/releases/v0.4.0-release-record.md).
+The latest GitHub Release, `v0.4.1`, fixes mixed-version Sync compatibility with installed
+0.3.2 clients by isolating named-route data. Chrome Web Store has not been updated; its last
+recorded production version remains `0.3.2`. See [compatibility limits](docs/sync-compatibility.md),
+[release notes](docs/release-notes-v0.4.1.md) and the [verification record](docs/releases/v0.4.1-release-record.md).
+Signed-in Google Sync and Store delivery remain unverified; this is not an unconditional
+approval for a mass Store rollout.
 
 The current runtime includes:
 
@@ -38,7 +40,7 @@ Production version `0.3.2` is published in Chrome Web Store.
 
 GitHub Release for this update:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.0
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.1
 
 The prepared 0.4.0 Store screenshot set is the four English PNGs documented in
 [store-assets/screenshots/v0.4.0/README.md](store-assets/screenshots/v0.4.0/README.md), shared across Store locales.
@@ -67,8 +69,10 @@ Chrome Web Store listing, submission, and publication-reference materials are av
 Configure Work with the SOCKS5 host/port from Corporate VPN Router. Configure Life with its own
 SOCKS5/HTTP endpoint or DIRECT. DIRECT bypasses Chrome proxies while an OS-level VPN can still
 apply; it does not select the OS HTTP proxy. Both lists remain active when you switch the editor.
-Connections stay local; names/rules sync. Upgrade all synced devices to 0.4.0 before editing named
-routes. Existing rules keep their actions and resolve to Work without being rewritten.
+Connections stay local; names/rules sync. Work remains compatible with 0.3.2. Life and other
+named lists require 0.4.1+ on each participating device; old clients apply only Work, including
+overlapping parent rules. Existing 0.3.2 rules keep their actions and resolve to Work without
+being rewritten. See [the supported mixed-version behavior](docs/sync-compatibility.md).
 
 Open the toolbar popup on a site to see its intended route and Chrome Proxy control. Choose a list
 for new rules/tests; use **Test selected route** only when you want a temporary origin check.

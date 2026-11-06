@@ -1,4 +1,4 @@
-# Named routes (0.4.0)
+# Named routes (0.4.1)
 
 Work and Life are independent lists that run simultaneously in one locally generated PAC.
 Choosing a list in Popup or Options selects the target for editing/testing; it never disables
@@ -31,20 +31,21 @@ Rules have an optional `routeId`. Omission means Work, so existing rules need no
 `action: proxy` uses that list's device connection; `action: direct` remains an explicit DIRECT
 exception. Domain lists are independent, but Chrome can send one request to only one destination.
 The same domain **and scope** with different destinations is therefore a conflict. New conflicting
-rules/imports are blocked. Exact-child/parent overrides remain valid. Already stored conflicts
-retain their previous deterministic winner until the user explicitly keeps one rule in Options.
+rules/imports are blocked. Exact-child/parent overrides remain valid. Already stored conflicts between different lists block the affected scope until the user
+explicitly keeps one rule in Options; legacy conflicts within Work retain the old tie breaker.
 No conflict is silently deleted or moved. Rule editing can explicitly move a rule between lists
 while retaining its stable identity. Cleanup never treats different-route proxy rules as redundant.
 
 ## Data and upgrade safety
 
-- Sync: existing generation/chunk rule storage, names/IDs, ignored domains, denylist and
-  classification overrides. Proxy addresses never enter Sync.
+- Sync: Work uses the legacy generation/chunk storage; Life and other lists use an isolated
+  versioned namespace. Ignored domains, denylist and classification overrides stay shared.
+  Proxy addresses never enter Sync. See [the compatibility contract](sync-compatibility.md).
 - Local: `deviceProxy` (the original Work endpoint and legacy pause flag), `routeConnections`,
   `routingEnabled`, diagnostics preference, interface language and one pre-upgrade recovery copy.
-- The migration is virtual: absent route fields resolve to Work + empty Life/DIRECT. No bulk
+- For existing 0.3.2 data, the migration is virtual: absent route fields resolve to Work + empty Life/DIRECT. No bulk
   rewrite, new rules, change to old rule IDs or automatic route activation occurs on upgrade.
-- Before the first real settings write or legacy chunk migration, the original raw Sync and local
+- Before the first settings read on the new client, the original raw Sync and local
   settings are copied to `namedRoutesMigrationBackupV1`, read back and verified. A shared Web Lock
   prevents another extension context replacing that first copy. A failed backup blocks mutation.
 - Options can download that recovery JSON. It contains original local endpoint addresses and is
@@ -70,8 +71,10 @@ unknown route references and ID collisions, and preserves existing endpoints abs
 import. A v1 proxy endpoint updates the actual Work connection. Apply rechecks current Sync and
 local state, rejects stale previews, serializes both storage areas, and attempts Sync rollback if
 the local write fails. Language and diagnostics preferences are not imported from the backup.
-Older extension versions cannot understand v2 backups or named routes; do not edit shared Sync
-from a pre-0.4.0 device after enabling named routes. Upgrade all participating devices first.
+0.3.2 cannot understand v2 backups or named routes, but can continue editing shared Work rules.
+It applies only Work, including any matching parent rule; it cannot implement Life/DIRECT or
+Life/Proxy overrides. Upgrade every device to 0.4.1+ before relying on named routes across devices.
+Do not keep a 0.4.0 client in the same Sync group. See [compatibility limits](sync-compatibility.md).
 
 ## Availability, HTTPS and corporate CAs
 
