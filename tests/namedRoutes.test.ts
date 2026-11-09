@@ -76,7 +76,7 @@ describe("simultaneous named routes", () => {
       expect(pacRoute(sync, local, host)).toBe(expected);
     }
     sync.rules.push(rule("example.com", "life"));
-    expect(pacRoute(sync, local, "example.com")).toBe("PROXY 127.0.0.1:9080");
+    expect(pacRoute(sync, local, "example.com")).toBe("PROXY 127.0.0.1:9");
     expect(findEffectiveDomainRule("example.com", sync.rules)?.rule.routeId).toBe("life");
   });
   it("blocks missing and unknown local endpoints instead of leaking direct", () => {
@@ -174,15 +174,16 @@ describe("named-route persistence and backups", () => {
     expect((await getSyncSettings(area)).rules).toEqual(initial.sync.rules);
   });
   it("keeps a possibly active chunk generation if metadata rollback fails", async () => {
-    const initial = config(); const area = storage(initial.sync); let activated = false;
+    const initial = config(); const area = storage(); await setSyncSettings(initial.sync, area); let activated = false;
     const faulty: StorageAreaAdapter = { ...area,
       async set(items) { if (activated) throw Error("rollback failed"); await area.set(items); if (items[rulesMetaStorageKey]) activated = true; },
       async get(keys) { const data = await area.get(keys); if (activated && Array.isArray(keys) && keys.some(k => k.startsWith("rulesChunk:"))) return {}; return data; }
     };
-    await expect(setSyncSettings(initial.sync, faulty)).rejects.toThrow();
+    const changed = { ...initial.sync, rules: [...initial.sync.rules, rule("extra.example", "work")] };
+    await expect(setSyncSettings(changed, faulty)).rejects.toThrow();
     expect(area.data[rulesMetaStorageKey]).toBeDefined();
     expect(Object.keys(area.data).some(key => key.startsWith("rulesChunk:"))).toBe(true);
-    expect((await getSyncSettings(area)).rules).toEqual(initial.sync.rules);
+    expect((await getSyncSettings(area)).rules).toEqual(changed.rules);
   });
   it("exports endpoints only with explicit consent, and round trips named routes", () => {
     const { sync, local } = config();

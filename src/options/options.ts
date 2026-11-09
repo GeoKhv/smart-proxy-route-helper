@@ -398,7 +398,7 @@ function renderRouteTargetConflicts(settings: SyncSettings): void {
     ]);
     actions.className = "rule-item-actions";
 
-    detail.textContent = getMessage("routesConflictDetail");
+    detail.textContent = getMessage(new Set(conflict.rules.map(ruleRouteId)).size > 1 ? "routesSyncConflictBlocked" : "routesConflictDetail");
     for (const rule of conflict.rules) {
       const button = document.createElement("button");
       button.type = "button";

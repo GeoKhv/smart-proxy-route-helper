@@ -1,3 +1,5 @@
+import { reconcileSplitOperations, splitOperationPrefix, splitOperationChunkPrefix } from "./splitOperations";
+import { commitSplitRules, mergeNamedRules, namedRulesMetaKey, namedRulesChunkPrefix, readNamedRules } from "./namedRuleStorage";
 import { withSettingsLock } from "./settingsLock";
 import { ruleRouteId } from "../rules/routes";
 import { ensurePreRouteSettingsBackup } from "./routeMigration";
@@ -176,7 +178,7 @@ async function commitRuleChunks(
     activated = true;
     await storageArea.set({
       ...activationSettings,
-      [rulesMetaStorageKey]: packed.meta
+      [rulesMetaStorageKey]: { ...packed.meta, splitProtocol: 2 }
     });
     if (Object.keys(activationSettings).length > 0 && !("routes" in activationSettings) && previousActivation.routes !== undefined && storageArea.remove) await storageArea.remove("routes");
 
@@ -267,7 +269,7 @@ async function effectiveRulesFromStorage(
 
 export function hasSyncRulesStorageChange(changes: Record<string, unknown>): boolean {
   return Object.keys(changes).some(
-    (key) => key === "routes" || key === legacyRulesStorageKey || key === rulesMetaStorageKey || isRuleChunkStorageKey(key)
+    (key) => key.startsWith(splitOperationPrefix) || key.startsWith(splitOperationChunkPrefix) || key === namedRulesMetaKey || key.startsWith(namedRulesChunkPrefix) || key === "routes" || key === legacyRulesStorageKey || key === rulesMetaStorageKey || isRuleChunkStorageKey(key)
   );
 }
 
@@ -286,14 +288,32 @@ function conflictRuleSnapshot(rules: readonly DomainRule[]): string {
   );
 }
 
-export async function getSyncSettingsUnlocked(storageArea: StorageAreaAdapter = getChromeSyncStorage()): Promise<SyncSettings> {
+export async function getSyncSettingsUnlocked(storageArea: StorageAreaAdapter = getChromeSyncStorage(), retries = 1): Promise<SyncSettings> {
   if (storageArea === globalThis.chrome?.storage?.sync) await ensurePreRouteSettingsBackup();
-  const storedSettings = await storageArea.get([...syncStorageKeys, rulesMetaStorageKey]);
-  const rules = await effectiveRulesFromStorage(storedSettings, storageArea);
-
+  const storedSettings = await storageArea.get([...syncStorageKeys, rulesMetaStorageKey, namedRulesMetaKey]);
+  const legacy = sanitizeSyncSettings({ ...storedSettings, rules: await effectiveRulesFromStorage(storedSettings, storageArea) });
+  const isolated = await readNamedRules(storageArea, storedSettings[namedRulesMetaKey]);
+  const exposedNamed = legacy.rules.filter(rule => ruleRouteId(rule) !== "work");
+  if (exposedNamed.length) {
+    // Repair an intact 0.4.0 payload before another client receives a future
+    // write. Already-lost route IDs cannot be inferred or repaired silently.
+    if (storedSettings[namedRulesMetaKey] !== undefined) {
+      throw controlledRuleStorageError("incomplete", new Error("An unsupported 0.4.0 client wrote named rules to legacy storage. Upgrade that client before editing."));
+    }
+    await commitSplitRules(storageArea, legacy.rules.filter(rule => ruleRouteId(rule) === "work"), exposedNamed, legacy.routes,
+      { ignoredDomains: legacy.ignoredDomains, denylist: legacy.denylist, classificationOverrides: legacy.classificationOverrides }, legacy.rules);
+    return legacy;
+  }
+  const effective = await reconcileSplitOperations(storageArea, storedSettings[rulesMetaStorageKey], storedSettings[namedRulesMetaKey], legacy.rules, isolated.rules);
+  const active = await storageArea.get([rulesMetaStorageKey, namedRulesMetaKey]);
+  if ([rulesMetaStorageKey, namedRulesMetaKey].some(key => JSON.stringify(active[key]) !== JSON.stringify(storedSettings[key]))) {
+    if (retries > 0) return getSyncSettingsUnlocked(storageArea, retries - 1);
+    throw controlledRuleStorageError("incomplete", new Error("Sync pointers changed while reading."));
+  }
   return sanitizeSyncSettings({
-    ...storedSettings,
-    rules
+    ...legacy,
+    ...(storedSettings[namedRulesMetaKey] !== undefined ? { routes: isolated.routes } : {}),
+    rules: mergeNamedRules(effective.work, effective.named)
   });
 }
 
@@ -318,12 +338,18 @@ async function writeSyncSettings(
   const sanitizedSettings = sanitizeSyncSettings(settings);
   if (storageArea === globalThis.chrome?.storage?.sync) await ensurePreRouteSettingsBackup();
 
-  await commitRuleChunks(
-    sanitizedSettings.rules,
-    syncSettingsWithoutRules(sanitizedSettings),
-    storageArea,
-    true
-  );
+  const stored = await storageArea.get(namedRulesMetaKey);
+  if (stored[namedRulesMetaKey] !== undefined || sanitizedSettings.routes || sanitizedSettings.rules.some(rule => ruleRouteId(rule) !== "work")) {
+    try {
+      await commitSplitRules(storageArea,
+        sanitizedSettings.rules.filter(rule => ruleRouteId(rule) === "work"),
+        sanitizedSettings.rules.filter(rule => ruleRouteId(rule) !== "work"),
+        sanitizedSettings.routes,
+        { ignoredDomains: sanitizedSettings.ignoredDomains, denylist: sanitizedSettings.denylist, classificationOverrides: sanitizedSettings.classificationOverrides }, sanitizedSettings.rules);
+    } catch (error) { throw asControlledRuleStorageError(error); }
+  } else {
+    await commitRuleChunks(sanitizedSettings.rules, syncSettingsWithoutRules(sanitizedSettings), storageArea, true);
+  }
 
   return sanitizedSettings;
 }

@@ -1,0 +1,123 @@
+{
+  "classificationOverrides": {
+    "global": {},
+    "site": {}
+  },
+  "denylist": [],
+  "ignoredDomains": [],
+  "rulesMeta": {
+    "chunkCount": 1,
+    "generation": "mw53lwt6-32eb1df50c0dcf15",
+    "namedEpoch": "mw53lwt6-32eb1df50c0dcf15",
+    "ruleCount": 6,
+    "schemaVersion": 1
+  },
+  "namedRoutesV1": {
+    "rules": {
+      "chunkCount": 1,
+      "generation": "mw53m0u3-a38bb682895c9400",
+      "ruleCount": 4,
+      "schemaVersion": 1
+    },
+    "version": 1,
+    "workTransition": {
+      "from": "mw53ej0n-c4503cd7f96b9d57",
+      "to": "mw53f9ou-9098c67e3f3285dd"
+    }
+  },
+  "rulesChunk:mw53lwt6-32eb1df50c0dcf15:0": [
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:43:11.920Z",
+      "domain": "work.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "source": "manual"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:45:14.407Z",
+      "domain": "reverse.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "source": "manual"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:46:06.719Z",
+      "domain": "legacy-after-life.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "source": "manual"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:51:32.422Z",
+      "domain": "modern-a-work.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "work",
+      "source": "manual"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:52:06.989Z",
+      "domain": "modern-b-work.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "work",
+      "source": "manual"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:57:16.879Z",
+      "domain": "offline-a-work.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "work",
+      "source": "manual"
+    }
+  ],
+  "namedRulesChunkV1:mw53m0u3-a38bb682895c9400:0": [
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:45:27.523Z",
+      "domain": "life.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "life",
+      "source": "manual",
+      "workPredecessor": "[\"reverse.sprh-sync.test\",true,\"proxy\",\"manual\",\"2026-11-06T14:45:14.407Z\"]"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:49:49.531Z",
+      "domain": "modern-b-life.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "life",
+      "source": "manual",
+      "workPredecessor": "[\"legacy-after-life.sprh-sync.test\",true,\"proxy\",\"manual\",\"2026-11-06T14:46:06.719Z\"]"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:51:28.890Z",
+      "domain": "modern-a-life.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "life",
+      "source": "manual",
+      "workPredecessor": "[\"legacy-after-life.sprh-sync.test\",true,\"proxy\",\"manual\",\"2026-11-06T14:46:06.719Z\"]"
+    },
+    {
+      "action": "proxy",
+      "createdAt": "2026-11-06T14:57:22.105Z",
+      "domain": "online-b-life.sprh-sync.test",
+      "includeSubdomains": true,
+      "mode": "proxy",
+      "routeId": "life",
+      "source": "manual",
+      "workPredecessor": "[\"modern-b-work.sprh-sync.test\",true,\"proxy\",\"manual\",\"2026-11-06T14:52:06.989Z\"]"
+    }
+  ]
+}

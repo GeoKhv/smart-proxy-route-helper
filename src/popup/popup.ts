@@ -16,7 +16,8 @@ import {
 import { domainMatchesRule, findEffectiveDomainRule } from "../rules/domainMatcher";
 import {
   checkRouteTargetAddition,
-  findRouteTargetConflictForRule
+  findRouteTargetConflictForRule,
+  findRouteTargetConflicts
 } from "../rules/routeTarget";
 import {
   DEFAULT_NEW_RULE_INCLUDE_SUBDOMAINS,
@@ -2864,6 +2865,12 @@ function renderNamedRouteState(domain: string, settings: SyncSettings): void {
 
 export function getNamedPopupRouteStatusView(domain: string, settings: SyncSettings, local: LocalSettings): PopupRouteStatusView {
   const status = getPopupRuleStatus(domain, settings);
+  const crossConflict = findRouteTargetConflicts(settings.rules).find(conflict =>
+    new Set(conflict.rules.map(ruleRouteId)).size > 1 && domainMatchesRule(domain, conflict));
+  if (crossConflict && routingEnabled(local)) {
+    const label = getMessage("routesSyncConflictBlocked");
+    return { routeState: "conflict", appearance: "warning", label, explanation: label, ariaLabel: label };
+  }
   const fallback = getPopupRouteStatusView(domain, settings, { ...local.deviceProxy, enabled: routingEnabled(local) });
   if (status.state === "blocked" || status.state === "conflict") return fallback;
   if (!routingEnabled(local)) {

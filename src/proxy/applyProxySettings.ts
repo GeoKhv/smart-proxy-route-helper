@@ -1,3 +1,4 @@
+import { createDefaultSyncSettings } from "../storage/defaults";
 import { routeList, routeProxyString, routingEnabled } from "../rules/routes";
 import { getLocalSettings } from "../storage/localStore";
 import { getMessage } from "../i18n/i18n";
@@ -231,11 +232,11 @@ export async function applyProxySettings(options: ApplyProxySettingsOptions): Pr
   let plan: ProxyApplyPlan;
 
   try {
-    const [syncSettings, localSettings] = await Promise.all([
-      getSyncSettings(options.syncStorage),
-      getLocalSettings(options.localStorage)
-    ]);
-
+    const localSettings = await getLocalSettings(options.localStorage);
+    // Pause is local and must remain usable while incoming Sync data is incomplete.
+    const syncSettings = routingEnabled(localSettings)
+      ? await getSyncSettings(options.syncStorage)
+      : createDefaultSyncSettings();
     plan = buildProxyApplyPlan(syncSettings, localSettings);
   } catch (error) {
     return {

@@ -1,7 +1,7 @@
 import { ruleRouteId } from "../rules/routes";
 import { normalizeDomain } from "../rules/normalizeDomain";
 import { getRegistrableDomain } from "../domainClassification/registrableDomain";
-import { getRouteTargetKey } from "../rules/routeTarget";
+import { getRouteTargetKey, findRouteTargetConflicts } from "../rules/routeTarget";
 import type { DomainRule, RuleAction } from "../rules/ruleTypes";
 import { buildPacProxyString, type LocalProxyConfigValidationError } from "./proxyConfig";
 
@@ -16,6 +16,7 @@ export type SerializedPacRule = {
   matchesStandardWww: boolean;
   routeId?: string;
   proxyString?: string;
+  blockedByConflict?: boolean;
 };
 
 export type BuildPacScriptResult =
@@ -166,6 +167,9 @@ function findEffectivePacRule(host) {
 
 function FindProxyForURL(url, host) {
   var normalizedHost = normalizePacHost(host);
+  for (var i = 0; i < domainRules.length; i += 1) {
+    if (domainRules[i].blockedByConflict && pacDomainMatchesRule(normalizedHost, domainRules[i])) return "PROXY 127.0.0.1:9";
+  }
   var rule = findEffectivePacRule(normalizedHost);
 
   if (rule && rule.action === "proxy") {
@@ -187,7 +191,11 @@ export function buildPacScript(input: BuildPacScriptInput): BuildPacScriptResult
     };
   }
 
-  const rules = serializePacRules(input.rules).map(rule => input.routeProxyStrings
+  const conflicts = findRouteTargetConflicts(input.rules as readonly DomainRule[]).filter(conflict =>
+    new Set(conflict.rules.map(ruleRouteId)).size > 1);
+  const blockedTargets = new Set(conflicts.map(conflict => conflict.key));
+  const rules = serializePacRules(input.rules).map(rule => blockedTargets.has(getRouteTargetKey(rule))
+    ? { ...rule, blockedByConflict: true } : rule).map(rule => input.routeProxyStrings
     ? { ...rule, proxyString: rule.action === "direct" ? "DIRECT" : input.routeProxyStrings[ruleRouteId(rule)] ?? "PROXY 127.0.0.1:9" }
     : rule);
 

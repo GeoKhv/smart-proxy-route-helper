@@ -6,7 +6,7 @@ The extension manages simultaneous named routes (Work, Life and user-created lis
 
 ## Current Release Status
 
-> **Source checkout:** the default `main` branch still contains the 0.4.0 runtime as of 2026-11-09. This page describes the separately tagged, verified **v0.4.2** release and its Chrome Web Store submission. For a 0.4.2 build, use the [v0.4.2 source tag](https://github.com/GeoKhv/smart-proxy-route-helper/tree/v0.4.2), not a build from `main` until the release code is merged.
+> **Source checkout:** `main` now contains the exact product code, locales, package manifests and regression tests from the verified [v0.4.2 source tag](https://github.com/GeoKhv/smart-proxy-route-helper/tree/v0.4.2). Documentation was updated separately. The Chrome Web Store submission remains under review; a GitHub source update does not publish the Store extension.
 
 **v0.4.2** fixes the P1 found by real Google Chrome Sync in 0.4.1: independent
 offline Work / online Life changes could arrive but never activate. Work and Life

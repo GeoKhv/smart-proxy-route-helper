@@ -97,3 +97,11 @@ The fourth original screenshot omits the newer Life compatibility helper sentenc
 its shown route and controls remain representative, with the requirement disclosed
 in both listing descriptions and the screenshot reuse record. No pixel-identical
 0.4.2 provenance is claimed for the original 0.4.0 assets.
+
+## Subsequent repository alignment — 2026-11-09
+
+After the Store submission, the default `main` branch was aligned to the exact
+`v0.4.2` tagged runtime, manifests, locales, and regression-test blobs while retaining
+the updated documentation in `main`. This source-only GitHub change does not alter
+the submitted ZIP, GitHub Release, Dashboard revision 00006 or deferred publication.
+The earlier submission observations above remain the historical record.
