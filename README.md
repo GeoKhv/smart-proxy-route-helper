@@ -49,10 +49,10 @@ Production version `0.3.2` is published in Chrome Web Store.
 
 GitHub Release for this update:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.1
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.2
 
-The prepared 0.4.0 Store screenshot set is the four English PNGs documented in
-[store-assets/screenshots/v0.4.0/README.md](store-assets/screenshots/v0.4.0/README.md), shared across Store locales.
+The four prepared English Store screenshots (originally captured on 0.4.0) are documented in
+[store-assets/screenshots/v0.4.0/README.md](store-assets/screenshots/v0.4.0/README.md), shared across Store locales. Current submission materials: [0.4.2 Store update](docs/chrome-web-store-update-v0.4.2.md).
 
 Current `main` includes a local Backup and restore Options section for versioned settings
 export/import and an interface-language preference with `Auto (Chrome)`, `English`, and `Русский`

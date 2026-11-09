@@ -1,43 +1,27 @@
-# English Permission Justifications
-
-These texts are reference material for a future Dashboard review. They do not change the manifest or existing Dashboard declarations.
+# EN permission justifications — 0.4.2
 
 ## `proxy`
 
 ```text
-Required to apply a PAC configuration generated locally by the extension. It supports user-created Proxy and Direct rules and uses the local proxy host and port configured by the user. No remote PAC file or remote routing logic is used.
+Applies and verifies PAC routing generated locally from user-confirmed domain rules and device-specific named proxy/DIRECT connections. Reads Chrome Proxy control to explain overrides, supports local Pause/Resume, and temporarily tests a selected route only after a user action. No remote PAC or remote routing logic.
 ```
 
 ## `storage`
 
 ```text
-Required to store extension settings. Synced storage holds domain route rules and classification overrides. Local storage holds the device-specific proxy host, port, protocol, and enabled state. Short-lived recording session metadata may use session storage; collected hostnames are not stored there. Page or file contents are not stored.
+Stores route names, domain rules, classification preferences, rule chunks and cross-list reconciliation records in chrome.storage.sync. Device connections, Pause, language and one original-settings recovery copy remain in local storage. Session storage holds temporary recording lifecycle metadata, not collected hostname lists. No page/file contents or proxy credentials are stored.
 ```
 
 ## `activeTab`
 
 ```text
-Used only after an explicit user action in the current active tab. It supports current-site routing controls, manual proxy diagnostics, related-domain preview, and starting, stopping, or cancelling action-specific recording. The extension does not request persistent access to all sites.
+Provides temporary current-page access after the user invokes the toolbar extension. Used for current-site route controls, optional manual selected-route checks, related-hostname preview and temporary recording. No persistent access to every site or broad host permission.
 ```
 
 ## `scripting`
 
 ```text
-Required to run temporary scripts packaged with the extension on the current active page after an explicit user action. These scripts collect bounded hostname signals for related-domain preview and action-specific recording. The extension has no persistent content scripts and uses no remote code.
+Runs packaged temporary current-page scripts only after explicit user actions. Related-domain preview and bounded recording reduce resource references to hostnames. Test selected route makes one credentials-free current-origin fetch, without reading DOM/response bodies or following redirects. No persistent content scripts, remote code, certificate installation or TLS bypass.
 ```
 
-## Manifest cross-check
-
-The current manifest permissions are exactly:
-
-```text
-proxy
-storage
-activeTab
-scripting
-```
-
-There are no `host_permissions`, `<all_urls>`, `webRequest`, `webNavigation`, or persistent content scripts.
-
-
-0.4.0: scripting also runs a short credentials-free current-origin request in the active tab only after Test selected route. It reads no DOM or response body and follows no redirects. Proxy error codes are observed only during this test in memory; the extension does not install CAs or weaken TLS.
+Manifest: proxy, storage, activeTab, scripting. No host_permissions, <all_urls>, webRequest, webNavigation or persistent content scripts. Review risks remain proxy control, script injection and disclosure consistency; unchanged permissions do not guarantee approval.

@@ -1,43 +1,52 @@
-# English Detailed Description
+# EN detailed description — 0.4.2
 
 ```text
-Smart Proxy Route Helper routes selected sites through a local proxy that you configure, while unmatched sites connect directly by default.
+Smart Proxy Route Helper manages per-site routing in Chrome through local proxy connections that you configure. Work, Life and additional named lists can run at the same time. Sites without a matching rule connect directly by default.
 
-What it does
+The extension does not provide a VPN, proxy server or proxy service. Start and configure your own compatible local proxy client before using a Proxy connection.
 
-Use clear, per-site routing rules in Chrome when you already have a compatible local proxy client running on your device. The extension does not provide the proxy itself.
+Routing controls
 
-How it works
+• Keep separate domain lists for Work, Life and other named routes.
+• Choose a device-specific SOCKS5/HTTP proxy or DIRECT connection for each route.
+• Add Proxy rules and explicit Direct exceptions manually.
+• Match an exact hostname or include its subdomains; exact rules take priority over broader rules.
+• See the current site's configured route, matching rule, connection details and Chrome Proxy control in the popup.
+• Create and rename routes, preview rule moves and resolve conflicts explicitly in Options.
+• Edit rules in place, preview scope changes and review redundant-rule suggestions.
+• Pause and resume routing locally without deleting rules.
+• Export and import versioned settings with Preview before Apply. Device connections are excluded from exports unless you choose to include them.
+• Use the English or Russian interface, with a device-local language preference.
 
-Install and start a compatible local proxy client, such as V2Ray, V2RayN, V2RayU, or another client that exposes a local proxy endpoint. Then enter the local host and port in Smart Proxy Route Helper. Selected domains use Proxy rules; unmatched sites use DIRECT by default. You can also create explicit Direct rules for exceptions.
+Configured routing is not a guarantee of connectivity. A matched Proxy route does not silently fall back to DIRECT when its proxy is unavailable. DIRECT bypasses Chrome proxy settings; it can still use an OS-level VPN and does not select the operating system's HTTP proxy per site.
 
-Main features
+Optional manual checks
 
-• Proxy and Direct rules for individual domains.
-• Exact-hostname scope or a scope that includes subdomains.
-• Current-site route status and quick actions in the popup.
-• In-place rule editing with a preview when the scope would cover more hostnames.
-• Standard www.example.com canonicalized to example.com for new route targets.
-• Versioned settings export and import with Preview before Apply.
+Test selected route performs a short request to the current site's origin only after you click the test action. The request omits cookies and credentials, reads no page content or response body, and does not follow redirects. The check temporarily changes routing for the current hostname and then restores normal settings.
 
-Related-domain discovery and recording
+Results disclose Chrome's network and HTTPS/certificate limits. Proxy error events may not identify the affected tab. The extension does not install certificates or bypass HTTPS validation. Work's certificate guidance refers to the Corporate VPN Router setup wizard; the extension does not contact that tool automatically.
 
-After an explicit user action, the extension can preview related resource hostnames from the current page. Each saveable candidate has its own Add action, and selected candidates can be added with a sticky batch action. If a hostname appears only during a particular action, such as loading a file, downloading, playing media, or opening part of a page, you can start temporary action-specific recording, perform the action, then stop and review the hostname candidates.
+Related-domain discovery
 
-Preview and recording are review steps, not automatic rule creation. A route rule is never created without explicit user selection and confirmation.
+After an explicit action, preview related resource hostnames from the active page, or start a temporary recording, perform a page action, then stop and review the hostnames. Recording may help find hosts used during file transfers, media playback or authentication steps. It does not read file contents or credentials.
 
-Sync and local settings
+Candidates never become rules automatically: select them and confirm the separate Add action. Recording hooks end on Stop, Cancel, timeout or navigation. Some worker and browser requests may not be visible.
 
-Domain route rules and classification overrides can sync through Chrome Sync. The local proxy host, port, protocol, and enabled state remain device-local. Versioned export and import are local, user-controlled operations; Preview shows the proposed changes before Apply.
+Chrome Sync and compatibility
 
-Privacy and local-first model
+Route names, domain rules and classification preferences may sync through Chrome's extension settings synchronization. Connections, language, Pause and one original-settings recovery copy remain on the device.
 
-The extension has no backend, telemetry, advertising, or remote rule list. It uses no remote executable code. The related-domain bridge is hostname-only. It does not store or send raw URL paths, query parameters, headers, cookies, credentials, page contents, file contents, or response contents.
+Version 0.4.2 fixes independent offline Work and online Life changes that could finish syncing without activating the new rules. Work and named lists now reconcile independently; cross-list edits preserve conflicting records for explicit resolution. Incomplete Sync data keeps the previous PAC and reports an error; a newly added hostname is not promised to use its new route until complete delivery.
 
-What you provide
+Existing 0.3.2 rules migrate to Work. Version 0.3.2 can share Work rules and preserves the protected Life data, but cannot route Life. Use 0.4.2 or later on devices that need named routes; upgrade 0.4.0/0.4.1 named-route writers before further editing. Concurrent changes to the same list retain last-writer behavior and are not a lossless merge of every edit.
 
-You must provide and control a compatible local proxy client that is already running, including its local host and port. Smart Proxy Route Helper does not provide its own VPN, proxy server, or proxy infrastructure.
+Privacy and permissions
+
+No developer backend, telemetry, analytics, advertising or remote executable code. The developer does not receive settings or diagnostic results. Selected domain settings can pass through Google Chrome Sync. Diagnostic requests are visible to the chosen site and configured proxy in the same way as normal requests.
+
+Related-domain scripts reduce resource references to normalized hostnames before passing them into the extension. They do not retain full URL paths, query strings, headers, bodies, cookies, credentials, page text, file contents or screenshots. Temporary hostname candidates stay in memory; only explicitly confirmed domains become stored rules.
+
+Required permissions: proxy applies and verifies locally generated PAC routing; storage saves synced domain settings and local connections; activeTab grants temporary access after a toolbar action; scripting runs packaged, user-invoked current-page checks and hostname discovery. There are no required broad host permissions, persistent content scripts, webRequest or webNavigation.
+
+Smart Proxy Route Helper is open source. Review the privacy policy and compatibility contract in the linked repository for details.
 ```
-
-
-Recent updates: Work and Life run simultaneously with independent synced domain lists and local SOCKS5/HTTP or DIRECT connections. Popup shows configured routes and Chrome Proxy control. Manual tests disclose HTTPS/certificate limits; Work points to the Corporate VPN Router setup wizard for corporate CA checks. Existing rules migrate to Work without rewriting. No certificate installation, HTTPS bypass or new permission is included.

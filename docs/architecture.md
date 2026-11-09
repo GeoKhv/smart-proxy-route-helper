@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current `main` architecture at version `0.4.0`. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
+This document describes the current `main` architecture at version `0.4.2`. The repository contains an MV3 TypeScript runtime, pure modules for domain rules, PAC generation, related-domain classification, typed storage helpers, English and Russian Chrome i18n catalogs, an Options UI for local proxy settings, synced manual rules, and classification override management, a Popup UI for current-site rule management, manual diagnostics, related-domain preview, diagnostic recording sessions, and explicit classification override actions, and a background runtime layer that applies extension-managed PAC settings.
 
 The named-route layer and current diagnostic contract are specified in [named-routes.md](named-routes.md).
 It extends the modules below with route IDs/catalogs, device connections, origin-scoped probes,

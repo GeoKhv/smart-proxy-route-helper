@@ -1,7 +1,7 @@
 # Privacy Policy
 
-This document describes version `0.4.0`. The Store update is prepared separately; the last
-repository-recorded Chrome Web Store production version is `0.3.2`.
+This document describes version `0.4.2`. Store submission and production publication are separate;
+see the [submission record](docs/chrome-web-store-update-v0.4.2.md) for observed Dashboard state.
 
 Route IDs/names sync with domain rules. Device connections, pause state, language and a single
 pre-upgrade recovery copy stay in local extension storage. The recovery copy preserves the
@@ -28,11 +28,11 @@ Smart Proxy Route Helper is local-first:
 - No backend.
 - No user accounts.
 - No developer-operated data collection.
-- No sale or transfer of user data.
+- No sale of user data or transfer to the developer. Chrome may synchronize selected settings through Google as described below.
 - No remote executable code.
 - No runtime remote list fetching.
 - No raw URLs stored, synced, or sent by the project.
-- No settings backup upload or remote settings sync.
+- No settings backup upload or developer-operated settings synchronization. Chrome extension settings may synchronize through Google.
 
 ## Data the Extension Stores
 
@@ -40,7 +40,8 @@ The MVP stores only user-provided settings needed for proxy routing and personal
 
 Synced with `chrome.storage.sync`:
 
-- Domain routing rules.
+- Domain routing rules and route IDs/names.
+- Chunk generations, cross-list rule-operation deltas and acknowledgment records used to reconcile settings. These records contain domain-rule data and may retain previous rule values; they are not browsing or diagnostic history.
 - Ignored domains and denylist entries.
 - Personal classification overrides for related-domain preview, stored as normalized global or site-scoped domain preferences.
 - Safe rule metadata, such as source and creation timestamps.
@@ -138,6 +139,12 @@ Users should be able to delete stored extension data by:
 - Clearing local proxy settings in the extension UI.
 - Removing the extension from Chrome.
 - Deleting any settings export files they saved outside the extension.
+
+Removing an active rule stops its use for routing. Immutable reconciliation records and
+the original-settings recovery copy can retain prior domain-rule values after an active
+rule is removed. Removing a rule is not a guarantee that all prior settings records have
+been erased from Chrome synchronization or saved backup files. Users control separately
+saved backups and Chrome extension data.
 
 ## Changes
 

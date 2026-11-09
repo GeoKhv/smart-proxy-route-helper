@@ -1,160 +1,54 @@
-> 0.4.0 update preparation: the current disclosure additions are in
-> [chrome-web-store-update-v0.4.0.md](chrome-web-store-update-v0.4.0.md),
-> [named-routes.md](named-routes.md) and the EN/RU listing privacy summaries.
-> This older 0.3.0 text is historical and does not describe current publication state.
+# Chrome Web Store privacy declarations — 0.4.2
 
-# Chrome Web Store Privacy Disclosure Reference for v0.3.0
+Reviewed 2026-11-09 against the exact release ZIP, PRIVACY.md, current source and official
+[privacy fields](https://developer.chrome.com/docs/webstore/cws-dashboard-privacy) /
+[User Data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq).
+Local processing still counts as data handling. No developer uploads does not mean no handling.
 
-This document records privacy-field language reviewed against the `v0.3.0` package submitted to
-Chrome Web Store. The submission is awaiting review; this document does not claim that Store
-`v0.3.0` is published. The exact version currently visible to Store users was not independently
-verified during the repository audit.
+## Single purpose and permissions
 
-## Single Purpose
+Use the [EN](../store-assets/listing/en/single-purpose.md) /
+[RU](../store-assets/listing/ru/single-purpose.md) purpose text and
+[EN](../store-assets/listing/en/permission-justifications.md) /
+[RU](../store-assets/listing/ru/permission-justifications.md) justifications.
 
-Smart Proxy Route Helper lets users manually manage per-domain proxy routing through a user-configured local proxy.
+Required permissions: proxy, storage, activeTab, scripting. No host_permissions,
+<all_urls>, webRequest, webNavigation, persistent content scripts or remote executable code.
+Proxy control, active-page injection and disclosure consistency remain review risks.
 
-The extension stores domain-level routing rules and local proxy settings, generates a PAC configuration locally, and applies that configuration through Chrome's proxy API. Current-site diagnostics, related-domain preview, and diagnostic recording run only after explicit user action.
+## Data-use categories
 
-## Data Collection Summary
+Retain the conservative existing Dashboard categories:
 
-The extension does not collect or transmit user data to the developer.
+- Browsing history: current-site hostname and resource hostnames for explicitly invoked routing/discovery.
+- User activity: bounded request-initiation/resource signals only during user-started recording.
+- Website content: bounded resource-reference attributes used to extract hostnames; no page text, form values or file/response bodies retained.
 
-The extension does not include:
+Do not select personal identifiers, health, financial, authentication, personal communications
+or location categories: these are not collected by the extension. No proxy credentials stored.
 
-- Telemetry.
-- Analytics.
-- Ads.
-- Backend service.
-- User accounts.
-- Developer-operated data collection.
-- Runtime remote list fetching.
-- Remote executable code.
+The developer receives no settings or diagnostics. Route names, rules, classification
+preferences, chunks and cross-list reconciliation records can sync through Google Chrome.
+Those service records may retain previous domain-rule values and consume finite Sync quota;
+they are not diagnostic or browsing history. Device connections, Pause, language and one
+original-settings recovery copy stay local. Normal backups exclude device connections unless
+explicitly included. Temporary session storage contains recorder lifecycle metadata, not host lists.
 
-## Stored Data
+Current-page discovery and recording use packaged scripts after explicit actions. Candidate
+hostnames stay in memory and become rules only after separate selection and confirmation.
+Recording hooks end on Stop, Cancel, timeout or navigation. A selected-route test uses a short
+credentials-free current-origin fetch, no DOM/response body read and no redirect following;
+it temporarily changes the current-host route, restores routing and retains bounded error codes
+in memory only. The chosen site/proxy can observe that request. No certificate changes or TLS bypass.
 
-Synced storage with `chrome.storage.sync`:
+## Certifications and remote code
 
-- Domain routing rules.
-- Domain-level classification overrides.
-- Ignored domains and denylist entries.
-- Safe rule metadata such as rule source and creation timestamp.
+No sale or unrelated transfer of data, no unrelated use, and no creditworthiness/lending use.
+Confirm the Dashboard's three corresponding data-use statements against the actual wording.
+Remote code: **No**. All executable code is packaged with the extension; there is no remote
+PAC, JavaScript, WebAssembly, runtime rule-list fetch or developer-operated backend.
 
-Local storage with `chrome.storage.local`:
+Privacy URL: https://github.com/GeoKhv/smart-proxy-route-helper/blob/main/PRIVACY.md
 
-- Local proxy scheme.
-- Local proxy host.
-- Local proxy port.
-- Device enabled/disabled state.
-- Local diagnostics preference.
-- Interface language preference: `Auto (Chrome)`, `English`, or `Русский`.
-
-The language preference is an ordinary device-local UI setting. It is not sensitive data, does not
-sync through `chrome.storage.sync`, and is not collected or received by the developer.
-
-Temporary session storage with `chrome.storage.session`:
-
-- Diagnostic recording lifecycle metadata while a recording is active or awaiting explicit handling after expiry, such as tab ID, current domain, start/expiry time, status, random session nonce, and recorded-document identity. Collected hostnames are not stored there.
-
-## Data Not Stored, Synced, or Sent
-
-The extension does not store, sync, or send:
-
-- Raw URLs.
-- URL paths.
-- Query strings.
-- Fragments.
-- Credentials.
-- Browsing history.
-- Page text.
-- Form values.
-- Uploaded file contents.
-- Local file contents.
-- Screenshots.
-- Cookies.
-- Authentication or session data.
-- Full resource URL lists.
-- Diagnostic history.
-- Related-domain preview host lists.
-- Diagnostic recording host lists.
-- Proxy credentials.
-
-## Hostname Sanitization
-
-Current-site controls, related-domain preview, and diagnostic recording sanitize host data to domain or hostname level where possible.
-
-The extension drops paths, query strings, fragments, and credentials before presenting related-domain candidates. It rejects unsupported schemes and local/private/internal hosts where those hosts are not valid routing candidates.
-
-## Related-Domain Preview
-
-Related-domain preview is user-invoked and transient.
-
-After the user clicks the preview action, the extension may inspect bounded resource references on the current active tab through a temporary active-tab script. The output is a local preview of sanitized domain-level candidates.
-
-Preview candidates are not stored automatically. They become routing rules only when the user selects candidates and clicks the separate add action.
-
-## Diagnostic Recording
-
-Diagnostic recording is user-invoked and transient.
-
-After the user clicks the recording action, the extension may temporarily observe bounded resource-like signals in the active tab to help identify action-specific resource hosts. The user can stop and preview or cancel the recording.
-
-Recorded hostnames are not stored in synced storage or local storage. Cancelling a recording returns no candidates and saves nothing.
-
-Collection ends and temporary hooks/listeners are removed at timeout. The bounded hostname set may remain only in the recorded page's isolated-world memory so the user can explicitly preview an expired session; Stop, Cancel, navigation, or tab teardown removes it.
-
-Diagnostic recording does not read uploaded file contents, page text, cookies, credentials, screenshots, or local files.
-
-## Current-Site Diagnostics
-
-Manual current-site diagnostics run only after the user clicks "Check via proxy".
-
-The check may make a best-effort request from the extension context to the current tab origin while temporarily routing the current normalized domain through the configured local proxy. The result is shown locally and is not sent to the developer.
-
-Diagnostics do not store diagnostic history, do not sync temporary probe state, and do not add domain rules without explicit confirmation.
-
-## Permission-Specific Disclosure
-
-`proxy`
-
-Used to apply the locally generated PAC configuration in Chrome. The extension uses this only for user-configured proxy routing.
-
-`storage`
-
-Used to save extension settings. Domain-level routing rules and classification overrides are synced with Chrome Sync when available. Local proxy settings stay on the current device.
-The interface language preference also stays on the current device.
-
-`activeTab`
-
-Used only after the user invokes the extension on the active tab. It supports current-site controls, manual diagnostics, related-domain preview, and diagnostic recording.
-
-`scripting`
-
-Used for temporary user-invoked current-page scripts that collect sanitized resource hostnames for related-domain preview and diagnostic recording. The extension does not declare persistent content scripts.
-
-## Remote Code Disclosure
-
-The extension does not execute remote code.
-
-All executable code is packaged with the extension. The extension does not load remote scripts, remote WebAssembly, or remote logic at runtime.
-
-## Limited Use Certification Draft
-
-Information received from Chrome extension APIs is used only to provide the extension's single purpose: local proxy routing management and user-invoked diagnostics.
-
-The extension does not use or transfer user data for advertising, profiling, resale, creditworthiness, lending, unrelated product analytics, or any unrelated purpose.
-
-## Privacy Policy URL
-
-Suggested URL:
-
-- https://github.com/GeoKhv/smart-proxy-route-helper/blob/main/PRIVACY.md
-
-Before any future Store update, confirm that the Store privacy fields and this privacy policy are consistent.
-
-## Official References
-
-- Chrome Web Store privacy fields: https://developer.chrome.com/docs/webstore/cws-dashboard-privacy
-- Chrome Web Store privacy policies: https://developer.chrome.com/docs/webstore/program-policies/privacy
-- Chrome Web Store program policies: https://developer.chrome.com/docs/webstore/program-policies/policies
-- Manifest V3 remote code requirements: https://developer.chrome.com/docs/webstore/program-policies/mv3-requirements
+Prepared declarations do not prove the Dashboard was saved or the update submitted.
+Record actual results in the [version-specific Store record](chrome-web-store-update-v0.4.2.md).
