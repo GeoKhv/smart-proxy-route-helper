@@ -1,8 +1,10 @@
+Current submission metadata: [0.4.2 Store update](chrome-web-store-update-v0.4.2.md). The snapshot below is historical and does not establish current review state.
+
 # Historical Chrome Web Store v0.1.0 Listing Reference
 
 This document preserves the public listing snapshot for the historical `v0.1.0` Store release. It
 is not the current `v0.3.0` listing package, Dashboard automation, or evidence of the version now
-visible to Store users. Version `v0.3.0` has been submitted for review and is awaiting review.
+visible to Store users. The historical submission state below is not the current Dashboard state.
 
 Published listing:
 

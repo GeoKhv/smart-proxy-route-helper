@@ -155,7 +155,7 @@ Mitigations:
 - Update documentation in the same change as permission or data behavior changes.
 - Keep diagnostics clearly separated from MVP functionality.
 
-## 0.4.0 named-route and TLS review
+## 0.4.2 named-route and TLS review
 
 No permission was added. See [named-routes.md](named-routes.md) for the exact one-time origin
 probe and transient `proxy.onProxyError` code observation. The probe uses activeTab plus scripting

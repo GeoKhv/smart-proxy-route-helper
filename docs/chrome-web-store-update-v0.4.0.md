@@ -1,4 +1,6 @@
-# Chrome Web Store update preparation — 0.4.0
+# Historical Chrome Web Store update preparation — 0.4.0
+
+Superseded for submission by [0.4.2 Store update](chrome-web-store-update-v0.4.2.md). Do not upload the 0.4.0 ZIP for the current update.
 
 Status: package, EN/RU metadata and four verified 1280×800 screenshots prepared for the existing Store item. No Dashboard upload, submission,
 publication, account or permission change is performed by this preparation. The last repository-recorded

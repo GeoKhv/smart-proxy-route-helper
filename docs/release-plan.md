@@ -1,14 +1,14 @@
-Current 0.4.0 implementation and Store preparation: [named-routes.md](named-routes.md),
-[release notes](release-notes-v0.4.0.md), [Store update](chrome-web-store-update-v0.4.0.md).
+Current 0.4.2 implementation and Store preparation: [named-routes.md](named-routes.md),
+[release notes](release-notes-v0.4.2.md), [Store update](chrome-web-store-update-v0.4.2.md).
 The version plans below preserve historical scope; the earlier 0.4.0 proposal is superseded.
 
 # Release Plan
 
 This repository has moved beyond the documentation-only bootstrap phase. Versions `v0.1.0`,
 `v0.2.0`, `v0.3.0`, `v0.3.1`, and `v0.3.2` are public GitHub releases. Version `v0.3.2` is the
-latest immutable release and is published in Chrome Web Store. Current `main` matches the
-`0.3.2` production release. The version sections below preserve the staged product plan and its
-guardrails; the next meaningful release is planned as `v0.4.0`.
+published Store baseline. GitHub Release `v0.4.2` is the current submission candidate, with
+real Google Sync acceptance recorded separately. The version sections below preserve historical
+product plans; they do not establish live Dashboard state.
 
 ## v0.1: Manual PAC MVP
 

@@ -6,10 +6,24 @@ The extension manages simultaneous named routes (Work, Life and user-created lis
 
 ## Current Release Status
 
-The latest GitHub Release, `v0.4.0`, adds simultaneous named routes with safe legacy migration and manual route/TLS
-checks. The Chrome Web Store update is prepared separately; the last recorded Store production
-version is `0.3.2`. See [named routes](docs/named-routes.md), [release notes](docs/release-notes-v0.4.0.md)
-and [verification record](docs/releases/v0.4.0-release-record.md).
+> **Source checkout:** the default `main` branch still contains the 0.4.0 runtime as of 2026-11-09. This page describes the separately tagged, verified **v0.4.2** release and its Chrome Web Store submission. For a 0.4.2 build, use the [v0.4.2 source tag](https://github.com/GeoKhv/smart-proxy-route-helper/tree/v0.4.2), not a build from `main` until the release code is merged.
+
+**v0.4.2** fixes the P1 found by real Google Chrome Sync in 0.4.1: independent
+offline Work / online Life changes could arrive but never activate. Work and Life
+now converge independently; cross-list edits carry replayable operation receipts.
+
+Acceptance passed 418 automated tests and 57 actual HTTP/SOCKS5/DIRECT network
+assertions in isolated signed-in Chrome profiles, including the original ten-rule
+offline scenario, installed 0.3.2 interoperability and the real toolbar Popup.
+See the [release notes](docs/release-notes-v0.4.2.md),
+[verification record](docs/releases/v0.4.2-release-record.md) and
+[compatibility contract](docs/sync-compatibility.md).
+
+Chrome Web Store 0.4.2 was submitted for review on 2026-11-09 with **deferred/manual
+publication**. The Dashboard still shows 0.3.2 as published; signed Store update
+delivery remains **NOT TESTED**. See the [submission record](docs/chrome-web-store-update-v0.4.2.md). Life requires
+0.4.2 on participating named-route devices. Same-list concurrent snapshots retain
+existing last-writer semantics; this release is not a general lossless CRDT.
 
 The current runtime includes:
 
@@ -34,14 +48,14 @@ The Smart Proxy Route Helper item is available in Chrome Web Store:
 
 - https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
-Production version `0.3.2` is published in Chrome Web Store.
+Production version `0.3.2` remains published in Chrome Web Store. Update `0.4.2` is awaiting review with automatic publication disabled.
 
 GitHub Release for this update:
 
-- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.0
+- https://github.com/GeoKhv/smart-proxy-route-helper/releases/tag/v0.4.2
 
-The prepared 0.4.0 Store screenshot set is the four English PNGs documented in
-[store-assets/screenshots/v0.4.0/README.md](store-assets/screenshots/v0.4.0/README.md), shared across Store locales.
+The four prepared English Store screenshots (originally captured on 0.4.0) are documented in
+[store-assets/screenshots/v0.4.0/README.md](store-assets/screenshots/v0.4.0/README.md), shared across Store locales. Current submission materials: [0.4.2 Store update](docs/chrome-web-store-update-v0.4.2.md).
 
 Current `main` includes a local Backup and restore Options section for versioned settings
 export/import and an interface-language preference with `Auto (Chrome)`, `English`, and `Русский`
@@ -67,8 +81,10 @@ Chrome Web Store listing, submission, and publication-reference materials are av
 Configure Work with the SOCKS5 host/port from Corporate VPN Router. Configure Life with its own
 SOCKS5/HTTP endpoint or DIRECT. DIRECT bypasses Chrome proxies while an OS-level VPN can still
 apply; it does not select the OS HTTP proxy. Both lists remain active when you switch the editor.
-Connections stay local; names/rules sync. Upgrade all synced devices to 0.4.0 before editing named
-routes. Existing rules keep their actions and resolve to Work without being rewritten.
+Connections stay local; names/rules sync. Work remains compatible with 0.3.2. Life and other
+named lists require 0.4.1+ on each participating device; old clients apply only Work, including
+overlapping parent rules. Existing 0.3.2 rules keep their actions and resolve to Work without
+being rewritten. See [the supported mixed-version behavior](docs/sync-compatibility.md).
 
 Open the toolbar popup on a site to see its intended route and Chrome Proxy control. Choose a list
 for new rules/tests; use **Test selected route** only when you want a temporary origin check.
@@ -168,7 +184,7 @@ Package the current build for local release testing:
 npm run package
 ```
 
-The package script reads `dist/` and writes `release/smart-proxy-route-helper-v0.3.2.zip`. Run `npm run build` first.
+The package script reads `dist/` and writes an archive for the version in the current source checkout. Run `npm run build` first. The verified Store submission package is the separate `smart-proxy-route-helper-v0.4.2.zip` asset in GitHub Release v0.4.2.
 
 ## Dependency Notes
 

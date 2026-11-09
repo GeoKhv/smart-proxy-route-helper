@@ -1,9 +1,10 @@
 # Chrome Web Store Submission Readiness Checklist
 
-Status: **historical `v0.1.0` preparation record plus reusable gates for later updates**. Version
-`v0.3.0` has already been submitted to Chrome Web Store and is awaiting review. The unchecked
-historical boxes below are not a claim that the completed `v0.3.0` submission still needs to be
-performed. This file is not submission automation and does not authorize Dashboard changes.
+Status: **historical `v0.1.0` preparation record plus reusable gates**. As of 2026-11-09,
+**v0.4.2 (revision 00006) is awaiting Chrome Web Store review with deferred/manual publication**;
+**v0.3.2 remains published**. See the [current submission record](chrome-web-store-update-v0.4.2.md).
+The historical checkboxes below do not describe the current submission state, and this file
+is not publication automation or an authorization to modify the Dashboard.
 
 ## Submission Boundary For Future Store Updates
 
@@ -189,9 +190,8 @@ If findings appear, do not upgrade dependencies inside a Store-preparation slice
 Historical status recorded by this checklist: `v0.1.0` was published in Chrome Web Store at
 https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj.
 
-Current release workflow status: `v0.3.0` is a public GitHub Release and has been submitted to
-Chrome Web Store for review. It is awaiting review; the current public Store version was not
-independently verified during this repository audit.
+Historical snapshot: `v0.3.0` was once submitted for review. For the verified 2026-11-09
+Dashboard observation and the v0.4.2 status, use the [current submission record](chrome-web-store-update-v0.4.2.md).
 
 Repository asset blockers closed before publication:
 

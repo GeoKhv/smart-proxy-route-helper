@@ -1,6 +1,6 @@
 # Chrome Web Store screenshots — 0.4.0
 
-Current shared English set for all Store locales. Captured from the real unpacked dist/0.4.0
+Prepared shared English set for all Store locales. Captured from the real unpacked dist/0.4.0
 extension on 2026-11-06 in Smart Proxy Capture Chrome 156.0.8078.80. Chrome Sync was signed out
 and disabled. Only disposable profiles, public example domains and loopback demo settings were used.
 These images describe configured routing and browser control; they do not claim verified corporate
@@ -14,8 +14,9 @@ VPN, SOCKS5 server, authentication or CA connectivity.
 4. `04-popup-life-direct.png` — current site's Life DIRECT intent, selected list and browser control.
 
 All four files are PNG, RGB without alpha, **1280×800**. Their checksums are in `SHA256SUMS`. Use these in place of older Options/Popup
-captures whose UI no longer matches 0.4.0. This set is prepared for the existing Store item; it has
-not been uploaded, submitted or published through Developer Dashboard.
+captures whose UI no longer matches 0.4.0. This set was prepared for the existing Store item. On 2026-11-09 these four
+images were already present in its draft, were verified and retained for the 0.4.2
+submission with deferred publication; this does not claim production publication.
 
 ## Capture provenance
 
@@ -54,3 +55,23 @@ sips -g pixelWidth -g pixelHeight -g format -g hasAlpha store-assets/screenshots
 The offsets apply to the supplied native captures. For a new capture, inspect the image before
 reusing them; never crop text or a new UI state based solely on these historical coordinates.
 Stop the isolated browser cleanly with the project stop script after capture.
+
+## 0.4.2 reuse review — 2026-11-09
+
+All four original PNG checksums were verified. The exact GitHub Release 0.4.2 ZIP
+was extracted to dist/ and the existing unpacked extension reloaded through
+chrome://extensions in a fresh signed-out Capture profile. Chrome reported 0.4.2
+and the repository dist/ source. Capture Chrome refreshed to 157.0.8103.39 because
+the installed Google Chrome version changed; the existing launcher handled this.
+
+The original sanitized demo-settings.json was previewed and explicitly imported.
+Routes/Chrome PAC control, Work SOCKS5 127.0.0.1:10808 and Life DIRECT were visually
+compared with the first three assets and retain the depicted interface. The real
+toolbar Popup on example.org showed Life DIRECT and the expected PAC, matching the
+fourth image's controls and state. 0.4.2 adds a Life 0.4.2+ compatibility sentence
+to the route selector helper; the older image has the shorter helper. Thus the
+fourth asset is representative, not a pixel-identical 0.4.2 capture. The current
+EN/RU listing prominently discloses the compatibility requirement. No shown claim
+about routing or connection health is contradicted; original image provenance and
+bytes are preserved. This comparison does not repeat network/Sync acceptance or
+verify a corporate proxy, OS VPN, TLS or signed Store update delivery.

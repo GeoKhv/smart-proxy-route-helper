@@ -1,10 +1,9 @@
-# English Privacy Summary
+# English privacy summary — 0.4.2
 
 ```text
-Smart Proxy Route Helper follows a local-first model: it has no backend, telemetry, analytics, or advertising. It does not store raw URLs, URL paths, query parameters, page contents, or file contents.
+No developer backend, telemetry, analytics, advertising or remote executable code. The developer receives no settings or diagnostic results. Route names, domain rules, classification preferences and cross-list reconciliation records may sync through Google Chrome. Connections, Pause, language and one original-settings recovery copy remain local. Exports exclude device connections unless explicitly included.
 
-The local proxy address, port, protocol, enabled state, and Auto/English/Russian interface-language preference remain on the current device. The language preference is an ordinary local UI setting, not developer-collected data. Domain route rules and classification overrides may sync through Chrome Sync. Related-domain preview and action-specific recording use a hostname-only bridge and are temporary. A route rule is created only after the user explicitly selects and confirms it.
+Current-page access, related-hostname preview, temporary recording and selected-route tests require user actions. Resource references are reduced to hostnames; candidates stay in memory until explicitly confirmed as rules. No page/file contents, cookies, credentials or raw diagnostic history are retained. A route test makes a credentials-free current-origin request, temporarily changes the hostname route, restores it and holds bounded error codes in memory. The chosen site/proxy can observe that request. No certificate installation or TLS bypass.
 ```
 
-
-Route names and rules use Chrome Sync. Device connections and one original-settings recovery copy stay local. Normal exports exclude local endpoints unless explicitly selected. Certificate/TLS codes during a user-started test stay in memory only; no diagnostic history, certificate changes or developer uploads.
+Dashboard categories: Browsing history, User activity, Website content. Retain these conservative declarations for local current-page/resource processing; do not equate no developer uploads with no data handling. Other categories remain unchecked. No remote code; certify the three existing limited-use/data-use statements after checking actual Dashboard wording.
