@@ -1,6 +1,6 @@
-# Sync compatibility in 0.4.1
+# Sync compatibility in 0.4.2 (candidate)
 
-0.4.1 fixes the 0.4.0 regression in which an installed 0.3.2 client interpreted a
+0.4.1 fixed the 0.4.0 regression in which an installed 0.3.2 client interpreted a
 Life rule as Work/Proxy, then removed its route ID while saving an unrelated rule.
 The old client's code cannot be changed by the new client.
 
@@ -16,10 +16,25 @@ The old client's code cannot be changed by the new client.
 - Connections and Pause/Resume remain device-local. A shared Life rule may use
   DIRECT on one new device and a deliberately configured HTTP/SOCKS5 connection
   on another. No endpoint is exported to Sync.
-- Missing named chunks or an incomplete paired Work/named activation reject the
-  read; the controller retains its previous verified PAC. A cross-list move
-  publishes both pointers locally together and records a transition fence for
-  either order of incoming pointer delivery. This is not a server transaction.
+- Independent Work/named edits publish only their own list pointer. Cross-list
+  order anchors of unchanged named records are preserved, even after Work edits.
+- 0.4.1's `namedEpoch` / `workTransition` equality fence is obsolete. It could
+  permanently reject complete independently merged data. Fully delivered 0.4.1
+  records are read without rewriting or dropping them.
+- A cross-list edit stages immutable `splitOperationV2:*` metadata and
+  `splitOperationChunkV2:*` deltas. Either list pointer references the operation.
+  Readers validate the entire dependency graph and reconstruct an unacknowledged
+  half; they remove only exact old records, retaining conflicting newer variants.
+  Later intentional edits acknowledge the operation, preventing resurrection.
+- Missing active chunks or operation records reject the read; the controller
+  retains its previous PAC and reports failure. This does not promise routing for
+  a new hostname before all required data is available. A completed independent
+  update no longer waits for an unrelated generation. Pause remains available at
+  the local proxy-controller layer even while Sync is incomplete.
+- Operation records are retained while referenced, including causal ancestors;
+  there is no unsafe distributed garbage collection. Many cross-list edits use
+  additional Sync quota. A quota failure rejects the save without discarding the
+  previous data. Ordinary single-list edits do not grow the operation journal.
 - Verified staging, rollback and cleanup preserve possibly active generations
   when a rollback fails. Local Web Locks serialize extension contexts.
 - Cross-list order anchors preserve timestamp-tie ordering without duplicating
@@ -32,7 +47,7 @@ its own Work rules. A new Life-only hostname with no matching Work rule is DIREC
 on an old device, even when Life uses a proxy on a new device. If an existing Work
 parent covers the hostname, the old device continues to apply that Work rule.
 No new client can supply a second local endpoint to the installed old PAC runtime.
-Update every participating device to 0.4.1+ before relying on Life across devices.
+Update every participating device to 0.4.2+ before relying on Life across devices.
 The Popup and Options state this boundary; unchanged Work setups need no migration
 or mandatory reconfiguration.
 
@@ -50,6 +65,11 @@ legacy storage; already-stripped route IDs cannot be reconstructed reliably and
 are not guessed. The original verified local recovery copy is retained. If a
 0.4.0 client reintroduces tagged legacy rules after isolation, 0.4.1 rejects the
 read and keeps its last PAC instead of silently combining them.
+
+0.4.1 is not a supported concurrent named-route writer after upgrading to 0.4.2:
+it cannot understand operation receipts and still republishes stale named pointers.
+Upgrade those clients before resuming edits. Recovery of complete 0.4.1 data is
+covered; the old protocol cannot prove an in-flight partial cross-list move atomic.
 
 Chrome Sync still has asynchronous delivery and finite quotas. Concurrent writers
 to the same Work generation, or the same modern named generation, retain the
@@ -69,16 +89,16 @@ from corrupting the new records. Settings exports remain useful backups.
 
 ## Verification boundary
 
-Automated tests execute the immutable storage bundle from the real v0.3.2 ZIP,
-not a rewritten old-client mock. Visible isolated Chrome tests exercise the actual
-old ZIP and 0.4.1 build through toolbar Popup and Options. Transfer tests copy only
-the Sync database between cleanly closed test profiles; local storage is not copied.
-These are **not signed-in Google Chrome Sync tests**. Server conflict arbitration,
-offline reconciliation and signed Store auto-update delivery remain NOT TESTED.
-See the [0.4.1 release record](releases/v0.4.1-release-record.md).
+Automated tests execute the immutable storage bundle from the real v0.3.2 ZIP.
+The 0.4.2 regression fixture is the exact synthetic ten-rule payload delivered by
+Google during the failed 2026-11-06 acceptance (without local or account data).
+Tests cover independent writes in both orders and all 24 per-key permutations,
+cross-list replay, conflicts, delayed operation chunks and intentional deletion.
 
-The current [Chrome storage documentation](https://developer.chrome.com/docs/extensions/reference/api/storage)
+Actual signed-in Google Sync and toolbar Popup acceptance of this candidate are
+pending. No final release / Store GO is claimed until that gate passes. Signed
+Chrome Web Store update delivery is separate and has not been exercised.
+
+[Chrome storage documentation](https://developer.chrome.com/docs/extensions/reference/api/storage)
 describes asynchronous storage, approximately 100 KB total Sync capacity and 8 KB
-per item, and local behavior when Sync is disabled (checked 2026-11-06). No new
-permissions or remote resources were added. Chrome Web Store review of proxy and
-script-injection permissions remains separate from these compatibility tests.
+per item. No new permissions or remote resources were added.

@@ -6,6 +6,12 @@ The extension manages simultaneous named routes (Work, Life and user-created lis
 
 ## Current Release Status
 
+**0.4.2 candidate:** a later signed-in Google Sync acceptance found a P1 in 0.4.1
+for independent offline Work / online Life edits. Do not use 0.4.1 as a mass-rollout
+GO. The [0.4.2 candidate](docs/release-notes-v0.4.2.md) fixes independent pointer
+publication and adds replayable cross-list operations; its final real-Sync gate
+is still pending. No final 0.4.2 release has been published.
+
 The latest GitHub Release, `v0.4.1`, fixes mixed-version Sync compatibility with installed
 0.3.2 clients by isolating named-route data. Chrome Web Store has not been updated; its last
 recorded production version remains `0.3.2`. See [compatibility limits](docs/sync-compatibility.md),

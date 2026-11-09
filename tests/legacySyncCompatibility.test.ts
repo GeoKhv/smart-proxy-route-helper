@@ -126,6 +126,9 @@ describe("installed 0.3.2 / isolated named-rule storage", () => {
     const namedPayload = namedData(remote.data);
     await sync.set(delivery === "work-first" ? workPayload : namedPayload);
     await expect(getSyncSettings(sync)).rejects.toThrow();
+    await sync.set(Object.fromEntries(Object.entries(remote.data).filter(([k]) => k.startsWith("splitOperation"))));
+    // A complete immutable operation reconstructs the missing half safely.
+    expect((await getSyncSettings(sync)).rules).toEqual([rule("move.example", "life")]);
     await sync.set(delivery === "work-first" ? namedPayload : workPayload);
     expect((await getSyncSettings(sync)).rules).toEqual([rule("move.example", "life")]);
     await legacy.r([rule("later.example")], sync);

@@ -1,3 +1,4 @@
+import { reconcileSplitOperations, stageSplitOperation, type OperationReceipt } from "./splitOperations";
 import type { DomainRule } from "../rules/ruleTypes";
 import { ruleRouteId, sanitizeRoutes, type NamedRoute } from "../rules/routes";
 import type { StorageAreaAdapter } from "./storageTypes";
@@ -8,16 +9,7 @@ import { RuleChunkStorageError, isRulesMeta, packRulesIntoChunks, reconstructRul
 export const namedRulesMetaKey = "namedRoutesV1";
 export const namedRulesChunkPrefix = "namedRulesChunkV1:";
 const namedKey = (key: string) => key.replace(/^rulesChunk:/, namedRulesChunkPrefix);
-export type NamedRulesMeta = { version: 1; rules: RulesMeta; routes?: NamedRoute[]; workTransition?: { from: string | null; to: string } };
-
-export function verifySplitActivation(workMeta: unknown, namedMeta: unknown): void {
-  const work = workMeta as (RulesMeta & { namedEpoch?: string }) | undefined;
-  const named = namedMeta as NamedRulesMeta | undefined;
-  if ((work?.namedEpoch !== undefined && work.namedEpoch !== named?.workTransition?.to) ||
-      (named?.workTransition && (work?.generation ?? null) === named.workTransition.from)) {
-    throw new RuleChunkStorageError("incomplete", "Work and named route activation are still synchronizing.");
-  }
-}
+export type NamedRulesMeta = OperationReceipt & { version: 1; rules: RulesMeta; routes?: NamedRoute[]; workTransition?: { from: string | null; to: string } };
 
 type OrderedNamedRule = DomainRule & { workPredecessor?: string | null };
 const workIdentity = (rule: DomainRule): string => rule.id ?? JSON.stringify([rule.domain, rule.includeSubdomains, rule.action, rule.source, rule.createdAt]);
@@ -59,10 +51,9 @@ function equal(a: unknown, b: unknown): boolean {
   return stable(a) === stable(b);
 }
 
-// A single local activation publishes both pointers. Independent edits only
-// advance their own pointer, so editing Life never rewrites a received Work list.
-// Sync itself is not a distributed transaction: incomplete generations throw,
-// letting the controller retain its last verified PAC rather than use half a list.
+// Each list has its own activation pointer. Cross-list edits additionally stage
+// an immutable delta referenced by either pointer; readers can reconstruct both
+// halves regardless of delivery order. No generation equality across lists.
 export async function commitSplitRules(
   storage: StorageAreaAdapter,
   work: DomainRule[],
@@ -85,22 +76,40 @@ export async function commitSplitRules(
   else if (before[rulesMetaStorageKey] !== undefined) throw new RuleChunkStorageError("incomplete", "Work metadata is unsupported.");
   else oldWork = Array.isArray(before.rules) ? before.rules as DomainRule[] : [];
   const oldNamed = await readNamedRules(storage, before[namedRulesMetaKey]);
-  const workChanged = !rulesMatchExactly(work, oldWork);
-  const namedChanged = before[namedRulesMetaKey] === undefined || !equal(named, oldNamed.rules) || !equal(routes, oldNamed.routes);
+  const effective = await reconcileSplitOperations(storage, oldWorkMeta, before[namedRulesMetaKey], oldWork, oldNamed.rules);
+  // Use the effective view for deltas, but materialize any replayed operation in
+  // a pointer we actually change. Unchanged namespaces are never republished.
+  const effectiveWork = effective.work, effectiveNamed = effective.named;
+  named = named.map(rule => {
+    const previous = effectiveNamed.find(candidate => {
+      const { workPredecessor: _anchor, ...clean } = candidate as OrderedNamedRule;
+      const { workPredecessor: _nextAnchor, ...next } = rule as OrderedNamedRule;
+      return equal(clean, next);
+    });
+    return previous ?? rule;
+  });
+  const semanticWorkChanged = !rulesMatchExactly(work, effectiveWork);
+  const semanticNamedChanged = !equal(named, effectiveNamed);
+  const workChanged = semanticWorkChanged || !rulesMatchExactly(work, oldWork);
+  const namedChanged = semanticNamedChanged || before[namedRulesMetaKey] === undefined || !equal(named, oldNamed.rules) || !equal(routes, oldNamed.routes);
   const workPack = workChanged ? packRulesIntoChunks(work) : undefined;
   const namedPack = namedChanged ? packRulesIntoChunks(named) : undefined;
-  const previousNamedMeta = before[namedRulesMetaKey] as NamedRulesMeta | undefined;
-  const transition = workPack ? { from: oldWorkMeta?.generation ?? null, to: workPack.meta.generation } : previousNamedMeta?.workTransition;
-  const namedMeta: NamedRulesMeta | undefined = namedPack || workPack
-    ? { version: 1, rules: namedPack?.meta ?? previousNamedMeta!.rules, ...(routes ? { routes } : {}), ...(transition ? { workTransition: transition } : {}) }
+  const operation = semanticWorkChanged && semanticNamedChanged
+    ? stageSplitOperation(effectiveWork, work, effectiveNamed, named, effective.operations, oldWorkMeta?.generation ?? null)
+    : undefined;
+  const operations = [...effective.operations, ...(operation ? [operation.id] : [])];
+  const receipt: OperationReceipt = { splitProtocol: 2, ...(operations.length ? { splitOperations: operations } : {}) };
+  const namedMeta: NamedRulesMeta | undefined = namedPack
+    ? { version: 1, rules: namedPack.meta, ...(routes ? { routes } : {}), ...receipt }
     : undefined;
   const chunks = {
+    ...operation?.staged,
     ...workPack?.chunks,
     ...(namedPack ? Object.fromEntries(Object.entries(namedPack.chunks).map(([key, value]) => [namedKey(key), value])) : {})
   };
   const activation: Record<string, unknown> = {
     ...Object.fromEntries(Object.entries(otherSettings).filter(([key, value]) => !equal(before[key], value))),
-    ...(workPack ? { [rulesMetaStorageKey]: { ...workPack.meta, namedEpoch: workPack.meta.generation } } : {}),
+    ...(workPack ? { [rulesMetaStorageKey]: { ...workPack.meta, ...receipt } } : {}),
     ...(namedMeta ? { [namedRulesMetaKey]: namedMeta } : {})
   };
   let activated = false;
@@ -112,6 +121,8 @@ export async function commitSplitRules(
     if (namedMeta && !equal(named, (await readNamedRules(storage, namedMeta)).rules)) {
       throw new RuleChunkStorageError("verification-failed", "Named staging verification failed.");
     }
+    if (operation) await reconcileSplitOperations(storage,
+      { ...workPack!.meta, ...receipt }, namedMeta, work, named);
     // Detect a local storage event during staging; never knowingly overwrite it.
     const current = await storage.get(Object.keys(activation));
     if (Object.keys(activation).some(key => !equal(current[key], before[key]))) {
