@@ -1,4 +1,4 @@
-# Sync compatibility in 0.4.2 (candidate)
+# Sync compatibility in 0.4.2
 
 0.4.1 fixed the 0.4.0 regression in which an installed 0.3.2 client interpreted a
 Life rule as Work/Proxy, then removed its route ID while saving an unrelated rule.
@@ -95,9 +95,13 @@ Google during the failed 2026-11-06 acceptance (without local or account data).
 Tests cover independent writes in both orders and all 24 per-key permutations,
 cross-list replay, conflicts, delayed operation chunks and intentional deletion.
 
-Actual signed-in Google Sync and toolbar Popup acceptance of this candidate are
-pending. No final release / Store GO is claimed until that gate passes. Signed
-Chrome Web Store update delivery is separate and has not been exercised.
+Actual signed-in Google Sync and the real toolbar Popup passed acceptance on
+2026-11-09: independent edits with each device offline in turn, installed 0.3.2
+Work interoperability, protected Life records, cross-route conflict blocking,
+explicit resolution, moves and deletion after convergence. 57 actual network
+assertions passed; all 15 final rules were checked on both devices.
+See the [verification record](releases/v0.4.2-release-record.md). Signed Chrome Web
+Store update delivery is separate and has not been exercised.
 
 [Chrome storage documentation](https://developer.chrome.com/docs/extensions/reference/api/storage)
 describes asynchronous storage, approximately 100 KB total Sync capacity and 8 KB

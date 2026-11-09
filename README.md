@@ -6,18 +6,21 @@ The extension manages simultaneous named routes (Work, Life and user-created lis
 
 ## Current Release Status
 
-**0.4.2 candidate:** a later signed-in Google Sync acceptance found a P1 in 0.4.1
-for independent offline Work / online Life edits. Do not use 0.4.1 as a mass-rollout
-GO. The [0.4.2 candidate](docs/release-notes-v0.4.2.md) fixes independent pointer
-publication and adds replayable cross-list operations; its final real-Sync gate
-is still pending. No final 0.4.2 release has been published.
+**v0.4.2** fixes the P1 found by real Google Chrome Sync in 0.4.1: independent
+offline Work / online Life changes could arrive but never activate. Work and Life
+now converge independently; cross-list edits carry replayable operation receipts.
 
-The latest GitHub Release, `v0.4.1`, fixes mixed-version Sync compatibility with installed
-0.3.2 clients by isolating named-route data. Chrome Web Store has not been updated; its last
-recorded production version remains `0.3.2`. See [compatibility limits](docs/sync-compatibility.md),
-[release notes](docs/release-notes-v0.4.1.md) and the [verification record](docs/releases/v0.4.1-release-record.md).
-Signed-in Google Sync and Store delivery remain unverified; this is not an unconditional
-approval for a mass Store rollout.
+Acceptance passed 418 automated tests and 57 actual HTTP/SOCKS5/DIRECT network
+assertions in isolated signed-in Chrome profiles, including the original ten-rule
+offline scenario, installed 0.3.2 interoperability and the real toolbar Popup.
+See the [release notes](docs/release-notes-v0.4.2.md),
+[verification record](docs/releases/v0.4.2-release-record.md) and
+[compatibility contract](docs/sync-compatibility.md).
+
+GO for Chrome Web Store submission within that contract. Chrome Web Store has not
+been updated; signed Store update delivery remains **NOT TESTED**. Life requires
+0.4.2 on participating named-route devices. Same-list concurrent snapshots retain
+existing last-writer semantics; this release is not a general lossless CRDT.
 
 The current runtime includes:
 
