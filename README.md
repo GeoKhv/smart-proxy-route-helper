@@ -17,8 +17,9 @@ See the [release notes](docs/release-notes-v0.4.2.md),
 [verification record](docs/releases/v0.4.2-release-record.md) and
 [compatibility contract](docs/sync-compatibility.md).
 
-GO for Chrome Web Store submission within that contract. Chrome Web Store has not
-been updated; signed Store update delivery remains **NOT TESTED**. Life requires
+Chrome Web Store 0.4.2 was submitted for review on 2026-11-09 with **deferred/manual
+publication**. The Dashboard still shows 0.3.2 as published; signed Store update
+delivery remains **NOT TESTED**. See the [submission record](docs/chrome-web-store-update-v0.4.2.md). Life requires
 0.4.2 on participating named-route devices. Same-list concurrent snapshots retain
 existing last-writer semantics; this release is not a general lossless CRDT.
 
@@ -45,7 +46,7 @@ The Smart Proxy Route Helper item is available in Chrome Web Store:
 
 - https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj
 
-Production version `0.3.2` is published in Chrome Web Store.
+Production version `0.3.2` remains published in Chrome Web Store. Update `0.4.2` is awaiting review with automatic publication disabled.
 
 GitHub Release for this update:
 

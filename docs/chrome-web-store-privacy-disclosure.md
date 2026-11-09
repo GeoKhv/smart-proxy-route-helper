@@ -48,7 +48,7 @@ Confirm the Dashboard's three corresponding data-use statements against the actu
 Remote code: **No**. All executable code is packaged with the extension; there is no remote
 PAC, JavaScript, WebAssembly, runtime rule-list fetch or developer-operated backend.
 
-Privacy URL: https://github.com/GeoKhv/smart-proxy-route-helper/blob/main/PRIVACY.md
+Submitted privacy URL: https://github.com/GeoKhv/smart-proxy-route-helper/blob/be2fe24ef08523c32ffc1985ca41917fe490defe/PRIVACY.md
 
 Prepared declarations do not prove the Dashboard was saved or the update submitted.
 Record actual results in the [version-specific Store record](chrome-web-store-update-v0.4.2.md).

@@ -60,5 +60,40 @@ Initial live overview: Smart Proxy Route Helper version 0.3.2, Published to ever
 The main Chrome profile is used only for the authorized Dashboard workflow. Capture/UI
 comparison uses the signed-out disposable profile from the project launcher.
 
-Upload, review submission and deferred-publication result: pending completion; this record
-must be finalized from the actual Dashboard outcome, not inferred from prepared files.
+## Confirmed result — 2026-11-09, approximately 12:29 MSK
+
+**Submitted / awaiting review, with deferred publication.** No owner action remains
+for submission. Approval has not yet been granted.
+
+- The Package page initially showed draft 0.4.0 and published 0.3.2.
+- The exact verified ZIP replaced that draft; parsed version 0.4.2 and unchanged permissions were checked before submission.
+- EN description saved at 5,022 characters; RU description at 5,233. Both are below the 16,000-character limit.
+- The four global screenshots already in the draft were visually identified as the prepared Work/Life set and retained in order. No localized screenshot overrides were present. The original bytes were not edited.
+- Single purpose and all four permission explanations were updated and saved. Existing Browsing history, User activity and Website content categories, the three limited-use certifications, and No remote code were verified and retained.
+- Privacy URL was changed to the immutable [0.4.2 policy](https://github.com/GeoKhv/smart-proxy-route-helper/blob/be2fe24ef08523c32ffc1985ca41917fe490defe/PRIVACY.md), so moderation does not depend on merging product code to main.
+- Reviewer instructions were saved (485/500 characters); no login/password is needed or supplied. EN/RU release notes are in the repository; the consumer descriptions include the 0.4.2 fix and compatibility limits.
+- In the final submission dialog, **Automatically publish after review** was changed from checked to **unchecked**; AX value 0 and the screenshot both confirmed the unchecked state before Submit.
+- Submit completed with the success dialog: item sent for review. It explicitly stated that deferred publication expires 30 days after review.
+- Afterwards the header read **Awaiting review** (Ожидает рассмотрения), Status read **Draft awaiting review** (Черновик ожидает рассмотрения), and Package showed **0.4.2** under draft/review plus **0.3.2** under Published.
+- The submitted package CRX reference is revision **00006**. Upload is disabled while review is pending.
+
+[Dashboard status](https://chrome.google.com/webstore/devconsole/386aa294-1d32-4825-8150-c7f6f92b199e/kidgoemedakjcnbhpccponmpaibfhekj/edit/status)
+· [Package](https://chrome.google.com/webstore/devconsole/386aa294-1d32-4825-8150-c7f6f92b199e/kidgoemedakjcnbhpccponmpaibfhekj/edit/package)
+· [Public Store item](https://chromewebstore.google.com/detail/smart-proxy-route-helper/kidgoemedakjcnbhpccponmpaibfhekj).
+
+No production Publish action or Chrome Web Store API publish was called. Published
+0.3.2 remains the user-facing package. The release ZIP, tag and product source were
+not modified. GitHub documentation was pushed to codex/fix-independent-sync-042;
+main was not merged or changed. The 0.4.2 executable source was already in that
+release branch before this task. Documentation commits use skip-ci messages.
+
+## Remaining limits
+
+Store approval and signed Store update delivery remain unverified. Publishing
+0.4.2 requires a separate owner decision after approval. Under Google's deferred
+publication rules, an approved staged item returns to draft if it is not manually
+published within 30 days; this does not automatically publish it or replace 0.3.2.
+The fourth original screenshot omits the newer Life compatibility helper sentence;
+its shown route and controls remain representative, with the requirement disclosed
+in both listing descriptions and the screenshot reuse record. No pixel-identical
+0.4.2 provenance is claimed for the original 0.4.0 assets.

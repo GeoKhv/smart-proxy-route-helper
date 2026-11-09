@@ -14,8 +14,9 @@ VPN, SOCKS5 server, authentication or CA connectivity.
 4. `04-popup-life-direct.png` — current site's Life DIRECT intent, selected list and browser control.
 
 All four files are PNG, RGB without alpha, **1280×800**. Their checksums are in `SHA256SUMS`. Use these in place of older Options/Popup
-captures whose UI no longer matches 0.4.0. This set is prepared for the existing Store item; it has
-not been uploaded, submitted or published through Developer Dashboard.
+captures whose UI no longer matches 0.4.0. This set was prepared for the existing Store item. On 2026-11-09 these four
+images were already present in its draft, were verified and retained for the 0.4.2
+submission with deferred publication; this does not claim production publication.
 
 ## Capture provenance
 
